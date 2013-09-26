@@ -1,6 +1,4 @@
 /*
- * $Id: renderpipeline.h 35233 2011-02-27 19:31:27Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,17 +30,15 @@
  */
 
 
-#ifndef PIPELINE_H
-#define PIPELINE_H
+#ifndef __RENDERPIPELINE_H__
+#define __RENDERPIPELINE_H__
 
 struct Render;
-struct RenderResult;
 struct RenderLayer;
+struct RenderResult;
 
 struct RenderLayer *render_get_active_layer(struct Render *re, struct RenderResult *rr);
 float panorama_pixel_rot(struct Render *re);
 
-#define PASS_VECTOR_MAX	10000.0f
-
-#endif /* PIPELINE_H */
+#endif /* __RENDERPIPELINE_H__ */
 

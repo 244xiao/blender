@@ -1,45 +1,51 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Copyright (c) 2007 The Zdeno Ash Miklas
+ *
+ * This source file is part of VideoTexture library
+ *
+ * Contributor(s):
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
 /** \file gameengine/VideoTexture/Texture.cpp
  *  \ingroup bgevideotex
  */
-/* $Id: Texture.cpp 35176 2011-02-25 13:39:34Z jesterking $
------------------------------------------------------------------------------
-This source file is part of VideoTexture library
-
-Copyright (c) 2007 The Zdeno Ash Miklas
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
------------------------------------------------------------------------------
-*/
 
 // implementation
 
-#include <PyObjectPlus.h>
+#include "PyObjectPlus.h"
 #include <structmember.h>
 
-#include <KX_GameObject.h>
-#include <RAS_MeshObject.h>
-#include <DNA_mesh_types.h>
-#include <DNA_meshdata_types.h>
-#include <DNA_image_types.h>
-#include <IMB_imbuf_types.h>
-#include <KX_PolygonMaterial.h>
+#include "KX_GameObject.h"
+#include "KX_Light.h"
+#include "RAS_MeshObject.h"
+#include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
+#include "DNA_image_types.h"
+#include "IMB_imbuf_types.h"
+#include "KX_PolygonMaterial.h"
 
-#include <MEM_guardedalloc.h>
+#include "MEM_guardedalloc.h"
 
-#include <KX_BlenderMaterial.h>
-#include <BL_Texture.h>
+#include "KX_BlenderMaterial.h"
+#include "BL_Texture.h"
 
 #include "KX_KetsjiEngine.h"
 #include "KX_PythonInit.h"
@@ -57,12 +63,13 @@ http://www.gnu.org/copyleft/lesser.txt.
 
 
 // Blender GameObject type
-BlendType<KX_GameObject> gameObjectType ("KX_GameObject");
+static BlendType<KX_GameObject> gameObjectType ("KX_GameObject");
+static BlendType<KX_LightObject> lightObjectType ("KX_LightObject");
 
 
 // load texture
-void loadTexture (unsigned int texId, unsigned int * texture, short * size,
-				  bool mipmap)
+void loadTexture(unsigned int texId, unsigned int *texture, short *size,
+                 bool mipmap)
 {
 	// load texture for rendering
 	glBindTexture(GL_TEXTURE_2D, texId);
@@ -104,9 +111,19 @@ RAS_IPolyMaterial * getMaterial (PyObject *obj, short matID)
 	return NULL;
 }
 
+// get pointer to a lamp
+static KX_LightObject *getLamp(PyObject *obj)
+{
+	// if object is available
+	if (obj == NULL) return NULL;
+
+	// returns NULL if obj is not a KX_LightObject
+	return lightObjectType.checkType(obj);
+}
+
 
 // get material ID
-short getMaterialID (PyObject * obj, char * name)
+short getMaterialID(PyObject *obj, const char *name)
 {
 	// search for material
 	for (short matID = 0;; ++matID)
@@ -117,13 +134,12 @@ short getMaterialID (PyObject * obj, char * name)
 		if (mat == NULL) 
 			break;
 		// name is a material name if it starts with MA and a UV texture name if it starts with IM
-		if (name[0] == 'I' && name[1] == 'M')
-		{
+		if (name[0] == 'I' && name[1] == 'M') {
 			// if texture name matches
 			if (strcmp(mat->GetTextureName().ReadPtr(), name) == 0)
 				return matID;
-		} else 
-		{
+		}
+		else {
 			// if material name matches
 			if (strcmp(mat->GetMaterialName().ReadPtr(), name) == 0)
 				return matID;
@@ -135,7 +151,7 @@ short getMaterialID (PyObject * obj, char * name)
 
 
 // Texture object allocation
-PyObject * Texture_new (PyTypeObject *type, PyObject *args, PyObject *kwds)
+static PyObject *Texture_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
 	// allocate object
 	Texture * self = reinterpret_cast<Texture*>(type->tp_alloc(type, 0));
@@ -155,33 +171,33 @@ PyObject * Texture_new (PyTypeObject *type, PyObject *args, PyObject *kwds)
 
 
 // forward declaration
-PyObject * Texture_close(Texture * self);
-int Texture_setSource (Texture * self, PyObject * value, void * closure);
+PyObject *Texture_close(Texture *self);
+int Texture_setSource(Texture *self, PyObject *value, void *closure);
 
 
 // Texture object deallocation
-void Texture_dealloc (Texture * self)
+static void Texture_dealloc(Texture *self)
 {
 	// release renderer
 	Py_XDECREF(self->m_source);
 	// close texture
-	PyObject* ret = Texture_close(self);
+	PyObject *ret = Texture_close(self);
 	Py_DECREF(ret);
 	// release scaled image buffer
 	delete [] self->m_scaledImg;
 	// release object
-	((PyObject *)self)->ob_type->tp_free((PyObject*)self);
+	Py_TYPE((PyObject *)self)->tp_free((PyObject *)self);
 }
 
 
 ExceptionID MaterialNotAvail;
-ExpDesc MaterialNotAvailDesc (MaterialNotAvail, "Texture material is not available");
+ExpDesc MaterialNotAvailDesc(MaterialNotAvail, "Texture material is not available");
 
 // Texture object initialization
-int Texture_init (Texture *self, PyObject *args, PyObject *kwds)
+static int Texture_init(Texture *self, PyObject *args, PyObject *kwds)
 {
 	// parameters - game object with video texture
-	PyObject * obj = NULL;
+	PyObject *obj = NULL;
 	// material ID
 	short matID = 0;
 	// texture ID
@@ -205,6 +221,7 @@ int Texture_init (Texture *self, PyObject *args, PyObject *kwds)
 		{
 			// get pointer to texture image
 			RAS_IPolyMaterial * mat = getMaterial(obj, matID);
+			KX_LightObject * lamp = getLamp(obj);
 			if (mat != NULL)
 			{
 				// is it blender material or polygon material
@@ -226,6 +243,12 @@ int Texture_init (Texture *self, PyObject *args, PyObject *kwds)
 					self->m_useMatTexture = false;
 				}
 			}
+			else if (lamp != NULL)
+			{
+				self->m_imgTexture = lamp->GetTextureImage(texID);
+				self->m_useMatTexture = false;
+			}
+
 			// check if texture is available, if not, initialization failed
 			if (self->m_imgTexture == NULL && self->m_matTexture == NULL)
 				// throw exception if initialization failed
@@ -256,7 +279,7 @@ int Texture_init (Texture *self, PyObject *args, PyObject *kwds)
 
 
 // close added texture
-PyObject * Texture_close(Texture * self)
+PyObject *Texture_close(Texture * self)
 {
 	// restore texture
 	if (self->m_orgSaved)
@@ -279,10 +302,10 @@ PyObject * Texture_close(Texture * self)
 
 
 // refresh texture
-PyObject * Texture_refresh (Texture * self, PyObject * args)
+static PyObject *Texture_refresh(Texture *self, PyObject *args)
 {
 	// get parameter - refresh source
-	PyObject * param;
+	PyObject *param;
 	double ts = -1.0;
 
 	if (!PyArg_ParseTuple(args, "O|d:refresh", &param, &ts) || !PyBool_Check(param))
@@ -328,7 +351,17 @@ PyObject * Texture_refresh (Texture * self, PyObject * args)
 					// get texture size
 					short * orgSize = self->m_source->m_image->getSize();
 					// calc scaled sizes
-					short size[] = {ImageBase::calcSize(orgSize[0]), ImageBase::calcSize(orgSize[1])};
+					short size[2];
+					if (GLEW_ARB_texture_non_power_of_two)
+					{
+						size[0] = orgSize[0];
+						size[1] = orgSize[1];
+					}
+					else
+					{
+						size[0] = ImageBase::calcSize(orgSize[0]);
+						size[1] = ImageBase::calcSize(orgSize[1]);
+					}
 					// scale texture if needed
 					if (size[0] != orgSize[0] || size[1] != orgSize[1])
 					{
@@ -348,7 +381,7 @@ PyObject * Texture_refresh (Texture * self, PyObject * args)
 						texture = self->m_scaledImg;
 					}
 					// load texture for rendering
-					loadTexture (self->m_actTex, texture, size, self->m_mipmap);
+					loadTexture(self->m_actTex, texture, size, self->m_mipmap);
 
 					// refresh texture source, if required
 					if (refreshSource) self->m_source->m_image->refresh();
@@ -361,14 +394,14 @@ PyObject * Texture_refresh (Texture * self, PyObject * args)
 }
 
 // get OpenGL Bind Id
-PyObject * Texture_getBindId (Texture * self, void * closure)
+static PyObject *Texture_getBindId(Texture *self, void *closure)
 {
 	unsigned int id = self->m_actTex;
 	return Py_BuildValue("h", id);
 }
 
 // get mipmap value
-PyObject * Texture_getMipmap (Texture * self, void * closure)
+static PyObject *Texture_getMipmap(Texture *self, void *closure)
 {
 	// return true if flag is set, otherwise false
 	if (self->m_mipmap) Py_RETURN_TRUE;
@@ -376,7 +409,7 @@ PyObject * Texture_getMipmap (Texture * self, void * closure)
 }
 
 // set mipmap value
-int Texture_setMipmap (Texture * self, PyObject * value, void * closure)
+static int Texture_setMipmap(Texture *self, PyObject *value, void *closure)
 {
 	// check parameter, report failure
 	if (value == NULL || !PyBool_Check(value))
@@ -392,7 +425,7 @@ int Texture_setMipmap (Texture * self, PyObject * value, void * closure)
 
 
 // get source object
-PyObject * Texture_getSource (Texture * self, PyObject * value, void * closure)
+static PyObject *Texture_getSource(Texture *self, PyObject *value, void *closure)
 {
 	// if source exists
 	if (self->m_source != NULL)
@@ -406,10 +439,10 @@ PyObject * Texture_getSource (Texture * self, PyObject * value, void * closure)
 
 
 // set source object
-int Texture_setSource (Texture * self, PyObject * value, void * closure)
+int Texture_setSource(Texture *self, PyObject *value, void *closure)
 {
 	// check new value
-	if (value == NULL || !pyImageTypes.in(value->ob_type))
+	if (value == NULL || !pyImageTypes.in(Py_TYPE(value)))
 	{
 		// report value error
 		PyErr_SetString(PyExc_TypeError, "Invalid type of value");

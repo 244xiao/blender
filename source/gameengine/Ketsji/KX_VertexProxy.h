@@ -1,6 +1,4 @@
 /*
- * $Id: KX_VertexProxy.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_VERTEXPROXY
-#define __KX_VERTEXPROXY
+#ifndef __KX_VERTEXPROXY_H__
+#define __KX_VERTEXPROXY_H__
 
 #ifdef WITH_PYTHON
 
@@ -40,7 +38,7 @@
 
 class KX_VertexProxy	: public CValue
 {
-	Py_Header;
+	Py_Header
 protected:
 
 	class RAS_TexVert*	m_vertex;
@@ -50,7 +48,7 @@ public:
 	virtual ~KX_VertexProxy();
 
 	// stuff for cvalue related things
-	CValue*		Calc(VALUE_OPERATOR op, CValue *val) ;
+	CValue*		Calc(VALUE_OPERATOR op, CValue *val);
 	CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 	const STR_String &	GetText();
 	double		GetNumber();
@@ -61,21 +59,22 @@ public:
 
 // stuff for python integration
 
-	static PyObject* pyattr_get_x(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_y(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_z(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_r(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_g(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_b(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_a(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_u(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_v(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_u2(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_v2(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_XYZ(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_UV(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_normal(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_x(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_y(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_z(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_r(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_g(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_b(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_a(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_u(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_v(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_u2(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_v2(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_XYZ(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_UV(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_color(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_normal(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_uvs(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_x(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_y(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_z(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
@@ -91,11 +90,12 @@ public:
 	static int pyattr_set_UV(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_color(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_normal(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_uvs(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	KX_PYMETHOD_NOARGS(KX_VertexProxy,GetXYZ);
 	KX_PYMETHOD_O(KX_VertexProxy,SetXYZ);
-	KX_PYMETHOD_NOARGS(KX_VertexProxy,GetUV);
-	KX_PYMETHOD_O(KX_VertexProxy,SetUV);
+	KX_PYMETHOD_NOARGS(KX_VertexProxy,GetUV1);
+	KX_PYMETHOD_O(KX_VertexProxy,SetUV1);
 	
 	KX_PYMETHOD_NOARGS(KX_VertexProxy,GetUV2);
 	KX_PYMETHOD_VARARGS(KX_VertexProxy,SetUV2);
@@ -107,7 +107,6 @@ public:
 
 };
 
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
-#endif //__KX_VERTEXPROXY
-
+#endif  /* __KX_VERTEXPROXY_H__ */

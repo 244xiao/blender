@@ -1,5 +1,4 @@
 /*
- * $Id: KX_BlenderSystem.cpp 35166 2011-02-25 13:29:48Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -33,9 +32,9 @@
 
 #include "KX_ISystem.h"
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable :4786)
-#endif //WIN32
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)
+#endif
 
 #ifdef WIN32
 #include <windows.h>

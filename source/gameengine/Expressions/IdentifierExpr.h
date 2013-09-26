@@ -1,6 +1,4 @@
 /*
- * $Id: IdentifierExpr.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __IDENTIFIER_EXPR
-#define __IDENTIFIER_EXPR
+#ifndef __IDENTIFIEREXPR_H__
+#define __IDENTIFIEREXPR_H__
 
 #include "Expression.h"
 
@@ -54,11 +52,8 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:CIdentifierExpr"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CIdentifierExpr")
 #endif
 };
 
-#endif //__IDENTIFIER_EXPR
-
+#endif  /* __IDENTIFIEREXPR_H__ */

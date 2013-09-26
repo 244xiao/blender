@@ -1,33 +1,37 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Copyright (c) 2006 The Zdeno Ash Miklas
+ *
+ * This source file is part of VideoTexture library
+ *
+ * Contributor(s):
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
 /** \file gameengine/VideoTexture/Exception.cpp
  *  \ingroup bgevideotex
  */
-/* $Id: Exception.cpp 35176 2011-02-25 13:39:34Z jesterking $
------------------------------------------------------------------------------
-This source file is part of VideoTexture library
-
-Copyright (c) 2006 The Zdeno Ash Miklas
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
------------------------------------------------------------------------------
-*/
-
 
 #include <sstream>
 #include <fstream>
 
-#include <PyObjectPlus.h>
+#include "PyObjectPlus.h"
 
 #include "Exception.h"
 
@@ -36,15 +40,15 @@ http://www.gnu.org/copyleft/lesser.txt.
 ExceptionID ErrGeneral, ErrNotFound;
 
 // exception descriptions
-ExpDesc errGenerDesc (ErrGeneral, "General Error");
-ExpDesc errNFoundDesc (ErrNotFound, "Error description not found");
+ExpDesc errGenerDesc(ErrGeneral, "General Error");
+ExpDesc errNFoundDesc(ErrNotFound, "Error description not found");
 
 
 
 // implementation of ExpDesc
 
 // constructor
-ExpDesc::ExpDesc (ExceptionID & exp, const char * desc, RESULT hres)
+ExpDesc::ExpDesc (ExceptionID & exp, const char *desc, RESULT hres)
 : m_expID(exp), m_hRslt(hres), m_description(desc)
 {
 }
@@ -101,17 +105,17 @@ const char * Exception::what()
 
 
 // debug version - with file and line of exception
-Exception::Exception (ExceptionID & expID, RESULT rslt, const char * fil, int lin)
+Exception::Exception (ExceptionID & expID, RESULT rslt, const char *fil, int lin)
 : m_expID (&expID), m_hRslt (rslt)
 {
 	// set file and line
-	if (strlen(fil) > 0 || lin > 0)
+	if (fil[0] != '\0' || lin > 0)
 		setFileLine (fil, lin);
 }
 
 
 // set file and line
-void Exception::setFileLine (const char * fil, int lin)
+void Exception::setFileLine (const char *fil, int lin)
 {
 	if (fil != NULL) m_fileName = fil;
 	m_line = lin;
@@ -201,20 +205,20 @@ void Exception::copy (const Exception & xpt)
 
 void registerAllExceptions(void)
 {
-    errGenerDesc.registerDesc();
-    errNFoundDesc.registerDesc();
-    MaterialNotAvailDesc.registerDesc();
-    ImageSizesNotMatchDesc.registerDesc();
-    ImageHasExportsDesc.registerDesc();
+	errGenerDesc.registerDesc();
+	errNFoundDesc.registerDesc();
+	MaterialNotAvailDesc.registerDesc();
+	ImageSizesNotMatchDesc.registerDesc();
+	ImageHasExportsDesc.registerDesc();
 	InvalidColorChannelDesc.registerDesc();
-    SceneInvalidDesc.registerDesc();
-    CameraInvalidDesc.registerDesc();
-    ObserverInvalidDesc.registerDesc();
-    MirrorInvalidDesc.registerDesc();
-    MirrorSizeInvalidDesc.registerDesc();
-    MirrorNormalInvalidDesc.registerDesc();
-    MirrorHorizontalDesc.registerDesc();
-    MirrorTooSmallDesc.registerDesc();
-    SourceVideoEmptyDesc.registerDesc();
-    SourceVideoCreationDesc.registerDesc();
+	SceneInvalidDesc.registerDesc();
+	CameraInvalidDesc.registerDesc();
+	ObserverInvalidDesc.registerDesc();
+	MirrorInvalidDesc.registerDesc();
+	MirrorSizeInvalidDesc.registerDesc();
+	MirrorNormalInvalidDesc.registerDesc();
+	MirrorHorizontalDesc.registerDesc();
+	MirrorTooSmallDesc.registerDesc();
+	SourceVideoEmptyDesc.registerDesc();
+	SourceVideoCreationDesc.registerDesc();
 }

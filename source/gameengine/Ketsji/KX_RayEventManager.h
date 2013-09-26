@@ -1,6 +1,4 @@
 /*
- * $Id: KX_RayEventManager.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  *  \brief Manager for ray events
  */
 
-#ifndef __KX_RAYEVENTMGR
-#define __KX_RAYEVENTMGR
+#ifndef __KX_RAYEVENTMANAGER_H__
+#define __KX_RAYEVENTMANAGER_H__
 #include "SCA_EventManager.h"
 #include <vector>
 using namespace std;
@@ -48,11 +46,8 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_RayEventManager"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_RayEventManager")
 #endif
 };
 
-#endif //__KX_RAYEVENTMGR
-
+#endif  /* __KX_RAYEVENTMANAGER_H__ */

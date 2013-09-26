@@ -1,6 +1,4 @@
 /*
- * $Id: BL_ShapeDeformer.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,30 +29,23 @@
  *  \ingroup bgeconv
  */
 
-#ifndef BL_SHAPEDEFORMER
-#define BL_SHAPEDEFORMER
+#ifndef __BL_SHAPEDEFORMER_H__
+#define __BL_SHAPEDEFORMER_H__
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable:4786) // get rid of stupid stl-visual compiler debug warning
-#endif //WIN32
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)  /* get rid of stupid stl-visual compiler debug warning */
+#endif
 
 #include "BL_SkinDeformer.h"
 #include "BL_DeformableGameObject.h"
 #include <vector>
 
-struct IpoCurve;
-
 class BL_ShapeDeformer : public BL_SkinDeformer  
 {
 public:
 	BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
-                     Object *bmeshobj,
-                     RAS_MeshObject *mesh)
-					:	
-						BL_SkinDeformer(gameobj,bmeshobj, mesh),
-						m_lastShapeUpdate(-1)
-	{
-	};
+	                 Object *bmeshobj,
+	                 RAS_MeshObject *mesh);
 
 	/* this second constructor is needed for making a mesh deformable on the fly. */
 	BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
@@ -63,12 +54,7 @@ public:
 					class RAS_MeshObject *mesh,
 					bool release_object,
 					bool recalc_normal,
-					BL_ArmatureObject* arma = NULL)
-					:
-						BL_SkinDeformer(gameobj, bmeshobj_old, bmeshobj_new, mesh, release_object, recalc_normal, arma),
-						m_lastShapeUpdate(-1)
-	{
-	};
+					BL_ArmatureObject* arma = NULL);
 
 	virtual RAS_Deformer *GetReplica();
 	virtual void ProcessReplica();
@@ -78,20 +64,21 @@ public:
 	bool LoadShapeDrivers(Object* arma);
 	bool ExecuteShapeDrivers(void);
 
+	struct Key *GetKey();
+
 	void ForceUpdate()
 	{
 		m_lastShapeUpdate = -1.0;
 	};
 
 protected:
-	vector<IpoCurve*>		 m_shapeDrivers;
-	double					 m_lastShapeUpdate;
+	bool			m_useShapeDrivers;
+	double			m_lastShapeUpdate;
+	struct Key*		m_key;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:BL_ShapeDeformer"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_ShapeDeformer")
 #endif
 };
 

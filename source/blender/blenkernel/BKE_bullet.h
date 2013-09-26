@@ -1,7 +1,4 @@
 /*
- *	
- * $Id: BKE_bullet.h 34962 2011-02-18 13:05:18Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_BULLET_H
-#define BKE_BULLET_H
+#ifndef __BKE_BULLET_H__
+#define __BKE_BULLET_H__
 
 /** \file BKE_bullet.h
  *  \ingroup bke
@@ -41,7 +38,7 @@ struct BulletSoftBody;
 extern struct BulletSoftBody *bsbNew(void);
 
 /* frees internal data and softbody itself */
-extern void	bsbFree(struct BulletSoftBody *sb);
+extern void bsbFree(struct BulletSoftBody *sb);
 
 #endif
 

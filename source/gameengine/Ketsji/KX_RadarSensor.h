@@ -1,6 +1,4 @@
 /*
- * $Id: KX_RadarSensor.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,19 +29,19 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_RADAR_SENSOR_H
-#define __KX_RADAR_SENSOR_H
+#ifndef __KX_RADARSENSOR_H__
+#define __KX_RADARSENSOR_H__
 
 #include "KX_NearSensor.h"
 #include "MT_Point3.h"
 
 /**
-* Radar 'cone' sensor. Very similar to a near-sensor, but instead of a sphere, a cone is used.
-*/
+ * Radar 'cone' sensor. Very similar to a near-sensor, but instead of a sphere, a cone is used.
+ */
 class KX_RadarSensor : public KX_NearSensor
 {
  protected:
-	Py_Header;
+	Py_Header
 		
 	float		m_coneradius;
 
@@ -92,10 +90,11 @@ public:
 		KX_RADAR_AXIS_NEG_Z
 	};
 
-	/* python */
 	virtual sensortype GetSensorType() { return ST_RADAR; }
-
+	/* python */
+#ifdef WITH_PYTHON
+	static PyObject*	pyattr_get_angle(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+#endif
 };
 
-#endif //__KX_RADAR_SENSOR_H
-
+#endif  /* __KX_RADARSENSOR_H__ */

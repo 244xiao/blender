@@ -1,6 +1,4 @@
 /*
- * $Id: KX_ObjectActuator.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  *  \brief Do translation/rotation actions
  */
 
-#ifndef __KX_OBJECTACTUATOR
-#define __KX_OBJECTACTUATOR
+#ifndef __KX_OBJECTACTUATOR_H__
+#define __KX_OBJECTACTUATOR_H__
 
 #include "SCA_IActuator.h"
 #include "MT_Vector3.h"
@@ -56,7 +54,12 @@ struct KX_LocalFlags {
 		LinearVelocity(false),
 		AngularVelocity(false),
 		AddOrSetLinV(false),
+		AddOrSetCharLoc(false),
+		ServoControl(false),
+		CharacterMotion(false),
+		CharacterJump(false),
 		ZeroForce(false),
+		ZeroTorque(false),
 		ZeroDRot(false),
 		ZeroDLoc(false),
 		ZeroLinearVelocity(false),
@@ -71,7 +74,10 @@ struct KX_LocalFlags {
 	bool LinearVelocity;
 	bool AngularVelocity;
 	bool AddOrSetLinV;
+	bool AddOrSetCharLoc;
 	bool ServoControl;
+	bool CharacterMotion;
+	bool CharacterJump;
 	bool ZeroForce;
 	bool ZeroTorque;
 	bool ZeroDRot;
@@ -82,7 +88,7 @@ struct KX_LocalFlags {
 
 class KX_ObjectActuator : public SCA_IActuator
 {
-	Py_Header;
+	Py_Header
 
 	MT_Vector3		m_force;
 	MT_Vector3		m_torque;
@@ -100,7 +106,7 @@ class KX_ObjectActuator : public SCA_IActuator
 	// used in servo control
 	MT_Vector3		m_previous_error;
 	MT_Vector3		m_error_accumulator;
-  	KX_LocalFlags	m_bitLocalFlag;
+	KX_LocalFlags	m_bitLocalFlag;
 	KX_GameObject*  m_reference;
 	// A hack bool -- oh no sorry everyone
 	// This bool is used to check if we have informed 
@@ -144,7 +150,7 @@ public:
 	CValue* GetReplica();
 	void ProcessReplica();
 	bool UnlinkObject(SCA_IObject* clientobj);
-	void Relink(GEN_Map<GEN_HashedPtr, void*> *obj_map);
+	void Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map);
 
 	void SetForceLoc(const double force[3])	{ /*m_force=force;*/ }
 	void UpdateFuzzyFlags()
@@ -220,9 +226,8 @@ public:
 		return 0;
 	}
 
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
 };
 
-#endif //__KX_OBJECTACTUATOR
-
+#endif  /* __KX_OBJECTACTUATOR_H__ */

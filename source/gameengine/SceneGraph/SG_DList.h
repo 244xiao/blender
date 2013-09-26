@@ -1,6 +1,4 @@
 /*
- * $Id: SG_DList.h 35082 2011-02-22 19:30:37Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup bgesg
  */
  
-#ifndef __SG_DLIST
-#define __SG_DLIST
+#ifndef __SG_DLIST_H__
+#define __SG_DLIST_H__
 
 #include <stdlib.h>
 
@@ -134,94 +132,92 @@ public:
 		}
 	};
 
-    SG_DList() 
-    { 
-        m_flink = m_blink = this; 
-    }
+	SG_DList()
+	{
+		m_flink = m_blink = this;
+	}
 	SG_DList(const SG_DList& other)
 	{
-        m_flink = m_blink = this; 
+		m_flink = m_blink = this;
 	}
-    virtual ~SG_DList() 
-    {
+	virtual ~SG_DList()
+	{
 		Delink();
-    }
+	}
 
-    inline bool Empty()               // Check for empty queue
-    {     
-        return ( m_flink == this ); 
-    }
-    bool AddBack( SG_DList *item )  // Add to the back
-    {
+	inline bool Empty()               // Check for empty queue
+	{
+		return ( m_flink == this );
+	}
+	bool AddBack( SG_DList *item )  // Add to the back
+	{
 		if (!item->Empty())
 			return false;
-        item->m_blink = m_blink;
-        item->m_flink = this;
-        m_blink->m_flink = item;
-        m_blink = item;
+		item->m_blink = m_blink;
+		item->m_flink = this;
+		m_blink->m_flink = item;
+		m_blink = item;
 		return true;
-    }
-    bool AddFront( SG_DList *item )  // Add to the back
-    {
+	}
+	bool AddFront( SG_DList *item )  // Add to the back
+	{
 		if (!item->Empty())
 			return false;
-        item->m_flink = m_flink;
-        item->m_blink = this;
-        m_flink->m_blink = item;
-        m_flink = item;
+		item->m_flink = m_flink;
+		item->m_blink = this;
+		m_flink->m_blink = item;
+		m_flink = item;
 		return true;
-    }
-    SG_DList *Remove()           // Remove from the front
-    {
-        if (Empty()) 
-        {
-            return NULL;
-        }
-        SG_DList* item = m_flink;
-        m_flink = item->m_flink;
-        m_flink->m_blink = this;
-        item->m_flink = item->m_blink = item;
-        return item;
-    }
-    bool Delink()             // Remove from the middle
-    {
+	}
+	SG_DList *Remove()           // Remove from the front
+	{
+		if (Empty())
+		{
+			return NULL;
+		}
+		SG_DList* item = m_flink;
+		m_flink = item->m_flink;
+		m_flink->m_blink = this;
+		item->m_flink = item->m_blink = item;
+		return item;
+	}
+	bool Delink()             // Remove from the middle
+	{
 		if (Empty())
 			return false;
 		m_blink->m_flink = m_flink;
 		m_flink->m_blink = m_blink;
 		m_flink = m_blink = this;
 		return true;
-    }
-    inline SG_DList *Peek()			// Look at front without removing
-    { 
-        return m_flink; 
-    }  
-    inline SG_DList *Back()			// Look at front without removing
-    { 
-        return m_blink; 
-    }  
-    inline SG_DList *Self() 
-    { 
-        return this; 
-    }
-    inline const SG_DList *Peek() const			// Look at front without removing
-    { 
-        return (const SG_DList*)m_flink; 
-    }  
-    inline const SG_DList *Back() const			// Look at front without removing
-    { 
-        return (const SG_DList*)m_blink; 
-    }  
-    inline const SG_DList *Self() const 
-    { 
-        return this; 
-    }
+	}
+	inline SG_DList *Peek()			// Look at front without removing
+	{
+		return m_flink;
+	}
+	inline SG_DList *Back()			// Look at front without removing
+	{
+		return m_blink;
+	}
+	inline SG_DList *Self()
+	{
+		return this;
+	}
+	inline const SG_DList *Peek() const			// Look at front without removing
+	{
+		return (const SG_DList*)m_flink;
+	}
+	inline const SG_DList *Back() const			// Look at front without removing
+	{
+		return (const SG_DList*)m_blink;
+	}
+	inline const SG_DList *Self() const
+	{
+		return this;
+	}
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SG_DList"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_DList")
 #endif
 };
 
@@ -245,12 +241,11 @@ public:
 		}
 	}
 	virtual ~SG_DListHead() {}
-    T* Remove()
-    {
+	T* Remove()
+	{
 		return static_cast<T*>(SG_DList::Remove());
-    }
+	}
 
 };
 
-#endif //__SG_DLIST
-
+#endif  /* __SG_DLIST_H__ */

@@ -1,7 +1,4 @@
 /*
- *
- * $Id: DNA_object_fluidsim.h 34941 2011-02-17 20:48:12Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,14 +24,16 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_OBJECT_FLUIDSIM_H
-#define DNA_OBJECT_FLUIDSIM_H
 
 /** \file DNA_object_fluidsim.h
  *  \ingroup DNA
  */
 
+#ifndef __DNA_OBJECT_FLUIDSIM_H__
+#define __DNA_OBJECT_FLUIDSIM_H__
+
 #include "DNA_ID.h"
+#include "DNA_defs.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,20 +41,26 @@ extern "C" {
 	
 struct Mesh;
 struct Ipo;
-struct MVert;
+
+typedef struct FluidVertexVelocity {
+	float vel[3];
+} FluidVertexVelocity;
 	
 typedef struct FluidsimSettings {
 	struct FluidsimModifierData *fmd; /* for fast RNA access */
-	/* domain,fluid or obstacle */
+	/* threadcont the calculation is done with */
+	int threads;
+	int pad1;
+	/* domain, fluid or obstacle */
 	short type;
-	/* display advanced options in fluid sim tab (on=1,off=0)*/
+	/* display advanced options in fluid sim tab (on=1, off=0)*/
 	short show_advancedoptions;
 
 	/* domain object settings */
 	/* resolutions */
 	short resolutionxyz;
 	short previewresxyz;
-	/* size of the domain in real units (meters along largest resolution x,y,z extent) */
+	/* size of the domain in real units (meters along largest resolution x, y, z extent) */
 	float realsize;
 	/* show original meshes, preview or final sim */
 	short guiDisplayMode;
@@ -63,14 +68,17 @@ typedef struct FluidsimSettings {
 
 	/* fluid properties */
 	float viscosityValue;
-	short viscosityMode;
+	short viscosityMode DNA_DEPRECATED;
 	short viscosityExponent;
 	/* gravity strength */
-	float gravx,gravy,gravz;
+	float grav[3];
 	/* anim start end time (in seconds) */
 	float animStart, animEnd;
 	/* bake start end time (in blender frames) */
 	int bakeStart, bakeEnd;
+	/* offset for baked frames */
+	int frameOffset;
+	int pad2;
 	/* g star param (LBM compressibility) */
 	float gstar;
 	/* activate refinement? */
@@ -78,18 +86,16 @@ typedef struct FluidsimSettings {
 	
 	/* fluid object type settings */
 	/* gravity strength */
-	float iniVelx,iniVely,iniVelz;
+	float iniVelx, iniVely, iniVelz;
 
 	/* store pointer to original mesh (for replacing the current one) */
 	struct Mesh *orgMesh;
-	/* pointer to the currently loaded fluidsim mesh */
-	struct Mesh *meshSurface;
 	/* a mesh to display the bounding box used for simulation */
 	struct Mesh *meshBB;
 
 	/* store output path, and file prefix for baked fluid surface */
-	/* strlens; 80= FILE_MAXFILE, 160= FILE_MAXDIR */
-	char surfdataPath[240];
+	/* strlens; 256= FILE_MAXFILE, 768= FILE_MAXDIR */
+	char surfdataPath[1024];
 
 	/* store start coords of axis aligned bounding box together with size */
 	/* values are inited during derived mesh display */
@@ -101,8 +107,8 @@ typedef struct FluidsimSettings {
 	/* additional flags depending on the type, lower short contains flags
 	 * to check validity, higher short additional flags */
 	short typeFlags;
-	/* switch off velocity genration, volume init type for fluid/obstacles (volume=1,shell=2,both=3) */
-	char  domainNovecgen,volumeInitType;
+	/* switch off velocity genration, volume init type for fluid/obstacles (volume=1, shell=2, both=3) */
+	char  domainNovecgen, volumeInitType;
 
 	/* boundary "stickiness" for part slip values */
 	float partSlipValue;
@@ -122,8 +128,10 @@ typedef struct FluidsimSettings {
 	/* testing vars */
 	float farFieldSize;
 
-	/* save fluidsurface normals in mvert.no, and surface vertex velocities (if available) in mvert.co */
-	struct MVert *meshSurfNormals;
+	/* vertex velocities of simulated fluid mesh */
+	struct FluidVertexVelocity *meshVelocities;
+	/* number of vertices in simulated fluid mesh */
+	int totvert;
 	
 	/* Fluid control settings */
 	float cpsTimeStart;
@@ -136,7 +144,9 @@ typedef struct FluidsimSettings {
 	float velocityforceRadius;
 
 	int lastgoodframe;
-
+	
+	/* Simulation/flow rate control (i.e. old "Fac-Time") */
+	float animRate;
 } FluidsimSettings;
 
 /* ob->fluidsimSettings defines */
@@ -156,6 +166,9 @@ typedef struct FluidsimSettings {
 #define OB_FSBND_FREESLIP       (1<<(OB_TYPEFLAG_START+4))
 #define OB_FSINFLOW_LOCALCOORD  (1<<(OB_TYPEFLAG_START+5))
 
+/* surface generation flag (part of enabling chapter 6 of "Free Surface Flows with Moving and Deforming Objects for LBM") */
+#define OB_FSSG_NOOBS			(1<<(OB_TYPEFLAG_START+6))
+
 // guiDisplayMode particle flags
 #define OB_FSDOM_GEOM     1
 #define OB_FSDOM_PREVIEW  2
@@ -170,6 +183,11 @@ typedef struct FluidsimSettings {
 #define OB_FLUIDSIM_REVERSE			(1 << 0)
 #define OB_FLUIDSIM_ACTIVE			(1 << 1)
 #define OB_FLUIDSIM_OVERRIDE_TIME	(1 << 2)
+
+#define OB_FLUIDSIM_SURF_PREVIEW_OBJ_FNAME "fluidsurface_preview_####.bobj.gz"
+#define OB_FLUIDSIM_SURF_FINAL_OBJ_FNAME   "fluidsurface_final_####.bobj.gz"
+#define OB_FLUIDSIM_SURF_FINAL_VEL_FNAME   "fluidsurface_final_####.bvel.gz"
+#define OB_FLUIDSIM_SURF_PARTICLES_FNAME   "fluidsurface_particles_####.gz"
 
 #ifdef __cplusplus
 }

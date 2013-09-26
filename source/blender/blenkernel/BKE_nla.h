@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_nla.h 34962 2011-02-18 13:05:18Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BKE_NLA_H
-#define BKE_NLA_H
+#ifndef __BKE_NLA_H__
+#define __BKE_NLA_H__
 
 /** \file BKE_nla.h
  *  \ingroup bke
@@ -39,6 +37,8 @@ struct AnimData;
 struct NlaStrip;
 struct NlaTrack;
 struct bAction;
+struct Scene;
+struct Speaker;
 
 /* ----------------------------- */
 /* Data Management */
@@ -54,6 +54,7 @@ void copy_nladata(ListBase *dst, ListBase *src);
 struct NlaTrack *add_nlatrack(struct AnimData *adt, struct NlaTrack *prev);
 struct NlaStrip *add_nlastrip(struct bAction *act);
 struct NlaStrip *add_nlastrip_to_stack(struct AnimData *adt, struct bAction *act);
+struct NlaStrip *add_nla_soundstrip(struct Scene *scene, struct Speaker *spk);
 
 /* ----------------------------- */
 /* API */
@@ -113,16 +114,16 @@ void BKE_nla_tweakmode_exit(struct AnimData *adt);
 /* Time Mapping */
 
 /* time mapping conversion modes */
-enum {
-		/* convert from global time to strip time - for evaluation */
+enum eNlaTime_ConvertModes {
+	/* convert from global time to strip time - for evaluation */
 	NLATIME_CONVERT_EVAL = 0,
-		/* convert from global time to strip time - for editing corrections */
-		// XXX old 0 invert
+	/* convert from global time to strip time - for editing corrections */
+	// XXX old 0 invert
 	NLATIME_CONVERT_UNMAP,
-		/* convert from strip time to global time */
-		// xxx old 1 invert
+	/* convert from strip time to global time */
+	// xxx old 1 invert
 	NLATIME_CONVERT_MAP,
-} eNlaTime_ConvertModes;
+};
 
 float BKE_nla_tweakedit_remap(struct AnimData *adt, float cframe, short mode);
 

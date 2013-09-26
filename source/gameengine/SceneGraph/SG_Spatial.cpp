@@ -1,6 +1,4 @@
 /*
- * $Id: SG_Spatial.cpp 35175 2011-02-25 13:39:04Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -96,7 +94,7 @@ SG_Spatial::
 SG_Spatial::
 SetParentRelation(
 	SG_ParentRelation *relation
-){
+) {
 	delete (m_parent_relation);
 	m_parent_relation = relation;
 	SetModified();
@@ -105,22 +103,21 @@ SetParentRelation(
 
 /**
  * Update Spatial Data.
- * Calculates WorldTransform., (either doing itsself or using the linked SGControllers)
+ * Calculates WorldTransform., (either doing its self or using the linked SGControllers)
  */
 
 
-	bool 
+	bool
 SG_Spatial::
 UpdateSpatialData(
-	const SG_Spatial *parent,
-	double time,
-	bool& parentUpdated
-){
-
-    bool bComputesWorldTransform = false;
+	        const SG_Spatial *parent,
+	        double time,
+	        bool& parentUpdated)
+{
+	bool bComputesWorldTransform = false;
 
 	// update spatial controllers
-	
+
 	SGControllerList::iterator cit = GetSGControllerList().begin();
 	SGControllerList::const_iterator c_end = GetSGControllerList().end();
 
@@ -131,7 +128,7 @@ UpdateSpatialData(
 	}
 
 	// If none of the objects updated our values then we ask the
-	// parent_relation object owned by this class to update 
+	// parent_relation object owned by this class to update
 	// our world coordinates.
 
 	if (!bComputesWorldTransform)
@@ -151,19 +148,21 @@ RelativeTranslate(
 	const MT_Vector3& trans,
 	const SG_Spatial *parent,
 	bool local
-){
+) {
 	if (local) {
 			m_localPosition += m_localRotation * trans;
-	} else {
+	}
+	else {
 		if (parent) {
 			m_localPosition += trans * parent->GetWorldOrientation();
-		} else {
+		}
+		else {
 			m_localPosition += trans;
 		}
 	}
 	SetModified();
-}	
-	
+}
+
 
 /**
  * Scaling methods.
@@ -180,7 +179,7 @@ SG_Spatial::
 RelativeRotate(
 	const MT_Matrix3x3& rot,
 	bool local
-){
+) {
 	m_localRotation = m_localRotation * (
 	local ? 
 		rot 

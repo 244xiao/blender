@@ -1,7 +1,6 @@
 /*
  * Do Ipo stuff
  *
- * $Id: KX_IpoActuator.cpp 35171 2011-02-25 13:35:59Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -33,12 +32,7 @@
  *  \ingroup ketsji
  */
 
-
-#if defined (__sgi)
-#include <math.h>
-#else
 #include <cmath>
-#endif
  
 #include "KX_IpoActuator.h"
 #include "KX_GameObject.h"
@@ -188,7 +182,7 @@ bool KX_IpoActuator::Update(double curtime, bool frame)
 			m_bIpoPlaying = true;
 			bIpoStart = true;
 		}
-	}	
+	}
 
 	switch ((IpoActType)m_type)
 	{
@@ -260,7 +254,7 @@ bool KX_IpoActuator::Update(double curtime, bool frame)
 			result = false;
 
 		if (bIpoStart)
-			((KX_GameObject*)GetParent())->InitIPO(m_ipo_as_force, m_ipo_add, m_ipo_local);			
+			((KX_GameObject*)GetParent())->InitIPO(m_ipo_as_force, m_ipo_add, m_ipo_local);
 		((KX_GameObject*)GetParent())->UpdateIPO(m_localtime,m_recurse);
 		break;
 	}
@@ -288,13 +282,13 @@ bool KX_IpoActuator::Update(double curtime, bool frame)
 	}
 	case KX_ACT_IPO_LOOPEND:
 	{
-		if (numevents){
-			if (bNegativeEvent && m_bIpoPlaying){
+		if (numevents) {
+			if (bNegativeEvent && m_bIpoPlaying) {
 				m_bNegativeEvent = true;
 			}
 		}
 		
-		if (bNegativeEvent && !m_bIpoPlaying){
+		if (bNegativeEvent && !m_bIpoPlaying) {
 			result = false;
 		} 
 		else
@@ -303,8 +297,8 @@ bool KX_IpoActuator::Update(double curtime, bool frame)
 			{
 				SetLocalTime(curtime);
 			}
-			else{
-				if (!m_bNegativeEvent){
+			else {
+				if (!m_bNegativeEvent) {
 					/* Perform wraparound */
 					SetLocalTime(curtime);
 					if (start_smaller_then_end > 0.f)
@@ -315,7 +309,7 @@ bool KX_IpoActuator::Update(double curtime, bool frame)
 					bIpoStart = true;
 				}
 				else
-				{	
+				{
 					/* Perform clamping */
 					m_localtime=m_endframe;
 					result = false;
@@ -385,10 +379,11 @@ bool KX_IpoActuator::Update(double curtime, bool frame)
 
 void KX_IpoActuator::ResetStartTime()
 {
-	this->m_starttime = -2.0*fabs(this->m_endframe - this->m_startframe) - 1.0;
+	this->m_starttime = -2.0f * fabsf(this->m_endframe - this->m_startframe) - 1.0f;
 }
 
-int KX_IpoActuator::string2mode(char* modename) {
+int KX_IpoActuator::string2mode(const char *modename)
+{
 	IpoActType res = KX_ACT_IPO_NODEF;
 
 	if (strcmp(modename, S_KX_ACT_IPO_PLAY_STRING)==0) { 
@@ -447,8 +442,8 @@ PyMethodDef KX_IpoActuator::Methods[] = {
 PyAttributeDef KX_IpoActuator::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("frameStart", KX_IpoActuator, pyattr_get_frame_start, pyattr_set_frame_start),
 	KX_PYATTRIBUTE_RW_FUNCTION("frameEnd", KX_IpoActuator, pyattr_get_frame_end, pyattr_set_frame_end),
-	KX_PYATTRIBUTE_STRING_RW("propName", 0, 64, false, KX_IpoActuator, m_propname),
-	KX_PYATTRIBUTE_STRING_RW("framePropName", 0, 64, false, KX_IpoActuator, m_framepropname),
+	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, KX_IpoActuator, m_propname),
+	KX_PYATTRIBUTE_STRING_RW("framePropName", 0, MAX_PROP_NAME, false, KX_IpoActuator, m_framepropname),
 	KX_PYATTRIBUTE_INT_RW("mode", KX_ACT_IPO_NODEF+1, KX_ACT_IPO_MAX-1, true, KX_IpoActuator, m_type),
 	KX_PYATTRIBUTE_BOOL_RW("useIpoAsForce", KX_IpoActuator, m_ipo_as_force),
 	KX_PYATTRIBUTE_BOOL_RW("useIpoAdd", KX_IpoActuator, m_ipo_add),
@@ -458,15 +453,15 @@ PyAttributeDef KX_IpoActuator::Attributes[] = {
 	{ NULL }	//Sentinel
 };
 
-PyObject* KX_IpoActuator::pyattr_get_frame_start(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_IpoActuator::pyattr_get_frame_start(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_IpoActuator* self= static_cast<KX_IpoActuator*>(self_v);
+	KX_IpoActuator* self = static_cast<KX_IpoActuator*>(self_v);
 	return PyFloat_FromDouble(self->m_startframe);
 }
 
 int KX_IpoActuator::pyattr_set_frame_start(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_IpoActuator* self= static_cast<KX_IpoActuator*>(self_v);
+	KX_IpoActuator* self = static_cast<KX_IpoActuator*>(self_v);
 	float param = PyFloat_AsDouble(value);
 
 	if (PyErr_Occurred()) {
@@ -479,15 +474,15 @@ int KX_IpoActuator::pyattr_set_frame_start(void *self_v, const KX_PYATTRIBUTE_DE
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject* KX_IpoActuator::pyattr_get_frame_end(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_IpoActuator::pyattr_get_frame_end(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_IpoActuator* self= static_cast<KX_IpoActuator*>(self_v);
+	KX_IpoActuator* self = static_cast<KX_IpoActuator*>(self_v);
 	return PyFloat_FromDouble(self->m_endframe);
 }
 
 int KX_IpoActuator::pyattr_set_frame_end(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_IpoActuator* self= static_cast<KX_IpoActuator*>(self_v);
+	KX_IpoActuator* self = static_cast<KX_IpoActuator*>(self_v);
 	float param = PyFloat_AsDouble(value);
 
 	if (PyErr_Occurred()) {

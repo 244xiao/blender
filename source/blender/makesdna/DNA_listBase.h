@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_listBase.h 34941 2011-02-17 20:48:12Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -29,36 +27,36 @@
  *
  */
 
-#ifndef DNA_LISTBASE_H
-#define DNA_LISTBASE_H
-
 /** \file DNA_listBase.h
  *  \ingroup DNA
  *  \brief These structs are the foundation for all linked lists in the
  *         library system.
+ *
+ * Doubly-linked lists start from a ListBase and contain elements beginning
+ * with Link.
  */
+
+#ifndef __DNA_LISTBASE_H__
+#define __DNA_LISTBASE_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* generic - all structs which are used in linked-lists used this */
-typedef struct Link
-{
-	struct Link *next,*prev;
+/* generic - all structs which are put into linked lists begin with this */
+typedef struct Link {
+	struct Link *next, *prev;
 } Link;
 
 
-/* use this when it is not worth defining a custom one... */
-typedef struct LinkData
-{
+/* simple subclass of Link--use this when it is not worth defining a custom one... */
+typedef struct LinkData {
 	struct LinkData *next, *prev;
 	void *data;
 } LinkData;
 
 /* never change the size of this! genfile.c detects pointerlen with it */
-typedef struct ListBase 
-{
+typedef struct ListBase  {
 	void *first, *last;
 } ListBase;
 

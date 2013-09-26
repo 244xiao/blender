@@ -1,6 +1,4 @@
 /*
- * $Id: depsgraph_private.h 35247 2011-02-27 20:40:57Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -29,16 +27,34 @@
  *  \ingroup bke
  */
 
-#ifndef DEPSGRAPH_PRIVATE
-#define DEPSGRAPH_PRIVATE
+#ifndef __DEPSGRAPH_PRIVATE_H__
+#define __DEPSGRAPH_PRIVATE_H__
 
 #include "BKE_depsgraph.h"
 #include "DNA_constraint_types.h"
 #include "BKE_constraint.h"
 
+/* **** DAG relation types *** */
 
-#define DEPSX	5.0f
-#define DEPSY	1.8f
+/* scene link to object */
+#define DAG_RL_SCENE        (1 << 0)
+/* object link to data */
+#define DAG_RL_DATA         (1 << 1)
+
+/* object changes object (parent, track, constraints) */
+#define DAG_RL_OB_OB        (1 << 2)
+/* object changes obdata (hooks, constraints) */
+#define DAG_RL_OB_DATA      (1 << 3)
+/* data changes object (vertex parent) */
+#define DAG_RL_DATA_OB      (1 << 4)
+/* data changes data (deformers) */
+#define DAG_RL_DATA_DATA    (1 << 5)
+
+#define DAG_NO_RELATION     (1 << 6)
+
+#define DAG_RL_ALL_BUT_DATA (DAG_RL_SCENE | DAG_RL_OB_OB | DAG_RL_OB_DATA | DAG_RL_DATA_OB | DAG_RL_DATA_DATA)
+#define DAG_RL_ALL          (DAG_RL_ALL_BUT_DATA | DAG_RL_DATA)
+
 
 #define DAGQUEUEALLOC 50
 
@@ -48,34 +64,31 @@ enum {
 	DAG_BLACK = 2
 };
 
-
-
-typedef struct DagAdjList
-{
+typedef struct DagAdjList {
 	struct DagNode *node;
 	short type;
-	int count;			// number of identical arcs
+	int count;  /* number of identical arcs */
 	unsigned int lay;   // for flushing redraw/rebuild events
 	const char *name;
 	struct DagAdjList *next;
 } DagAdjList;
 
 
-typedef struct DagNode 
-{
+typedef struct DagNode {
 	int color;
 	short type;
-	float x, y, k;	
-	void * ob;
-	void * first_ancestor;
+	float x, y, k;
+	void *ob;
+	void *first_ancestor;
 	int ancestor_count;
-	unsigned int lay;			// accumulated layers of its relations + itself
-	unsigned int scelay;			// layers due to being in scene
-	int lasttime;		// if lasttime != DagForest->time, this node was not evaluated yet for flushing
-	int BFS_dist;		// BFS distance
-	int DFS_dist;		// DFS distance
-	int DFS_dvtm;		// DFS discovery time
-	int DFS_fntm;		// DFS Finishing time
+	unsigned int lay;               /* accumulated layers of its relations + itself */
+	unsigned int scelay;            /* layers due to being in scene */
+	uint64_t customdata_mask;       /* customdata mask */
+	int lasttime;       /* if lasttime != DagForest->time, this node was not evaluated yet for flushing */
+	int BFS_dist;       /* BFS distance */
+	int DFS_dist;       /* DFS distance */
+	int DFS_dvtm;       /* DFS discovery time */
+	int DFS_fntm;       /* DFS Finishing time */
 	struct DagAdjList *child;
 	struct DagAdjList *parent;
 	struct DagNode *next;
@@ -86,8 +99,7 @@ typedef struct DagNodeQueueElem {
 	struct DagNodeQueueElem *next;
 } DagNodeQueueElem;
 
-typedef struct DagNodeQueue
-{
+typedef struct DagNodeQueue {
 	DagNodeQueueElem *first;
 	DagNodeQueueElem *last;
 	int count;
@@ -96,43 +108,36 @@ typedef struct DagNodeQueue
 } DagNodeQueue;
 
 // forest as we may have more than one DAG unnconected
-typedef struct DagForest 
-{
+typedef struct DagForest {
 	ListBase DagNode;
 	struct GHash *nodeHash;
 	int numNodes;
 	int is_acyclic;
-	int time;		// for flushing/tagging, compare with node->lasttime
+	int time;  /* for flushing/tagging, compare with node->lasttime */
 } DagForest;
 
 
 // queue operations
-DagNodeQueue * queue_create (int slots);
+DagNodeQueue *queue_create(int slots);
 void queue_raz(DagNodeQueue *queue);
 void push_queue(DagNodeQueue *queue, DagNode *node);
 void push_stack(DagNodeQueue *queue, DagNode *node);
-DagNode * pop_queue(DagNodeQueue *queue);
-DagNode * get_top_node_queue(DagNodeQueue *queue);
+DagNode *pop_queue(DagNodeQueue *queue);
+DagNode *get_top_node_queue(DagNodeQueue *queue);
+void queue_delete(DagNodeQueue *queue);
 
 // Dag management
-DagForest *getMainDag(void);
-void setMainDag(DagForest *dag);
-DagForest * dag_init(void);
-DagNode * dag_find_node (DagForest *forest,void * fob);
-DagNode * dag_add_node (DagForest *forest,void * fob);
-DagNode * dag_get_node (DagForest *forest,void * fob);
-DagNode * dag_get_sub_node (DagForest *forest,void * fob);
+DagForest *dag_init(void);
+DagForest *build_dag(struct Main *bmain, struct Scene *sce, short mask);
+void free_forest(struct DagForest *Dag);
+DagNode *dag_find_node(DagForest *forest, void *fob);
+DagNode *dag_add_node(DagForest *forest, void *fob);
+DagNode *dag_get_node(DagForest *forest, void *fob);
+DagNode *dag_get_sub_node(DagForest *forest, void *fob);
 void dag_add_relation(DagForest *forest, DagNode *fob1, DagNode *fob2, short rel, const char *name);
 
-void graph_bfs(void);
-
-DagNodeQueue * graph_dfs(void);
-
-void set_node_xy(DagNode *node, float x, float y);
 void graph_print_queue(DagNodeQueue *nqueue);
 void graph_print_queue_dist(DagNodeQueue *nqueue);
-void graph_print_adj_list(void);
+void graph_print_adj_list(DagForest *dag);
 
-int build_deps(short mask);
-
-#endif
+#endif /* __DEPSGRAPH_PRIVATE_H__ */

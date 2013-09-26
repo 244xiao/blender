@@ -1,6 +1,4 @@
 /*
- * $Id: BL_ArmatureObject.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef BL_ARMATUREOBJECT
-#define BL_ARMATUREOBJECT
+#ifndef __BL_ARMATUREOBJECT_H__
+#define __BL_ARMATUREOBJECT_H__
 
 #include "KX_GameObject.h"
 #include "BL_ArmatureConstraint.h"
@@ -53,14 +51,14 @@ class KX_BlenderSceneConverter;
 
 class BL_ArmatureObject : public KX_GameObject  
 {
-	Py_Header;
+	Py_Header
 public:
 
 	double GetLastFrame ();
 	short GetActivePriority();
 	virtual void ProcessReplica();
 	virtual void ReParentLogic();
-	virtual void Relink(GEN_Map<GEN_HashedPtr, void*> *obj_map);
+	virtual void Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map);
 	virtual bool UnlinkObject(SCA_IObject* clientobj);
 
 	class BL_ActionActuator * GetActiveAction();
@@ -69,7 +67,8 @@ public:
 		void* sgReplicationInfo,
 		SG_Callbacks callbacks,
 		Object *armature,
-		Scene *scene
+		Scene *scene,
+		int vert_deform_type
 	);
 	virtual ~BL_ArmatureObject();
 
@@ -84,11 +83,13 @@ public:
 
 	bool SetActiveAction(class BL_ActionActuator *act, short priority, double curtime);
 	
-	struct bArmature * GetArmature() { return m_armature; }
+	struct bArmature *GetArmature() { return m_armature; }
 	const struct bArmature * GetArmature() const { return m_armature; }
 	const struct Scene * GetScene() const { return m_scene; }
 	
 	Object* GetArmatureObject() {return m_objArma;}
+
+	int GetVertDeformType() {return m_vert_deform_type;}
 
 	// for constraint python API
 	void LoadConstraints(KX_BlenderSceneConverter* converter);
@@ -115,11 +116,11 @@ public:
 #ifdef WITH_PYTHON
 
 	// PYTHON
-	static PyObject* pyattr_get_constraints(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_channels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_constraints(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_channels(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	KX_PYMETHOD_DOC_NOARGS(BL_ArmatureObject, update);
 
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
 protected:
 	/* list element: BL_ArmatureConstraint. Use SG_DListHead to have automatic list replication */
@@ -131,11 +132,12 @@ protected:
 	struct bPose		*m_pose;
 	struct bPose		*m_armpose;
 	struct bPose		*m_framePose;
-	struct Scene		*m_scene; // need for where_is_pose 
+	struct Scene		*m_scene; // need for BKE_pose_where_is 
 	double	m_lastframe;
 	double  m_timestep;		// delta since last pose evaluation.
 	class BL_ActionActuator *m_activeAct;
 	short	m_activePriority;
+	int		m_vert_deform_type;
 	size_t  m_constraintNumber;
 	size_t  m_channelNumber;
 	// store the original armature object matrix
@@ -150,6 +152,4 @@ void game_blend_poses(struct bPose *dst, struct bPose *src, float srcweight/*, s
 void game_copy_pose(struct bPose **dst, struct bPose *src, int copy_con);
 void game_free_pose(struct bPose *pose);
 
-
-#endif
-
+#endif  /* __BL_ARMATUREOBJECT_H__ */

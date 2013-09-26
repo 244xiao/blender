@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_IActuator.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __KX_IACTUATOR
-#define __KX_IACTUATOR
+#ifndef __SCA_IACTUATOR_H__
+#define __SCA_IACTUATOR_H__
 
 #include "SCA_IController.h"
 #include <vector>
@@ -90,6 +88,7 @@ public:
 		KX_ACT_SHAPEACTION,
 		KX_ACT_STATE,
 		KX_ACT_ARMATURE,
+		KX_ACT_STEERING,
 	};
 
 	SCA_IActuator(SCA_IObject* gameobj, KX_ACTUATOR_TYPE type); 
@@ -132,7 +131,7 @@ public:
 	virtual void ProcessReplica();
 
 	/** 
-	 * Return true iff all the current events 
+	 * Return true if all the current events
 	 * are negative. The definition of negative event is
 	 * not immediately clear. But usually refers to key-up events
 	 * or events where no action is required.
@@ -161,11 +160,8 @@ public:
 	bool IsType(KX_ACTUATOR_TYPE type) { return m_type == type; }
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SCA_IActuator"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_IActuator")
 #endif
 };
 
-#endif //__KX_IACTUATOR
-
+#endif  /* __SCA_IACTUATOR_H__ */

@@ -1,6 +1,4 @@
 /*
- * $Id: MaterialExporter.cpp 35262 2011-02-28 14:24:52Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -33,23 +31,46 @@
 #include "COLLADABUUtils.h"
 #include "collada_internal.h"
 
-MaterialsExporter::MaterialsExporter(COLLADASW::StreamWriter *sw): COLLADASW::LibraryMaterials(sw){}
+MaterialsExporter::MaterialsExporter(COLLADASW::StreamWriter *sw, const ExportSettings *export_settings) : COLLADASW::LibraryMaterials(sw), export_settings(export_settings)
+{
+	/* pass */
+}
 
 void MaterialsExporter::exportMaterials(Scene *sce)
 {
-	openLibrary();
+	if (hasMaterials(sce)) {
+		openLibrary();
 
-	MaterialFunctor mf;
-	mf.forEachMaterialInScene<MaterialsExporter>(sce, *this);
+		MaterialFunctor mf;
+		mf.forEachMaterialInExportSet<MaterialsExporter>(sce, *this, this->export_settings->export_set);
 
-	closeLibrary();
+		closeLibrary();
+	}
+}
+
+bool MaterialsExporter::hasMaterials(Scene *sce)
+{
+	LinkNode *node;
+	for (node=this->export_settings->export_set; node; node = node->next) {
+		Object *ob = (Object *)node->link;
+		int a;
+		for (a = 0; a < ob->totcol; a++) {
+			Material *ma = give_current_material(ob, a + 1);
+
+			// no material, but check all of the slots
+			if (!ma) continue;
+
+			return true;
+		}
+	}
+	return false;
 }
 
 void MaterialsExporter::operator()(Material *ma, Object *ob)
 {
 	std::string name(id_name(ma));
 
-	openMaterial(get_material_id(ma), name);
+	openMaterial(get_material_id(ma), translate_id(name));
 
 	std::string efid = translate_id(name) + "-effect";
 	addInstanceEffect(COLLADASW::URI(COLLADABU::Utils::EMPTY_STRING, efid));

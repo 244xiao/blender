@@ -1,5 +1,4 @@
 /*
- * $Id: SG_Node.cpp 35175 2011-02-25 13:39:04Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -79,7 +78,7 @@ SG_Node* SG_Node::GetSGReplica()
 SG_Node::
 ProcessSGReplica(
 	SG_Node** replica
-){
+) {
 	// Apply the replication call back function.
 	if (!ActivateReplicationCallback(*replica)) 
 	{
@@ -128,9 +127,9 @@ Destruct()
 	// We'll delete m_parent_relation now anyway.
 	
 	delete(m_parent_relation);
-	m_parent_relation = NULL;		
+	m_parent_relation = NULL;
 
- 	if (m_children.begin() != m_children.end())
+	if (m_children.begin() != m_children.end())
 	{
 		NodeList::iterator childit;
 		for (childit = m_children.begin();childit!=m_children.end();++childit)
@@ -144,7 +143,7 @@ Destruct()
 }
 
 const 
-	SG_Node*	
+	SG_Node *
 SG_Node::
 GetRootSGParent(
 ) const {
@@ -160,7 +159,7 @@ bool SG_Node::IsAncessor(const SG_Node* child) const
 	void 
 SG_Node::
 DisconnectFromParent(
-){
+) {
 	if (m_SGparent)
 	{
 		m_SGparent->RemoveChild(this);

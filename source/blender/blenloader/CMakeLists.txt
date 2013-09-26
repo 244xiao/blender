@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 34486 2011-01-25 14:43:13Z campbellbarton $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -26,32 +25,44 @@
 
 set(INC 
 	.
-	../blenlib
+	../blenfont
 	../blenkernel
+	../blenlib
+	../imbuf
 	../makesdna
-	../readblenfile
 	../makesrna
+	../nodes
 	../render/extern/include
 	../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${ZLIB_INCLUDE_DIRS}
 )
 
 set(SRC
 	intern/readblenentry.c
 	intern/readfile.c
+	intern/runtime.c
 	intern/undofile.c
+	intern/versioning_250.c
+	intern/versioning_legacy.c
 	intern/writefile.c
 
+	BLO_blend_defs.h
 	BLO_readfile.h
-	BLO_soundfile.h
-	BLO_sys_types.h
+	BLO_runtime.h
 	BLO_undofile.h
 	BLO_writefile.h
 	intern/readfile.h
 )
 
 if(WITH_BUILDINFO)
-	add_definitions(-DNAN_BUILDINFO)
+	add_definitions(-DWITH_BUILDINFO)
 endif()
 
-blender_add_lib(bf_blenloader "${SRC}" "${INC}")
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+blender_add_lib(bf_blenloader "${SRC}" "${INC}" "${INC_SYS}")

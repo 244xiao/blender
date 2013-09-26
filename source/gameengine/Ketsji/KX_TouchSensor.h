@@ -1,6 +1,4 @@
 /*
- * $Id: KX_TouchSensor.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  *  \brief Senses touch and collision events
  */
 
-#ifndef __KX_TOUCHSENSOR
-#define __KX_TOUCHSENSOR
+#ifndef __KX_TOUCHSENSOR_H__
+#define __KX_TOUCHSENSOR_H__
 
 #include "SCA_ISensor.h"
 #include "ListValue.h"
@@ -53,12 +51,12 @@ class KX_TouchEventManager;
 class KX_TouchSensor : public SCA_ISensor
 {
 protected:
-	Py_Header;
+	Py_Header
 
 	/**
 	 * The sensor should only look for objects with this property.
 	 */
-	STR_String				m_touchedpropname;	
+	STR_String				m_touchedpropname;
 	bool					m_bFindMaterial;
 	bool					m_bTouchPulse;		/* changes in the colliding objects trigger pulses */
 	
@@ -70,7 +68,7 @@ protected:
 
 	// Use with m_bTouchPulse to detect changes
 	int						m_bLastCount;		/* size of m_colliders last tick */
-	uint_ptr				m_bColliderHash;	/* hash collision objects pointers to trigger incase one object collides and another takes its place */
+	uint_ptr				m_bColliderHash;	/* hash collision objects pointers to trigger in case one object collides and another takes its place */
 	uint_ptr				m_bLastColliderHash;
 
 	SCA_IObject*		    m_hitObject;
@@ -81,7 +79,7 @@ public:
 		class KX_GameObject* gameobj,
 		bool bFindMaterial,
 		bool bTouchPulse,
-		const STR_String& touchedpropname) ;
+		const STR_String& touchedpropname);
 	virtual ~KX_TouchSensor();
 
 	virtual CValue* GetReplica();
@@ -95,8 +93,10 @@ public:
 	virtual void UnregisterSumo(KX_TouchEventManager* touchman);
 	virtual void UnregisterToManager();
 
-//	virtual DT_Bool HandleCollision(void* obj1,void* obj2,
-//						 const DT_CollData * coll_data); 
+#if 0
+	virtual DT_Bool HandleCollision(void* obj1,void* obj2,
+	                                const DT_CollData * coll_data);
+#endif
 
 	virtual bool	NewHandleCollision(void*obj1,void*obj2,const PHY_CollData* colldata);
 
@@ -134,5 +134,4 @@ public:
 	
 };
 
-#endif //__KX_TOUCHSENSOR
-
+#endif  /* __KX_TOUCHSENSOR_H__ */

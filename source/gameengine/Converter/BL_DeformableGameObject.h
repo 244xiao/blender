@@ -1,6 +1,4 @@
 /*
- * $Id: BL_DeformableGameObject.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,12 +29,12 @@
  *  \ingroup bgeconv
  */
 
-#ifndef BL_DEFORMABLEGAMEOBJECT
-#define BL_DEFORMABLEGAMEOBJECT
+#ifndef __BL_DEFORMABLEGAMEOBJECT_H__
+#define __BL_DEFORMABLEGAMEOBJECT_H__
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable:4786) // get rid of stupid stl-visual compiler debug warning
-#endif //WIN32
+#ifdef _MSC_VER
+#  pragma warning (disable:4786) // get rid of stupid stl-visual compiler debug warning
+#endif
 
 #include "DNA_mesh_types.h"
 #include "KX_GameObject.h"
@@ -60,7 +58,7 @@ public:
 	{
 		return m_blendobj;
 	}
-	virtual void Relink(GEN_Map<GEN_HashedPtr, void*>*map)
+	virtual void Relink(CTR_Map<CTR_HashedPtr, void*>*map)
 	{
 		if (m_pDeformer)
 			m_pDeformer->Relink (map);
@@ -72,7 +70,7 @@ public:
 		KX_GameObject(sgReplicationInfo,callbacks),
 		m_pDeformer(NULL),
 		m_activeAct(NULL),
-		m_lastframe(0.),
+		m_lastframe(0.0),
 		m_blendobj(blendobj),
 		m_activePriority(9999)
 	{
@@ -82,23 +80,6 @@ public:
 	bool SetActiveAction(class BL_ShapeActionActuator *act, short priority, double curtime);
 
 	bool GetShape(vector<float> &shape);
-	Key* GetKey()
-	{
-		if(m_pDeformer) {
-			BL_MeshDeformer *deformer= dynamic_cast<BL_MeshDeformer *>(m_pDeformer); // incase its not a MeshDeformer
-			if(deformer) {
-				return deformer->GetMesh()->key;
-			}
-
-#if 0		// TODO. shape keys for softbody, currently they dont store a mesh.
-			KX_SoftBodyDeformer *deformer_soft= dynamic_cast<KX_SoftBodyDeformer *>(m_pDeformer);	
-			if(deformer) {
-				return deformer->GetMesh()->key;
-			}
-#endif
-		}
-		return NULL;
-	}
 	
 	virtual void	SetDeformer(class RAS_Deformer* deformer);
 	virtual class RAS_Deformer* GetDeformer()
@@ -108,7 +89,7 @@ public:
 
 public:
 	
-protected:	
+protected:
 	
 	RAS_Deformer		*m_pDeformer;
 
@@ -119,11 +100,8 @@ protected:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:BL_DeformableGameObject"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_DeformableGameObject")
 #endif
 };
 
-#endif
-
+#endif  /* __BL_DEFORMABLEGAMEOBJECT_H__ */

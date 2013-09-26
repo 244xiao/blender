@@ -1,6 +1,4 @@
 /*
- * $Id: KX_LightIpoSGController.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef KX_LIGHTIPOSGCONTROLLER_H
-#define KX_LIGHTIPOSGCONTROLLER_H
+#ifndef __KX_LIGHTIPOSGCONTROLLER_H__
+#define __KX_LIGHTIPOSGCONTROLLER_H__
 
 #include "SG_Controller.h"
 #include "SG_Spatial.h"
@@ -76,15 +74,15 @@ public:
 		m_modified = true;
 	}
 
-	void	SetModifyEnergy(bool modify) {	
+	void	SetModifyEnergy(bool modify) {
 		m_modify_energy = modify;
 	}
 
-	void	SetModifyColor(bool modify) {	
+	void	SetModifyColor(bool modify) {
 		m_modify_color = modify;
 	}
 
-	void	SetModifyDist(bool modify) {	
+	void	SetModifyDist(bool modify) {
 		m_modify_dist = modify;
 	}
 
@@ -92,7 +90,7 @@ public:
 	SetOption(
 		int option,
 		int value
-	){
+	) {
 		// intentionally empty
 	};
 
@@ -100,11 +98,8 @@ public:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_LightIpoSGController"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_LightIpoSGController")
 #endif
 };
 
-#endif // KX_LIGHTIPOSGCONTROLLER_H
-
+#endif  /* __KX_LIGHTIPOSGCONTROLLER_H__ */

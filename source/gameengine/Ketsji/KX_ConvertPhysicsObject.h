@@ -1,6 +1,4 @@
 /*
- * $Id: KX_ConvertPhysicsObject.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef KX_CONVERTPHYSICSOBJECTS
-#define KX_CONVERTPHYSICSOBJECTS
+#ifndef __KX_CONVERTPHYSICSOBJECT_H__
+#define __KX_CONVERTPHYSICSOBJECT_H__
 
 class RAS_MeshObject;
 class KX_Scene;
@@ -74,6 +72,7 @@ struct KX_ObjectProperties
 	class KX_GameObject*	m_dynamic_parent;
 	bool	m_isactor;
 	bool	m_sensor;
+	bool	m_character;
 	bool	m_concave;
 	bool	m_isdeformable;
 	bool	m_disableSleeping;
@@ -146,7 +145,7 @@ void	KX_ConvertDynamoObject(KX_GameObject* gameobj,
 	struct	KX_ObjectProperties*	objprop);
 
 
-#ifdef USE_BULLET
+#ifdef WITH_BULLET
 
 void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 	class	RAS_MeshObject* meshobj,
@@ -160,4 +159,4 @@ void	KX_ClearBulletSharedShapes();
 bool KX_ReInstanceBulletShapeFromMesh(KX_GameObject *gameobj, KX_GameObject *from_gameobj, RAS_MeshObject* from_meshobj);
 
 #endif
-#endif //KX_CONVERTPHYSICSOBJECTS
+#endif  /* __KX_CONVERTPHYSICSOBJECT_H__ */

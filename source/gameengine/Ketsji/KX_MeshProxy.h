@@ -1,6 +1,4 @@
 /*
- * $Id: KX_MeshProxy.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,19 +29,19 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_MESHPROXY
-#define __KX_MESHPROXY
+#ifndef __KX_MESHPROXY_H__
+#define __KX_MESHPROXY_H__
 
 #ifdef WITH_PYTHON
 
 #include "SCA_IObject.h"
 
 /* utility conversion function */
-bool ConvertPythonToMesh(PyObject * value, class RAS_MeshObject **object, bool py_none_ok, const char *error_prefix);
+bool ConvertPythonToMesh(PyObject *value, class RAS_MeshObject **object, bool py_none_ok, const char *error_prefix);
 
 class KX_MeshProxy	: public CValue
 {
-	Py_Header;
+	Py_Header
 
 	class RAS_MeshObject*	m_meshobj;
 public:
@@ -53,7 +51,7 @@ public:
 	void SetMeshModified(bool v);
 
 	// stuff for cvalue related things
-	virtual CValue*		Calc(VALUE_OPERATOR op, CValue *val) ;
+	virtual CValue*		Calc(VALUE_OPERATOR op, CValue *val);
 	virtual CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 	virtual const STR_String &	GetText();
 	virtual double		GetNumber();
@@ -73,13 +71,14 @@ public:
 	KX_PYMETHOD(KX_MeshProxy,GetVertexArrayLength);
 	KX_PYMETHOD(KX_MeshProxy,GetVertex);
 	KX_PYMETHOD(KX_MeshProxy,GetPolygon);
+	KX_PYMETHOD(KX_MeshProxy,Transform);
+	KX_PYMETHOD(KX_MeshProxy,TransformUV);
 	
-	static PyObject*	pyattr_get_materials(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject * pyattr_get_numMaterials(void * self, const KX_PYATTRIBUTE_DEF * attrdef);
-	static PyObject * pyattr_get_numPolygons(void * self, const KX_PYATTRIBUTE_DEF * attrdef);
+	static PyObject *pyattr_get_materials(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_numMaterials(void *self, const KX_PYATTRIBUTE_DEF * attrdef);
+	static PyObject *pyattr_get_numPolygons(void *self, const KX_PYATTRIBUTE_DEF * attrdef);
 };
 
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
-#endif //__KX_MESHPROXY
-
+#endif  /* __KX_MESHPROXY_H__ */

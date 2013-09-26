@@ -1,6 +1,4 @@
 /*
- * $Id: KX_Python.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup expressions
  */
 
-#ifndef KX_PYTHON_H
-#define KX_PYTHON_H
+#ifndef __KX_PYTHON_H__
+#define __KX_PYTHON_H__
 
 //#define USE_DL_EXPORT
 
@@ -81,5 +79,4 @@
 #undef toupper
 #endif
 
-#endif // KX_PYTHON_H
-
+#endif  /* __KX_PYTHON_H__ */

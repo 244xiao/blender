@@ -1,6 +1,4 @@
 /*
- * $Id: BlenderWorldInfo.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BLENDERWORLDINFO_H
-#define __BLENDERWORLDINFO_H
+#ifndef __BLENDERWORLDINFO_H__
+#define __BLENDERWORLDINFO_H__
 #include "MT_CmMatrix4x4.h"
 #include "KX_WorldInfo.h"
 #include "KX_BlenderGL.h"
@@ -54,59 +52,56 @@ public:
 	~BlenderWorldInfo();
 
 	bool	hasWorld();
-    bool	hasMist();
-    float	getBackColorRed();
-    float	getBackColorGreen();
-    float	getBackColorBlue();
+	bool	hasMist();
+	float	getBackColorRed();
+	float	getBackColorGreen();
+	float	getBackColorBlue();
 	
 	float	getAmbientColorRed();
 	float	getAmbientColorGreen();
 	float	getAmbientColorBlue();
 
-    float	getMistStart();
-    float	getMistDistance();
-    float	getMistColorRed();
-    float	getMistColorGreen();
-    float	getMistColorBlue();     
+	float	getMistStart();
+	float	getMistDistance();
+	float	getMistColorRed();
+	float	getMistColorGreen();
+	float	getMistColorBlue();
 
-		void
+	void
 	setBackColor(
 		float r,
 		float g,
 		float b
 	);
-		void	
+		void
 	setMistStart(
 		float d
 	);
 
-		void	
+		void
 	setMistDistance(
 		float d
 	);
 
-		void	
+		void
 	setMistColorRed(
 		float d
 	);
 
-		void	
+		void
 	setMistColorGreen(
 		float d
 	);
 
-		void	
+		void
 	setMistColorBlue(
 		float d
 	);   
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:BlenderWorldInfo"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BlenderWorldInfo")
 #endif
 };
 
-#endif //__BLENDERWORLDINFO_H
-
+#endif  /* __BLENDERWORLDINFO_H__ */

@@ -1,6 +1,4 @@
 /*
- * $Id: EffectExporter.h 35705 2011-03-22 15:28:56Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -43,10 +41,12 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "ExportSettings.h"
+
 class EffectsExporter: COLLADASW::LibraryEffects
 {
 public:
-	EffectsExporter(COLLADASW::StreamWriter *sw);
+	EffectsExporter(COLLADASW::StreamWriter *sw, const ExportSettings *export_settings);
 	void exportEffects(Scene *sce);
 
 	void operator()(Material *ma, Object *ob);
@@ -64,8 +64,17 @@ private:
 	void writeBlinn(COLLADASW::EffectProfile &ep, Material *ma);
 	void writeLambert(COLLADASW::EffectProfile &ep, Material *ma);
 	void writePhong(COLLADASW::EffectProfile &ep, Material *ma);
-	
+	void writeTextures(COLLADASW::EffectProfile &ep,
+			std::string &key,
+			COLLADASW::Sampler *sampler, 
+			MTex *t, Image *ima,
+			std::string &uvname );
+
 	bool hasEffects(Scene *sce);
+	
+	const ExportSettings *export_settings;
+	
+	Scene *scene;
 };
 
 #endif

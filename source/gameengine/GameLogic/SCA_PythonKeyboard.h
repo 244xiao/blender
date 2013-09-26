@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_PythonKeyboard.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,18 +24,18 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __KX_PYKEYBOARD
-#define __KX_PYKEYBOARD
+#ifndef __SCA_PYTHONKEYBOARD_H__
+#define __SCA_PYTHONKEYBOARD_H__
 
 #include "PyObjectPlus.h"
 
 class SCA_PythonKeyboard : public PyObjectPlus
 {
-	Py_Header;
+	Py_Header
 private:
 	class SCA_IInputDevice *m_keyboard;
 #ifdef WITH_PYTHON
-	PyObject* m_event_dict;
+	PyObject *m_event_dict;
 #endif
 public:
 	SCA_PythonKeyboard(class SCA_IInputDevice* keyboard);
@@ -45,8 +43,8 @@ public:
 
 #ifdef WITH_PYTHON
 	static PyObject*	pyattr_get_events(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_active_events(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 };
 
-#endif //__KX_PYKEYBOARD
-
+#endif  /* __SCA_PYTHONKEYBOARD_H__ */

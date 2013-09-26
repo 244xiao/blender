@@ -1,6 +1,4 @@
 /*
- * $Id: bpy_rna_callback.h 35236 2011-02-27 20:10:08Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,5 +28,10 @@
 struct BPy_StructRNA;
 struct PyObject;
 
+#if 0
 PyObject *pyrna_callback_add(BPy_StructRNA *self, PyObject *args);
 PyObject *pyrna_callback_remove(BPy_StructRNA *self, PyObject *args);
+#endif
+
+PyObject *pyrna_callback_classmethod_add(PyObject *cls, PyObject *args);
+PyObject *pyrna_callback_classmethod_remove(PyObject *cls, PyObject *args);

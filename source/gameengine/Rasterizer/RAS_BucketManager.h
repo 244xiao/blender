@@ -1,6 +1,4 @@
 /*
- * $Id: RAS_BucketManager.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,12 +29,11 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_BUCKETMANAGER
-#define __RAS_BUCKETMANAGER
+#ifndef __RAS_BUCKETMANAGER_H__
+#define __RAS_BUCKETMANAGER_H__
 
 #include "MT_Transform.h"
 #include "RAS_MaterialBucket.h"
-#include "GEN_Map.h"
 
 #include <vector>
 
@@ -57,18 +54,18 @@ public:
 	void Renderbuckets(const MT_Transform & cameratrans,
 		RAS_IRasterizer* rasty, RAS_IRenderTools* rendertools);
 
-	RAS_MaterialBucket* FindBucket(RAS_IPolyMaterial * material, bool &bucketCreated);
+	RAS_MaterialBucket* FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated);
 	void OptimizeBuckets(MT_Scalar distance);
 	
-	void ReleaseDisplayLists(RAS_IPolyMaterial * material = NULL);
-	void ReleaseMaterials(RAS_IPolyMaterial * material = NULL);
+	void ReleaseDisplayLists(RAS_IPolyMaterial *material = NULL);
+	void ReleaseMaterials(RAS_IPolyMaterial *material = NULL);
 
-	void RemoveMaterial(RAS_IPolyMaterial * mat); // freeing scenes only
+	void RemoveMaterial(RAS_IPolyMaterial *mat); // freeing scenes only
 
 	/* for merging */
 	void MergeBucketManager(RAS_BucketManager *other, SCA_IScene *scene);
-	BucketList & GetSolidBuckets() {return m_SolidBuckets;};
-	BucketList & GetAlphaBuckets() {return m_AlphaBuckets;};
+	BucketList & GetSolidBuckets() {return m_SolidBuckets;}
+	BucketList & GetAlphaBuckets() {return m_AlphaBuckets;}
 
 	/*void PrintStats(int verbose_level) {
 		printf("\nMappings...\n");
@@ -86,12 +83,10 @@ private:
 	void RenderAlphaBuckets(const MT_Transform& cameratrans, 
 		RAS_IRasterizer* rasty, RAS_IRenderTools* rendertools);
 
+
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_BucketManager"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_BucketManager")
 #endif
 };
 
-#endif //__RAS_BUCKETMANAGER
-
+#endif  /* __RAS_BUCKETMANAGER_H__ */

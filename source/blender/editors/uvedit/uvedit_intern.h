@@ -1,6 +1,4 @@
 /*
- * $Id: uvedit_intern.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,37 +29,61 @@
  */
 
 
-#ifndef ED_UVEDIT_INTERN_H
-#define ED_UVEDIT_INTERN_H
+#ifndef __UVEDIT_INTERN_H__
+#define __UVEDIT_INTERN_H__
 
-struct SpaceImage;
-struct EditFace;
-struct MTFace;
-struct Scene;
+struct MTexPoly;
 struct Image;
+struct MTFace;
 struct Object;
+struct Scene;
+struct SpaceImage;
+struct UvElementMap;
 struct wmOperatorType;
+struct BMEditMesh;
+struct BMFace;
+struct BMLoop;
+struct BMEdge;
+struct BMVert;
 
-/* id can be from 0 to 3 */
-#define TF_PIN_MASK(id) (TF_PIN1 << id)
-#define TF_SEL_MASK(id) (TF_SEL1 << id)
-
+/* visibility and selection */
+bool uvedit_face_visible_nolocal(struct Scene *scene, struct BMFace *efa);
 
 /* geometric utilities */
-void uv_center(float uv[][2], float cent[2], int quad);
-float uv_area(float uv[][2], int quad);
-void uv_copy_aspect(float uv_orig[][2], float uv[][2], float aspx, float aspy);
+void  uv_poly_copy_aspect(float uv_orig[][2], float uv[][2], float aspx, float aspy, int len);
+void  uv_poly_center(struct BMFace *f, float r_cent[2], const int cd_loop_uv_offset);
+
+/* find nearest */
+
+typedef struct NearestHit {
+	struct BMFace *efa;
+	struct MTexPoly *tf;
+	struct BMLoop *l;
+	struct MLoopUV *luv, *luv_next;
+	int lindex;  /* index of loop within face */
+} NearestHit;
+
+void uv_find_nearest_vert(struct Scene *scene, struct Image *ima, struct BMEditMesh *em,
+                          const float co[2], const float penalty[2], struct NearestHit *hit);
+void uv_find_nearest_edge(struct Scene *scene, struct Image *ima, struct BMEditMesh *em,
+                          const float co[2], struct NearestHit *hit);
+
+/* utility tool functions */
+
+void uvedit_live_unwrap_update(struct SpaceImage *sima, struct Scene *scene, struct Object *obedit);
+void uvedit_get_aspect(struct Scene *scene, struct Object *ob, struct BMEditMesh *em, float *aspx, float *aspy);
 
 /* operators */
+
 void UV_OT_average_islands_scale(struct wmOperatorType *ot);
 void UV_OT_cube_project(struct wmOperatorType *ot);
 void UV_OT_cylinder_project(struct wmOperatorType *ot);
-void UV_OT_from_view(struct wmOperatorType *ot);
+void UV_OT_project_from_view(struct wmOperatorType *ot);
 void UV_OT_minimize_stretch(struct wmOperatorType *ot);
 void UV_OT_pack_islands(struct wmOperatorType *ot);
 void UV_OT_reset(struct wmOperatorType *ot);
 void UV_OT_sphere_project(struct wmOperatorType *ot);
 void UV_OT_unwrap(struct wmOperatorType *ot);
+void UV_OT_stitch(struct wmOperatorType *ot);
 
-#endif /* ED_UVEDIT_INTERN_H */
-
+#endif /* __UVEDIT_INTERN_H__ */

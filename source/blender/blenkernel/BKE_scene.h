@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_scene.h 35921 2011-03-31 14:33:59Z campbellbarton $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_SCENE_H
-#define BKE_SCENE_H
+#ifndef __BKE_SCENE_H__
+#define __BKE_SCENE_H__
 
 /** \file BKE_scene.h
  *  \ingroup bke
@@ -46,59 +44,94 @@ struct Main;
 struct Object;
 struct QuicktimeCodecData;
 struct RenderData;
+struct SceneRenderLayer;
 struct Scene;
 struct Text;
-struct Text;
+struct Main;
 
-#define SCE_COPY_NEW		0
-#define SCE_COPY_EMPTY		1
-#define SCE_COPY_LINK_OB	2
-#define SCE_COPY_LINK_DATA	3
-#define SCE_COPY_FULL		4
+#define SCE_COPY_NEW        0
+#define SCE_COPY_EMPTY      1
+#define SCE_COPY_LINK_OB    2
+#define SCE_COPY_LINK_DATA  3
+#define SCE_COPY_FULL       4
 
-#define SETLOOPER(_sce_basis, _sce_iter, _base) _sce_iter= _sce_basis, _base= _setlooper_base_step(&_sce_iter, NULL); _base; _base= _setlooper_base_step(&_sce_iter, _base)
+/* Use as the contents of a 'for' loop: for (SETLOOPER(...)) { ... */
+#define SETLOOPER(_sce_basis, _sce_iter, _base)                               \
+	_sce_iter = _sce_basis, _base = _setlooper_base_step(&_sce_iter, NULL);   \
+	_base;                                                                    \
+	_base = _setlooper_base_step(&_sce_iter, _base)
+
 struct Base *_setlooper_base_step(struct Scene **sce_iter, struct Base *base);
 
 void free_avicodecdata(struct AviCodecData *acd);
 void free_qtcodecdata(struct QuicktimeCodecData *acd);
 
-void free_scene(struct Scene *sce);
-struct Scene *add_scene(const char *name);
-struct Base *object_in_scene(struct Object *ob, struct Scene *sce);
+void BKE_scene_free(struct Scene *sce);
+struct Scene *BKE_scene_add(struct Main *bmain, const char *name);
 
-void set_scene_bg(struct Main *bmain, struct Scene *sce);
-struct Scene *set_scene_name(struct Main *bmain, const char *name);
+/* base functions */
+struct Base *BKE_scene_base_find(struct Scene *scene, struct Object *ob);
+struct Base *BKE_scene_base_add(struct Scene *sce, struct Object *ob);
+void         BKE_scene_base_unlink(struct Scene *sce, struct Base *base);
+void         BKE_scene_base_deselect_all(struct Scene *sce);
+void         BKE_scene_base_select(struct Scene *sce, struct Base *selbase);
 
-struct Scene *copy_scene(struct Scene *sce, int type);
-void unlink_scene(struct Main *bmain, struct Scene *sce, struct Scene *newsce);
+/* Scene base iteration function.
+ * Define struct here, so no need to bother with alloc/free it.
+ */
+typedef struct SceneBaseIter {
+	struct ListBase *duplilist;
+	struct DupliObject *dupob;
+	int fase;
+} SceneBaseIter;
 
-int next_object(struct Scene **scene, int val, struct Base **base, struct Object **ob);
-struct Object *scene_find_camera(struct Scene *sc);
-struct Object *scene_camera_switch_find(struct Scene *scene); // DURIAN_CAMERA_SWITCH
-int scene_camera_switch_update(struct Scene *scene);
+int          BKE_scene_base_iter_next(struct SceneBaseIter *iter, struct Scene **scene, int val, struct Base **base, struct Object **ob);
 
-char *scene_find_marker_name(struct Scene *scene, int frame);
-char *scene_find_last_marker_name(struct Scene *scene, int frame);
+void BKE_scene_base_flag_to_objects(struct Scene *scene);
+void BKE_scene_base_flag_from_objects(struct Scene *scene);
 
-struct Base *scene_add_base(struct Scene *sce, struct Object *ob);
-void scene_deselect_all(struct Scene *sce);
-void scene_select_base(struct Scene *sce, struct Base *selbase);
+void BKE_scene_set_background(struct Main *bmain, struct Scene *sce);
+struct Scene *BKE_scene_set_name(struct Main *bmain, const char *name);
+
+struct Scene *BKE_scene_copy(struct Scene *sce, int type);
+void BKE_scene_groups_relink(struct Scene *sce);
+void BKE_scene_unlink(struct Main *bmain, struct Scene *sce, struct Scene *newsce);
+
+struct Object *BKE_scene_camera_find(struct Scene *sc);
+struct Object *BKE_scene_camera_switch_find(struct Scene *scene); // DURIAN_CAMERA_SWITCH
+int BKE_scene_camera_switch_update(struct Scene *scene);
+
+char *BKE_scene_find_marker_name(struct Scene *scene, int frame);
+char *BKE_scene_find_last_marker_name(struct Scene *scene, int frame);
 
 /* checks for cycle, returns 1 if it's all OK */
-int scene_check_setscene(struct Main *bmain, struct Scene *sce);
+int BKE_scene_validate_setscene(struct Main *bmain, struct Scene *sce);
 
-float BKE_curframe(struct Scene *scene);
+float BKE_scene_frame_get(struct Scene *scene);
+float BKE_scene_frame_get_from_ctime(struct Scene *scene, const float frame);
+void  BKE_scene_frame_set(struct Scene *scene, double cfra);
 
-void scene_update_tagged(struct Main *bmain, struct Scene *sce);
-void scene_update_for_newframe(struct Main *bmain, struct Scene *sce, unsigned int lay);
+void BKE_scene_update_tagged(struct Main *bmain, struct Scene *sce);
 
-void scene_add_render_layer(struct Scene *sce);
+void BKE_scene_update_for_newframe(struct Main *bmain, struct Scene *sce, unsigned int lay);
+
+struct SceneRenderLayer *BKE_scene_add_render_layer(struct Scene *sce, const char *name);
+int BKE_scene_remove_render_layer(struct Main *main, struct Scene *scene, struct SceneRenderLayer *srl);
 
 /* render profile */
 int get_render_subsurf_level(struct RenderData *r, int level);
 int get_render_child_particle_number(struct RenderData *r, int num);
 int get_render_shadow_samples(struct RenderData *r, int samples);
 float get_render_aosss_error(struct RenderData *r, float error);
+
+int BKE_scene_use_new_shading_nodes(struct Scene *scene);
+
+void BKE_scene_disable_color_management(struct Scene *scene);
+int BKE_scene_check_color_management_enabled(const struct Scene *scene);
+int BKE_scene_check_rigidbody_active(const struct Scene *scene);
+
+int BKE_scene_num_threads(const struct Scene *scene);
+int BKE_render_num_threads(const struct RenderData *r);
 
 #ifdef __cplusplus
 }

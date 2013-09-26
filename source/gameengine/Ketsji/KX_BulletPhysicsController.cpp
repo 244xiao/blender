@@ -1,10 +1,31 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
 /** \file gameengine/Ketsji/KX_BulletPhysicsController.cpp
  *  \ingroup ketsji
  */
+
 //under visual studio the #define in KX_ConvertPhysicsObject.h is quicker for recompilation
 #include "KX_ConvertPhysicsObject.h"
 
-#ifdef USE_BULLET
+#ifdef WITH_BULLET
 
 #include "KX_BulletPhysicsController.h"
 
@@ -20,8 +41,8 @@
 #include "BulletSoftBody/btSoftBody.h"
 
 
-KX_BulletPhysicsController::KX_BulletPhysicsController (const CcdConstructionInfo& ci, bool dyna, bool sensor, bool compound)
-: KX_IPhysicsController(dyna,sensor,compound,(PHY_IPhysicsController*)this),
+KX_BulletPhysicsController::KX_BulletPhysicsController (const CcdConstructionInfo& ci, bool dyna, bool sensor, bool character, bool compound)
+: KX_IPhysicsController(dyna,sensor,character,compound,(PHY_IPhysicsController*)this),
 CcdPhysicsController(ci),
 m_savedCollisionFlags(0),
 m_savedCollisionFilterGroup(0),
@@ -75,6 +96,11 @@ void  KX_BulletPhysicsController::SetLinVelocityMin(float val)
 	CcdPhysicsController::SetLinVelocityMin(val);
 }
 
+void KX_BulletPhysicsController::Jump()
+{
+	CcdPhysicsController::Jump();
+}
+
 float KX_BulletPhysicsController::GetLinVelocityMax()
 {
 	return (float)CcdPhysicsController::GetLinVelocityMax();
@@ -98,7 +124,7 @@ void	KX_BulletPhysicsController::SetObject (SG_IObject* object)
 	if (m_bSensor)
 	{
 		// use a different callback function for sensor object, 
-		// bullet will not synchronize, we must do it explicitely
+		// bullet will not synchronize, we must do it explicitly
 		SG_Callbacks& callbacks = gameobj->GetSGNode()->GetCallBackFunctions();
 		callbacks.m_updatefunc = KX_GameObject::SynchronizeTransformFunc;
 	} 
@@ -119,10 +145,15 @@ void	KX_BulletPhysicsController::RelativeTranslate(const MT_Vector3& dloc,bool l
 
 }
 
+void	KX_BulletPhysicsController::SetWalkDirection(const MT_Vector3& dloc,bool local)
+{
+	CcdPhysicsController::SetWalkDirection(dloc[0],dloc[1],dloc[2],local);
+}
+
 void	KX_BulletPhysicsController::RelativeRotate(const MT_Matrix3x3& drot,bool local)
 {
-	float	rotval[12];
-	drot.getValue(rotval);
+	float	rotval[9];
+	drot.getValue3x3(rotval);
 	CcdPhysicsController::RelativeRotate(rotval,local);
 }
 
@@ -153,6 +184,13 @@ MT_Vector3 KX_BulletPhysicsController::GetVelocity(const MT_Point3& pos)
 	float linVel[3];
 	CcdPhysicsController::GetVelocity(pos[0], pos[1], pos[2], linVel[0],linVel[1],linVel[2]);
 	return MT_Vector3(linVel[0],linVel[1],linVel[2]);
+}
+
+MT_Vector3 KX_BulletPhysicsController::GetWalkDirection()
+{
+	float dir[3];
+	CcdPhysicsController::GetWalkDirection(dir[0], dir[1], dir[2]);
+	return MT_Vector3(dir[0], dir[1], dir[2]);
 }
 
 void	KX_BulletPhysicsController::SetAngularVelocity(const MT_Vector3& ang_vel,bool local)
@@ -213,16 +251,16 @@ MT_Scalar	KX_BulletPhysicsController::GetMass()
 
 MT_Vector3 KX_BulletPhysicsController::GetLocalInertia()
 {
-    MT_Vector3 inertia(0.f, 0.f, 0.f);
-    btVector3 inv_inertia;
-    if (GetRigidBody()) {
-        inv_inertia = GetRigidBody()->getInvInertiaDiagLocal();
-		if (!btFuzzyZero(inv_inertia.getX()) && 
-			!btFuzzyZero(inv_inertia.getY()) && 
-			!btFuzzyZero(inv_inertia.getZ()))
+	MT_Vector3 inertia(0.f, 0.f, 0.f);
+	btVector3 inv_inertia;
+	if (GetRigidBody()) {
+		inv_inertia = GetRigidBody()->getInvInertiaDiagLocal();
+		if (!btFuzzyZero(inv_inertia.getX()) &&
+		        !btFuzzyZero(inv_inertia.getY()) &&
+		        !btFuzzyZero(inv_inertia.getZ()))
 			inertia = MT_Vector3(1.f/inv_inertia.getX(), 1.f/inv_inertia.getY(), 1.f/inv_inertia.getZ());
-    }
-    return inertia;
+	}
+	return inertia;
 }
 
 MT_Vector3	KX_BulletPhysicsController::getReactionForce()
@@ -232,12 +270,13 @@ MT_Vector3	KX_BulletPhysicsController::getReactionForce()
 }
 void	KX_BulletPhysicsController::setRigidBody(bool rigid)
 {
+	CcdPhysicsController::setRigidBody(rigid);
 }
 
 /* This function dynamically adds the collision shape of another controller to
-   the current controller shape provided it is a compound shape.
-   The idea is that dynamic parenting on a compound object will dynamically extend the shape
-*/
+ * the current controller shape provided it is a compound shape.
+ * The idea is that dynamic parenting on a compound object will dynamically extend the shape
+ */
 void    KX_BulletPhysicsController::AddCompoundChild(KX_IPhysicsController* child)
 { 
 	if (child == NULL || !IsCompound())
@@ -268,7 +307,7 @@ void    KX_BulletPhysicsController::AddCompoundChild(KX_IPhysicsController* chil
 	rootScale[2] = 1.0/rootScale[2];
 	// relative scale = child_scale/parent_scale
 	btVector3 relativeScale = childShape->getLocalScaling()*rootScale;
-	btMatrix3x3 rootRotInverse = rootTrans.getBasis().transpose();	
+	btMatrix3x3 rootRotInverse = rootTrans.getBasis().transpose();
 	// relative pos = parent_rot^-1 * ((parent_pos-child_pos)/parent_scale)
 	btVector3 relativePos = rootRotInverse*((childTrans.getOrigin()-rootTrans.getOrigin())*rootScale);
 	// relative rot = parent_rot^-1 * child_rot
@@ -308,8 +347,8 @@ void    KX_BulletPhysicsController::AddCompoundChild(KX_IPhysicsController* chil
 }
 
 /* Reverse function of the above, it will remove a shape from a compound shape
-   provided that the former was added to the later using  AddCompoundChild()
-*/
+ * provided that the former was added to the later using  AddCompoundChild()
+ */
 void    KX_BulletPhysicsController::RemoveCompoundChild(KX_IPhysicsController* child)
 { 
 	if (child == NULL || !IsCompound())
@@ -472,7 +511,7 @@ SG_Controller*	KX_BulletPhysicsController::GetReplica(class SG_Node* destnode)
 void	KX_BulletPhysicsController::SetSumoTransform(bool nondynaonly)
 {
 
-	if (!m_bDyna && !m_bSensor)
+	if (!m_bDyna && !m_bSensor && !m_bCharacter)
 	{
 		btCollisionObject* object = GetRigidBody();
 		object->setActivationState(ACTIVE_TAG);
@@ -535,4 +574,4 @@ const char* KX_BulletPhysicsController::getName()
 	return 0;
 }
 
-#endif // USE_BULLET
+#endif // WITH_BULLET

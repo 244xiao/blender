@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_PropertyEventManager.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __KX_PROPERTYEVENTMANAGER
-#define __KX_PROPERTYEVENTMANAGER
+#ifndef __SCA_PROPERTYEVENTMANAGER_H__
+#define __SCA_PROPERTYEVENTMANAGER_H__
 
 #include "SCA_EventManager.h"
 
@@ -50,11 +48,8 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SCA_PropertyEventManager"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_PropertyEventManager")
 #endif
 };
 
-#endif //__KX_PROPERTYEVENTMANAGER
-
+#endif  /* __SCA_PROPERTYEVENTMANAGER_H__ */

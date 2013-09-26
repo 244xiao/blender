@@ -1,5 +1,4 @@
 /*
- * $Id: BIK_api.h 35240 2011-02-27 20:24:49Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +31,8 @@
  */
 
 
-#ifndef BIK_API_H
-#define BIK_API_H
+#ifndef __BIK_API_H__
+#define __BIK_API_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,7 +58,7 @@ struct BIK_ParamValue {
 		float f[8];
 		int   i[8];
 		char  s[32];
-	} value;		
+	} value;
 };
 typedef struct BIK_ParamValue BIK_ParamValue;
 
@@ -71,9 +70,9 @@ void BIK_clear_cache(struct bPose *pose);
 void BIK_update_param(struct bPose *pose);
 void BIK_test_constraint(struct Object *ob, struct bConstraint *cons);
 // not yet implemented
-int BIK_get_constraint_param(struct bPose *pose, struct bConstraint *cons, int id, BIK_ParamValue *value);
-int BIK_get_channel_param(struct bPose *pose, struct bPoseChannel *pchan, int id, BIK_ParamValue *value);
-int BIK_get_solver_param(struct bPose *pose, struct bPoseChannel *pchan, int id, BIK_ParamValue *value);
+// int BIK_get_constraint_param(struct bPose *pose, struct bConstraint *cons, int id, BIK_ParamValue *value);
+// int BIK_get_channel_param(struct bPose *pose, struct bPoseChannel *pchan, int id, BIK_ParamValue *value);
+// int BIK_get_solver_param(struct bPose *pose, struct bPoseChannel *pchan, int id, BIK_ParamValue *value);
 
 // number of solver available
 // 0 = iksolver
@@ -93,5 +92,4 @@ int BIK_get_solver_param(struct bPose *pose, struct bPoseChannel *pchan, int id,
 }
 #endif
 
-#endif // BIK_API_H
-
+#endif  /* __BIK_API_H__ */

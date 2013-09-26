@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -22,24 +21,34 @@
 set(INC
 	../include
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../blenfont
+	../../bmesh
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
 	../../../../intern/opennl/extern
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
+	uvedit_buttons.c
 	uvedit_draw.c
 	uvedit_ops.c
 	uvedit_parametrizer.c
+	uvedit_smart_stitch.c
 	uvedit_unwrap_ops.c
 
 	uvedit_intern.h
 	uvedit_parametrizer.h
 )
 
-blender_add_lib(bf_editor_uvedit "${SRC}" "${INC}")
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+blender_add_lib(bf_editor_uvedit "${SRC}" "${INC}" "${INC_SYS}")

@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 33864 2010-12-22 23:09:30Z campbellbarton $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -25,18 +24,21 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	. 
-	../../../source/kernel/gen_system 
+	.
+	../Expressions
+	../Rasterizer
+	../SceneGraph
+	../../blender/blenlib
+	../../../intern/container
 	../../../intern/string
-	../../../source/gameengine/Expressions 
-	../../../source/gameengine/SceneGraph
+	../../../intern/ghost
+)
+
+set(INC_SYS
 	../../../intern/moto/include
-	../../../source/gameengine/Rasterizer
 )
 
 set(SRC
-	Joystick/SCA_Joystick.cpp
-	Joystick/SCA_JoystickEvents.cpp
 	SCA_2DFilterActuator.cpp
 	SCA_ANDController.cpp
 	SCA_ActuatorEventManager.cpp
@@ -68,6 +70,7 @@ set(SRC
 	SCA_PropertyEventManager.cpp
 	SCA_PropertySensor.cpp
 	SCA_PythonController.cpp
+	SCA_PythonJoystick.cpp
 	SCA_PythonKeyboard.cpp
 	SCA_PythonMouse.cpp
 	SCA_RandomActuator.cpp
@@ -77,10 +80,9 @@ set(SRC
 	SCA_TimeEventManager.cpp
 	SCA_XNORController.cpp
 	SCA_XORController.cpp
+	Joystick/SCA_Joystick.cpp
+	Joystick/SCA_JoystickEvents.cpp
 
-	Joystick/SCA_Joystick.h
-	Joystick/SCA_JoystickDefines.h
-	Joystick/SCA_JoystickPrivate.h
 	SCA_2DFilterActuator.h
 	SCA_ANDController.h
 	SCA_ActuatorEventManager.h
@@ -112,6 +114,7 @@ set(SRC
 	SCA_PropertyEventManager.h
 	SCA_PropertySensor.h
 	SCA_PythonController.h
+	SCA_PythonJoystick.h
 	SCA_PythonKeyboard.h
 	SCA_PythonMouse.h
 	SCA_RandomActuator.h
@@ -121,12 +124,21 @@ set(SRC
 	SCA_TimeEventManager.h
 	SCA_XNORController.h
 	SCA_XORController.h
+	Joystick/SCA_Joystick.h
+	Joystick/SCA_JoystickDefines.h
+	Joystick/SCA_JoystickPrivate.h
 )
 
 if(WITH_SDL)
-	set(INC ${INC} ${SDL_INCLUDE_DIR})
-else()
-	add_definitions(-DDISABLE_SDL)
+	list(APPEND INC_SYS
+		${SDL_INCLUDE_DIR}
+	)
+
+	add_definitions(-DWITH_SDL)
+
+	if(WITH_GHOST_SDL)
+		add_definitions(-DWITH_GHOST_SDL)
+	endif()
 endif()
 
-blender_add_lib(ge_logic "${SRC}" "${INC}")
+blender_add_lib(ge_logic "${SRC}" "${INC}" "${INC_SYS}")

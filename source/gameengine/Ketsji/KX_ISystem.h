@@ -1,6 +1,4 @@
 /*
-* $Id: KX_ISystem.h 35063 2011-02-22 10:33:14Z jesterking $
-*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -25,15 +23,15 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
-*/
+ */
 
 /** \file KX_ISystem.h
  *  \ingroup ketsji
  *  \brief Abstract system
  */
 
-#ifndef __KX_ISYSTEM
-#define __KX_ISYSTEM
+#ifndef __KX_ISYSTEM_H__
+#define __KX_ISYSTEM_H__
 
 #include <vector>
 using namespace std;
@@ -57,9 +55,7 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_ISystem"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_ISystem")
 #endif
 };
 

@@ -1,6 +1,4 @@
 /*
- * $Id: Image.cpp 35239 2011-02-27 20:23:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributors: Amorilia (amorilia@gamebox.net)
+ * Contributors: Amorilia (amorilia@users.sourceforge.net)
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -41,7 +39,7 @@
 
 #include <stdio.h> // printf
 
-Image::Image() : m_width(0), m_height(0), m_format(Format_RGB), m_data(0)
+Image::Image() : m_width(0), m_height(0), m_format(Format_RGB), m_data(NULL)
 {
 }
 
@@ -61,7 +59,7 @@ void Image::allocate(uint w, uint h)
 void Image::free()
 {
 	if (m_data) delete [] m_data;
-	m_data = 0;
+	m_data = NULL;
 }
 
 
@@ -131,4 +129,5 @@ void Image::setFormat(Image::Format f)
 {
 	m_format = f;
 }
+
 

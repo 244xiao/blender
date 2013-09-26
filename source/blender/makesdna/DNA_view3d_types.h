@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_view3d_types.h 35400 2011-03-08 07:44:30Z campbellbarton $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,12 +24,13 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_VIEW3D_TYPES_H
-#define DNA_VIEW3D_TYPES_H
 
 /** \file DNA_view3d_types.h
  *  \ingroup DNA
  */
+
+#ifndef __DNA_VIEW3D_TYPES_H__
+#define __DNA_VIEW3D_TYPES_H__
 
 struct ViewDepths;
 struct Object;
@@ -40,10 +39,14 @@ struct Tex;
 struct SpaceLink;
 struct Base;
 struct BoundBox;
+struct MovieClip;
+struct MovieClipUser;
 struct RenderInfo;
+struct RenderEngine;
 struct bGPdata;
-struct SmoothViewStore;
+struct SmoothView3DStore;
 struct wmTimer;
+struct Material;
 
 /* This is needed to not let VC choke on near and far... old
  * proprietary MS extensions... */
@@ -54,8 +57,10 @@ struct wmTimer;
 #define far clipend
 #endif
 
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_image_types.h"
+#include "DNA_movieclip_types.h"
 
 /* ******************************** */
 
@@ -68,10 +73,12 @@ typedef struct BGpic {
 
 	struct Image *ima;
 	struct ImageUser iuser;
+	struct MovieClip *clip;
+	struct MovieClipUser cuser;
 	float xof, yof, size, blend;
 	short view;
 	short flag;
-	float pad2;
+	short source, pad;
 } BGpic;
 
 /* ********************************* */
@@ -88,46 +95,58 @@ typedef struct RegionView3D {
 	float viewmatob[4][4];
 	float persmatob[4][4];
 
+
+	/* user defined clipping planes */
+	float clip[6][4];
+	float clip_local[6][4]; /* clip in object space, means we can test for clipping in editmode without first going into worldspace */
+	struct BoundBox *clipbb;
+
+	struct bGPdata *gpd;		/* Grease-Pencil Data (annotation layers) */
+
+	struct RegionView3D *localvd; /* allocated backup of its self while in localview */
+	struct RenderInfo *ri;
+	struct RenderEngine *render_engine;
+	struct ViewDepths *depths;
+	void *gpuoffscreen;
+
+	/* animated smooth view */
+	struct SmoothView3DStore *sms;
+	struct wmTimer *smooth_timer;
+
+
 	/* transform widget matrix */
 	float twmat[4][4];
 
 	float viewquat[4];			/* view rotation, must be kept normalized */
 	float dist;					/* distance from 'ofs' along -viewinv[2] vector, where result is negative as is 'ofs' */
-	float zfac;					/* initgrabz() result */
 	float camdx, camdy;			/* camera view offsets, 1.0 = viewplane moves entire width/height */
 	float pixsize;				/* runtime only */
-	float ofs[3];				/* view center & orbit pivot, negative of worldspace location */
-	short camzoom;
+	float ofs[3];				/* view center & orbit pivot, negative of worldspace location,
+								 * also matches -viewinv[3][0:3] in ortho mode.*/
+	float camzoom;				/* viewport zoom on the camera frame, see BKE_screen_view3d_zoom_to_fac */
+	char is_persp;				/* check if persp/ortho view, since 'persp' cant be used for this since
+								 * it can have cameras assigned as well. (only set in setwinmatrixview3d) */
+	char persp;
+	char view;
+	char viewlock;
+	char viewlock_quad;			/* options for quadview (store while out of quad view) */
+	char pad[3];
+
 	short twdrawflag;
-	int pad;
-	
-	short rflag, viewlock;
-	short persp;
-	short view;
-	
-	/* user defined clipping planes */
-	float clip[6][4];
-	float clip_local[6][4]; /* clip in object space, means we can test for clipping in editmode without first going into worldspace */
-	struct BoundBox *clipbb;	
-	
-	struct bGPdata *gpd;		/* Grease-Pencil Data (annotation layers) */
-	
-	struct RegionView3D *localvd; /* allocated backup of its self while in localview */
-	struct RenderInfo *ri;
-	struct ViewDepths *depths;
-	
-	/* animated smooth view */
-	struct SmoothViewStore *sms;
-	struct wmTimer *smooth_timer;
-	
-	/* last view */
+	short rflag;
+
+
+	/* last view (use when switching out of camera view) */
 	float lviewquat[4];
 	short lpersp, lview; /* lpersp can never be set to 'RV3D_CAMOB' */
+
 	float gridview;
-	
 	float twangle[3];
 
-	float padf;
+
+	/* active rotation from NDOF or elsewhere */
+	float rot_angle;
+	float rot_axis[3];
 
 } RegionView3D;
 
@@ -138,51 +157,54 @@ typedef struct View3D {
 	int spacetype;
 	float blockscale;
 	short blockhandler[8];
-	
-	float viewquat[4], dist, pad1;	/* XXX depricated */
-	
+
+	float viewquat[4]  DNA_DEPRECATED;
+	float dist         DNA_DEPRECATED;
+
+	float bundle_size;			/* size of bundles in reconstructed data */
+	char bundle_drawtype;		/* display style for bundle */
+	char pad[3];
+
+	unsigned int lay_prev; /* for active layer toggle */
 	unsigned int lay_used; /* used while drawing */
 	
-	short persp;	/* XXX depricated */
-	short view;	/* XXX depricated */
+	short persp  DNA_DEPRECATED;
+	short view   DNA_DEPRECATED;
 	
 	struct Object *camera, *ob_centre;
+	rctf render_border;
 
 	struct ListBase bgpicbase;
-	struct BGpic *bgpic; /* deprecated, use bgpicbase, only kept for do_versions(...) */
+	struct BGpic *bgpic  DNA_DEPRECATED; /* deprecated, use bgpicbase, only kept for do_versions(...) */
 
 	struct View3D *localvd; /* allocated backup of its self while in localview */
 	
-	char ob_centre_bone[32];		/* optional string for armature bone to define center */
+	char ob_centre_bone[64];		/* optional string for armature bone to define center, MAXBONENAME */
 	
 	unsigned int lay;
 	int layact;
 	
 	/**
-	 * The drawing mode for the 3d display. Set to OB_WIRE, OB_SOLID,
-	 * OB_SHADED or OB_TEXTURE */
+	 * The drawing mode for the 3d display. Set to OB_BOUNDBOX, OB_WIRE, OB_SOLID,
+	 * OB_TEXTURE, OB_MATERIAL or OB_RENDER */
 	short drawtype;
 	short ob_centre_cursor;		/* optional bool for 3d cursor to define center */
-	short scenelock, around, pad3;
+	short scenelock, around;
 	short flag, flag2;
 	
-	short pivot_last; /* pivot_last is for rotating around the last edited element */
-	
 	float lens, grid;
-	float gridview; /* XXX deprecated, now in RegionView3D */
 	float near, far;
-	float ofs[3];			/* XXX deprecated */
+	float ofs[3]  DNA_DEPRECATED;			/* XXX deprecated */
 	float cursor[3];
 
-	short gridlines, pad4;
-	short gridflag;
+	short matcap_icon;			/* icon id */
+
+	short gridlines;
 	short gridsubdiv;	/* Number of subdivisions in the grid between each highlighted grid line */
-	short modeselect;
-	short keyflags;		/* flags for display of keyframes */
-	
+	char gridflag;
+
 	/* transform widget info */
-	short twtype, twmode, twflag;
-	short twdrawflag; /* XXX deprecated */
+	char twtype, twmode, twflag, pad2[2];
 	
 	/* afterdraw, for xray & transparent */
 	struct ListBase afterdraw_transp;
@@ -190,15 +212,14 @@ typedef struct View3D {
 	struct ListBase afterdraw_xraytransp;
 	
 	/* drawflags, denoting state */
-	short zbuf, transp, xray;
+	char zbuf, transp, xray;
+	char pad3[5];
 
-	char ndofmode;			/* mode of transform for 6DOF devices -1 not found, 0 normal, 1 fly, 2 ob transform */
-	char ndoffilter;		/* filter for 6DOF devices 0 normal, 1 dominant */
+	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */
+	struct Material *defmaterial;	/* used by matcap now */
 	
-	void *properties_storage;	/* Nkey panel stores stuff here, not in file */
-	
-	/* XXX depricated? */
-	struct bGPdata *gpd;		/* Grease-Pencil Data (annotation layers) */
+	/* XXX deprecated? */
+	struct bGPdata *gpd  DNA_DEPRECATED;		/* Grease-Pencil Data (annotation layers) */
 
 } View3D;
 
@@ -207,6 +228,7 @@ typedef struct View3D {
 /*#define V3D_DISPIMAGE		1*/ /*UNUSED*/
 #define V3D_DISPBGPICS		2
 #define V3D_HIDE_HELPLINES	4
+#define V3D_INVALID_BACKBUF	8
 #define V3D_INVALID_BACKBUF	8
 
 #define V3D_ALIGN			1024
@@ -226,15 +248,18 @@ typedef struct View3D {
 #define RV3D_GPULIGHT_UPDATE		16
 
 /* RegionView3d->viewlock */
-#define RV3D_LOCKED			1
-#define RV3D_BOXVIEW		2
-#define RV3D_BOXCLIP		4
+#define RV3D_LOCKED			(1 << 0)
+#define RV3D_BOXVIEW		(1 << 1)
+#define RV3D_BOXCLIP		(1 << 2)
+/* RegionView3d->viewlock_quad */
+#define RV3D_VIEWLOCK_INIT	(1 << 7)
 
 /* RegionView3d->view */
-#define RV3D_VIEW_FRONT		 1
+#define RV3D_VIEW_USER			 0
+#define RV3D_VIEW_FRONT			 1
 #define RV3D_VIEW_BACK			 2
 #define RV3D_VIEW_LEFT			 3
-#define RV3D_VIEW_RIGHT		 4
+#define RV3D_VIEW_RIGHT			 4
 #define RV3D_VIEW_TOP			 5
 #define RV3D_VIEW_BOTTOM		 6
 #define RV3D_VIEW_PERSPORTHO	 7
@@ -243,7 +268,16 @@ typedef struct View3D {
 /* View3d->flag2 (short) */
 #define V3D_RENDER_OVERRIDE		4
 #define V3D_SOLID_TEX			8
-#define V3D_DISPGP				16
+#define V3D_SHOW_GPENCIL		16
+#define V3D_LOCK_CAMERA			32
+#define V3D_RENDER_SHADOW		64		/* This is a runtime only flag that's used to tell draw_mesh_object() that we're doing a shadow pass instead of a regular draw */
+#define V3D_SHOW_RECONSTRUCTION	128
+#define V3D_SHOW_CAMERAPATH		256
+#define V3D_SHOW_BUNDLENAME		512
+#define V3D_BACKFACE_CULLING	1024
+#define V3D_RENDER_BORDER		2048
+#define V3D_SOLID_MATCAP		4096	/* user flag */
+#define V3D_SHOW_SOLID_MATCAP	8192	/* runtime flag */
 
 /* View3D->around */
 #define V3D_CENTER		 0
@@ -288,8 +322,24 @@ typedef struct View3D {
 /* #define V3D_CALC_MANIPULATOR	4 */ /*UNUSED*/
 
 /* BGPic->flag */
+/* may want to use 1 for select ? */
+enum {
+	V3D_BGPIC_EXPANDED      = (1 << 1),
+	V3D_BGPIC_CAMERACLIP    = (1 << 2),
+	V3D_BGPIC_DISABLED      = (1 << 3),
+	V3D_BGPIC_FOREGROUND    = (1 << 4),
+
+	/* Camera framing options */
+	V3D_BGPIC_CAMERA_ASPECT = (1 << 5),  /* don't stretch to fit the camera view  */
+	V3D_BGPIC_CAMERA_CROP   = (1 << 6)   /* crop out the image */
+};
+
+#define V3D_BGPIC_EXPANDED (V3D_BGPIC_EXPANDED | V3D_BGPIC_CAMERACLIP)
+
+/* BGPic->source */
 /* may want to use 1 for select ?*/
-#define V3D_BGPIC_EXPANDED		2
+#define V3D_BGPIC_IMAGE		0
+#define V3D_BGPIC_MOVIE		1
 
 #define RV3D_CAMZOOM_MIN -30
 #define RV3D_CAMZOOM_MAX 600

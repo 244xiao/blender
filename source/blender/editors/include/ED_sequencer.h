@@ -1,6 +1,4 @@
 /*
- * $Id: ED_sequencer.h 35819 2011-03-27 14:52:16Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,13 +24,22 @@
  *  \ingroup editors
  */
 
-#ifndef ED_SEQUENCER_H
-#define ED_SEQUENCER_H
+#ifndef __ED_SEQUENCER_H__
+#define __ED_SEQUENCER_H__
 
-#define SEQ_ZOOM_FAC(szoom) ((szoom) > 0.0f)? (szoom) : ((szoom) == 0.0f)? (1.0f) : (-1.0f/(szoom))
+struct Scene;
+struct Sequence;
+struct SpaceSeq;
 
+void ED_sequencer_select_sequence_single(struct Scene *scene, struct Sequence *seq, bool deselect_all);
+void ED_sequencer_deselect_all(struct Scene *scene);
 
-/* in space_sequencer.c, for rna update function */
-void ED_sequencer_update_view(bContext *C, int view);
+int ED_space_sequencer_maskedit_mask_poll(struct bContext *C);
+int ED_space_sequencer_check_show_maskedit(struct SpaceSeq *sseq, struct Scene *scene);
+int ED_space_sequencer_maskedit_poll(struct bContext *C);
 
-#endif /*  ED_SEQUENCER_H */
+int ED_space_sequencer_check_show_imbuf(struct SpaceSeq *sseq);
+
+void ED_operatormacros_sequencer(void);
+
+#endif /*  __ED_SEQUENCER_H__ */

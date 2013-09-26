@@ -1,8 +1,4 @@
-/**
- * $Id: qtkit_export.m 33610 2010-12-12 13:45:35Z ton $
- *
- * qtkit_export.m
- *
+/*
  * Code to create QuickTime Movies with Blender
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -38,8 +34,11 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
-#include "AUD_C-API.h"
+#ifdef WITH_AUDASPACE
+#  include "AUD_C-API.h"
+#endif
 
+#include "BLI_utildefines.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_scene.h"
@@ -47,7 +46,7 @@
 
 #include "BLI_blenlib.h"
 
-#include "BLO_sys_types.h"
+#include "BLI_sys_types.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -63,8 +62,8 @@
 #import <QTKit/QTKit.h>
 #include <AudioToolbox/AudioToolbox.h>
 
-#if (MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4) || !__LP64__
-#error 64 bit build & OSX 10.5 minimum are needed for QTKit
+#if MAC_OS_X_VERSION_MIN_REQUIRED <= 1040
+#error OSX 10.5 minimum is needed for QTKit
 #endif
 
 #include "quicktime_import.h"
@@ -90,8 +89,8 @@ typedef struct QuicktimeExport {
 	AudioStreamBasicDescription audioInputFormat, audioOutputFormat;
 	AudioStreamPacketDescription *audioOutputPktDesc;
 	SInt64 audioFilePos;
-	char* audioInputBuffer;
-	char* audioOutputBuffer;
+	char *audioInputBuffer;
+	char *audioOutputBuffer;
 	UInt32 audioCodecMaxOutputPacketSize;
 	UInt64 audioTotalExportedFrames, audioTotalSavedFrames;
 	UInt64 audioLastFrame;
@@ -108,36 +107,44 @@ static struct QuicktimeExport *qtexport;
 /* Video codec */
 static QuicktimeCodecTypeDesc qtVideoCodecList[] = {
 	{kRawCodecType, 1, "Uncompressed"},
-	{kJPEGCodecType, 2, "JPEG"},
-	{kMotionJPEGACodecType, 3, "M-JPEG A"},
-	{kMotionJPEGBCodecType, 4, "M-JPEG B"},
-	{kDVCPALCodecType, 5, "DV PAL"},
-	{kDVCNTSCCodecType, 6, "DV/DVCPRO NTSC"},
-	{kDVCPROHD720pCodecType, 7, "DVCPRO HD 720p"},
-	{kDVCPROHD1080i50CodecType, 8, "DVCPRO HD 1080i50"},
-	{kDVCPROHD1080i60CodecType, 9, "DVCPRO HD 1080i60"},
-	{kMPEG4VisualCodecType, 10, "MPEG4"},
-	{kH263CodecType, 11, "H.263"},
-	{kH264CodecType, 12, "H.264"},
-	{kAnimationCodecType, 13, "Animation"},
+	{k422YpCbCr8CodecType, 2, "Uncompressed 8-bit 4:2:2"},
+	{k422YpCbCr10CodecType, 3, "Uncompressed 10-bit 4:2:2"},
+	{kComponentVideoCodecType, 4, "Component Video"},
+	{kPixletCodecType, 5, "Pixlet"},
+	{kPNGCodecType, 6, "PNG"},
+	{kJPEGCodecType, 7, "JPEG"},
+	{kMotionJPEGACodecType, 8, "M-JPEG A"},
+	{kMotionJPEGBCodecType, 9, "M-JPEG B"},
+	{kDVCPALCodecType, 10, "DV PAL"},
+	{kDVCNTSCCodecType, 11, "DV/DVCPRO NTSC"},
+	{kDVCPROHD720pCodecType, 12, "DVCPRO HD 720p"},
+	{kDVCPROHD1080i50CodecType, 13, "DVCPRO HD 1080i50"},
+	{kDVCPROHD1080i60CodecType, 14, "DVCPRO HD 1080i60"},
+	{kMPEG4VisualCodecType, 15, "MPEG4"},
+	{kH263CodecType, 16, "H.263"},
+	{kH264CodecType, 17, "H.264"},
+	{kAnimationCodecType, 18, "Animation"},
 	{0,0,NULL}};
 
-static int qtVideoCodecCount = 13;
+static int qtVideoCodecCount = 18;
 
-int quicktime_get_num_videocodecs() {
+int quicktime_get_num_videocodecs()
+{
 	return qtVideoCodecCount;
 }
 
-QuicktimeCodecTypeDesc* quicktime_get_videocodecType_desc(int indexValue) {
+QuicktimeCodecTypeDesc* quicktime_get_videocodecType_desc(int indexValue)
+{
 	if ((indexValue>=0) && (indexValue < qtVideoCodecCount))
 		return &qtVideoCodecList[indexValue];
 	else
 		return NULL;
 }
 
-int quicktime_rnatmpvalue_from_videocodectype(int codecType) {
+int quicktime_rnatmpvalue_from_videocodectype(int codecType)
+{
 	int i;
-	for (i=0;i<qtVideoCodecCount;i++) {
+	for (i = 0; i < qtVideoCodecCount; i++) {
 		if (qtVideoCodecList[i].codecType == codecType)
 			return qtVideoCodecList[i].rnatmpvalue;
 	}
@@ -145,14 +152,15 @@ int quicktime_rnatmpvalue_from_videocodectype(int codecType) {
 	return 0;
 }
 
-int quicktime_videocodecType_from_rnatmpvalue(int rnatmpvalue) {
+int quicktime_videocodecType_from_rnatmpvalue(int rnatmpvalue)
+{
 	int i;
-	for (i=0;i<qtVideoCodecCount;i++) {
+	for (i = 0; i < qtVideoCodecCount; i++) {
 		if (qtVideoCodecList[i].rnatmpvalue == rnatmpvalue)
 			return qtVideoCodecList[i].codecType;
 	}
 	
-	return 0;	
+	return 0;
 }
 
 /* Audio codec */
@@ -165,20 +173,23 @@ static QuicktimeCodecTypeDesc qtAudioCodecList[] = {
 
 static int qtAudioCodecCount = 4;
 
-int quicktime_get_num_audiocodecs() {
+int quicktime_get_num_audiocodecs()
+{
 	return qtAudioCodecCount;
 }
 
-QuicktimeCodecTypeDesc* quicktime_get_audiocodecType_desc(int indexValue) {
+QuicktimeCodecTypeDesc* quicktime_get_audiocodecType_desc(int indexValue)
+{
 	if ((indexValue>=0) && (indexValue < qtAudioCodecCount))
 		return &qtAudioCodecList[indexValue];
 	else
 		return NULL;
 }
 
-int quicktime_rnatmpvalue_from_audiocodectype(int codecType) {
+int quicktime_rnatmpvalue_from_audiocodectype(int codecType)
+{
 	int i;
-	for (i=0;i<qtAudioCodecCount;i++) {
+	for (i = 0; i < qtAudioCodecCount; i++) {
 		if (qtAudioCodecList[i].codecType == codecType)
 			return qtAudioCodecList[i].rnatmpvalue;
 	}
@@ -186,27 +197,30 @@ int quicktime_rnatmpvalue_from_audiocodectype(int codecType) {
 	return 0;
 }
 
-int quicktime_audiocodecType_from_rnatmpvalue(int rnatmpvalue) {
+int quicktime_audiocodecType_from_rnatmpvalue(int rnatmpvalue)
+{
 	int i;
-	for (i=0;i<qtAudioCodecCount;i++) {
+	for (i = 0; i < qtAudioCodecCount; i++) {
 		if (qtAudioCodecList[i].rnatmpvalue == rnatmpvalue)
 			return qtAudioCodecList[i].codecType;
 	}
 	
-	return 0;	
+	return 0;
 }
 
 
-static NSString *stringWithCodecType(int codecType) {
+static NSString *stringWithCodecType(int codecType)
+{
 	char str[5];
 	
-	*((int*)str) = EndianU32_NtoB(codecType);
+	*((int *)str) = EndianU32_NtoB(codecType);
 	str[4] = 0;
 	
 	return [NSString stringWithCString:str encoding:NSASCIIStringEncoding];
 }
 
-void makeqtstring (RenderData *rd, char *string) {
+void makeqtstring(RenderData *rd, char *string)
+{
 	char txt[64];
 
 	strcpy(string, rd->pic);
@@ -215,13 +229,14 @@ void makeqtstring (RenderData *rd, char *string) {
 	BLI_make_existing_file(string);
 
 	if (BLI_strcasecmp(string + strlen(string) - 4, ".mov")) {
-		sprintf(txt, "%04d_%04d.mov", (rd->sfra) , (rd->efra) );
+		sprintf(txt, "%04d-%04d.mov", (rd->sfra) , (rd->efra) );
 		strcat(string, txt);
 	}
 }
 
-void filepath_qt(char *string, RenderData *rd) {
-	if (string==NULL) return;
+void filepath_qt(char *string, RenderData *rd)
+{
+	if (string == NULL) return;
 	
 	strcpy(string, rd->pic);
 	BLI_path_abs(string, G.main->name);
@@ -229,7 +244,7 @@ void filepath_qt(char *string, RenderData *rd) {
 	BLI_make_existing_file(string);
 	
 	if (!BLI_testextensie(string, ".mov")) {
-		/* if we dont have any #'s to insert numbers into, use 4 numbers by default */
+		/* if we don't have any #'s to insert numbers into, use 4 numbers by default */
 		if (strchr(string, '#')==NULL)
 			strcat(string, "####"); /* 4 numbers */
 
@@ -281,8 +296,8 @@ static OSStatus AudioConverterInputCallback(AudioConverterRef inAudioConverter,
 	
 	qtexport->audioTotalExportedFrames += *ioNumberDataPackets;
 	
-	AUD_readDevice(qtexport->audioInputDevice, (UInt8*)qtexport->audioInputBuffer, 
-				   qtexport->audioInputFormat.mFramesPerPacket * *ioNumberDataPackets);
+	AUD_readDevice(qtexport->audioInputDevice, (UInt8 *)qtexport->audioInputBuffer,
+	               qtexport->audioInputFormat.mFramesPerPacket * *ioNumberDataPackets);
 	
 	ioData->mBuffers[0].mDataByteSize = qtexport->audioInputFormat.mBytesPerPacket * *ioNumberDataPackets;
 	ioData->mBuffers[0].mData = qtexport->audioInputBuffer;
@@ -299,22 +314,22 @@ int start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty, R
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	NSError *error;
 	char name[1024];
-	int success= 1;
-	OSStatus err=noErr;
+	int success = 1;
+	OSStatus err = noErr;
 
 	if(qtexport == NULL) qtexport = MEM_callocN(sizeof(QuicktimeExport), "QuicktimeExport");
 	
-	[QTMovie enterQTKitOnThread];		
+	[QTMovie enterQTKitOnThread];
 	
 	/* Check first if the QuickTime 7.2.1 initToWritableFile: method is available */
 	if ([[[[QTMovie alloc] init] autorelease] respondsToSelector:@selector(initToWritableFile:error:)] != YES) {
 		BKE_report(reports, RPT_ERROR, "\nUnable to create quicktime movie, need Quicktime rev 7.2.1 or later");
-		success= 0;
+		success = 0;
 	}
 	else {
 		makeqtstring(rd, name);
 		qtexport->filename = [[NSString alloc] initWithCString:name
-								  encoding:[NSString defaultCStringEncoding]];
+		                                                       encoding:[NSString defaultCStringEncoding]];
 		qtexport->movie = nil;
 		qtexport->audioFile = NULL;
 
@@ -340,15 +355,15 @@ int start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty, R
 					strcpy(extension,".aiff");
 					break;
 			}
-					
+
 			tmpnam(name);
 			strcat(name, extension);
-			outputFileURL = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,(UInt8*) name, strlen(name), false);
+			outputFileURL = CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault,(UInt8 *)name, strlen(name), false);
 			
 			if (outputFileURL) {
 				
 				qtexport->audioFileName = [[NSString alloc] initWithCString:name
-															 encoding:[NSString defaultCStringEncoding]];
+				                                                            encoding:[NSString defaultCStringEncoding]];
 				
 				qtexport->audioInputFormat.mSampleRate = U.audiorate;
 				qtexport->audioInputFormat.mFormatID = kAudioFormatLinearPCM;
@@ -386,13 +401,13 @@ int start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty, R
 				qtexport->audioInputFormat.mFormatFlags |= kLinearPCMFormatFlagIsPacked;
 				
 				
-				/*Ouput format*/
+				/*Output format*/
 				qtexport->audioOutputFormat.mFormatID = rd->qtcodecsettings.audiocodecType;
 				//TODO: set audio channels
 				qtexport->audioOutputFormat.mChannelsPerFrame = 2;
 				qtexport->audioOutputFormat.mSampleRate = rd->qtcodecsettings.audioSampleRate;
 				
-				/* Default value for compressed formats, overriden after if not the case */
+				/* Default value for compressed formats, overridden after if not the case */
 				qtexport->audioOutputFormat.mFramesPerPacket = 0;
 				qtexport->audioOutputFormat.mBytesPerFrame = 0;
 				qtexport->audioOutputFormat.mBytesPerPacket = 0;
@@ -457,7 +472,7 @@ int start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty, R
 						qtexport->audioOutputFormat.mBytesPerFrame = qtexport->audioOutputFormat.mBytesPerPacket;
 						break;
 				}
-												
+
 				err = AudioFileCreateWithURL(outputFileURL, audioFileType, &qtexport->audioOutputFormat, kAudioFileFlags_EraseFile, &qtexport->audioFile);
 				CFRelease(outputFileURL);
 				
@@ -471,30 +486,31 @@ int start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty, R
 						qtexport->audioFile = NULL;
 						[qtexport->audioFileName release];
 						qtexport->audioFileName = nil;
-					} else {
+					}
+					else {
 						UInt32 prop,propSize;
 						/* Set up codec properties */
-						if (rd->qtcodecsettings.audiocodecType == kAudioFormatMPEG4AAC) { /*Lossy compressed format*/
+						if (rd->qtcodecsettings.audiocodecType == kAudioFormatMPEG4AAC) {  /* Lossy compressed format */
 							prop = rd->qtcodecsettings.audioBitRate;
 							AudioConverterSetProperty(qtexport->audioConverter, kAudioConverterEncodeBitRate,
-													  sizeof(prop), &prop);
+							                          sizeof(prop), &prop);
 							
 							if (rd->qtcodecsettings.audioCodecFlags & QTAUDIO_FLAG_CODEC_ISCBR)
 								prop = kAudioCodecBitRateControlMode_Constant;
 							else
 								prop = kAudioCodecBitRateControlMode_LongTermAverage;
 							AudioConverterSetProperty(qtexport->audioConverter, kAudioCodecPropertyBitRateControlMode,
-															sizeof(prop), &prop);
+							                          sizeof(prop), &prop);
 						}
 						/* Conversion quality : if performance impact then offer degraded option */
-						if ((rd->qtcodecsettings.audioCodecFlags & QTAUDIO_FLAG_RESAMPLE_NOHQ) == 0) {							
+						if ((rd->qtcodecsettings.audioCodecFlags & QTAUDIO_FLAG_RESAMPLE_NOHQ) == 0) {
 							prop = kAudioConverterSampleRateConverterComplexity_Mastering;
 							AudioConverterSetProperty(qtexport->audioConverter, kAudioConverterSampleRateConverterComplexity,
-													  sizeof(prop), &prop);
+							                          sizeof(prop), &prop);
 							
 							prop = kAudioConverterQuality_Max;
 							AudioConverterSetProperty(qtexport->audioConverter, kAudioConverterSampleRateConverterQuality,
-													  sizeof(prop), &prop);
+							                          sizeof(prop), &prop);
 						}
 						
 						write_cookie(qtexport->audioConverter, qtexport->audioFile);
@@ -502,31 +518,33 @@ int start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty, R
 						/* Allocate output buffer */
 						if (qtexport->audioOutputFormat.mBytesPerPacket ==0) /* VBR */
 							AudioConverterGetProperty(qtexport->audioConverter, kAudioConverterPropertyMaximumOutputPacketSize,
-												  &propSize, &qtexport->audioCodecMaxOutputPacketSize);
+							                          &propSize, &qtexport->audioCodecMaxOutputPacketSize);
 						else
 							qtexport->audioCodecMaxOutputPacketSize = qtexport->audioOutputFormat.mBytesPerPacket;
 						
 						qtexport->audioInputBuffer = MEM_mallocN(AUDIOOUTPUTBUFFERSIZE, "qt_audio_inputPacket");
 						qtexport->audioOutputBuffer = MEM_mallocN(AUDIOOUTPUTBUFFERSIZE, "qt_audio_outputPacket");
-						qtexport->audioOutputPktDesc = MEM_mallocN(sizeof(AudioStreamPacketDescription)*AUDIOOUTPUTBUFFERSIZE/qtexport->audioCodecMaxOutputPacketSize,
-																   "qt_audio_pktdesc");
+						qtexport->audioOutputPktDesc = MEM_mallocN(sizeof(AudioStreamPacketDescription) * AUDIOOUTPUTBUFFERSIZE / qtexport->audioCodecMaxOutputPacketSize,
+						                                           "qt_audio_pktdesc");
 					}
 				}
 			}
-			
+
 			if (err == noErr) {
-				qtexport->videoTempFileName = [[NSString alloc] initWithCString:tmpnam(nil) 
-															 encoding:[NSString defaultCStringEncoding]];			
-				if (qtexport->videoTempFileName)
+				qtexport->videoTempFileName = [[NSString alloc] initWithCString:tmpnam(nil)
+				                                                encoding:[NSString defaultCStringEncoding]];
+				if (qtexport->videoTempFileName) {
 					qtexport->movie = [[QTMovie alloc] initToWritableFile:qtexport->videoTempFileName error:&error];
+				}
 
 			}
-		} else
+		}
+		else
 			qtexport->movie = [[QTMovie alloc] initToWritableFile:qtexport->filename error:&error];
-			
+
 		if(qtexport->movie == nil) {
 			BKE_report(reports, RPT_ERROR, "Unable to create quicktime movie.");
-			success= 0;
+			success = 0;
 			if (qtexport->filename) [qtexport->filename release];
 			qtexport->filename = nil;
 			if (qtexport->audioFileName) [qtexport->audioFileName release];
@@ -534,28 +552,31 @@ int start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty, R
 			if (qtexport->videoTempFileName) [qtexport->videoTempFileName release];
 			qtexport->videoTempFileName = nil;
 			[QTMovie exitQTKitOnThread];
-		} else {
+		}
+		else {
 			[qtexport->movie retain];
 			[qtexport->movie setAttribute:[NSNumber numberWithBool:YES] forKey:QTMovieEditableAttribute];
 			[qtexport->movie setAttribute:@"Made with Blender" forKey:QTMovieCopyrightAttribute];
 			
-			qtexport->frameDuration = QTMakeTime(rd->frs_sec_base*1000, rd->frs_sec*1000);
+			qtexport->frameDuration = QTMakeTime(rd->frs_sec_base * 1000, rd->frs_sec * 1000);
 			
 			/* specifying the codec attributes : try to retrieve them from render data first*/
 			if (rd->qtcodecsettings.codecType) {
-				qtexport->frameAttributes = [NSDictionary dictionaryWithObjectsAndKeys:
-											 stringWithCodecType(rd->qtcodecsettings.codecType),
-											 QTAddImageCodecType,
-											 [NSNumber numberWithLong:((rd->qtcodecsettings.codecSpatialQuality)*codecLosslessQuality)/100],
-											 QTAddImageCodecQuality,
-											 nil];
+				qtexport->frameAttributes = [
+				        NSDictionary dictionaryWithObjectsAndKeys:
+				        stringWithCodecType(rd->qtcodecsettings.codecType),
+				        QTAddImageCodecType,
+				        [NSNumber numberWithLong:((rd->qtcodecsettings.codecSpatialQuality)*codecLosslessQuality)/100],
+				        QTAddImageCodecQuality,
+				        nil];
 			}
 			else {
-				qtexport->frameAttributes = [NSDictionary dictionaryWithObjectsAndKeys:@"jpeg",
-											 QTAddImageCodecType,
-											 [NSNumber numberWithLong:codecHighQuality],
-											 QTAddImageCodecQuality,
-											 nil];
+				qtexport->frameAttributes = [
+				        NSDictionary dictionaryWithObjectsAndKeys:@"jpeg",
+				        QTAddImageCodecType,
+				        [NSNumber numberWithLong:codecHighQuality],
+				        QTAddImageCodecQuality,
+				        nil];
 			}
 			[qtexport->frameAttributes retain];
 			
@@ -568,7 +589,7 @@ int start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty, R
 				specs.rate = U.audiorate;
 				qtexport->audioInputDevice = AUD_openReadDevice(specs);
 				AUD_playDevice(qtexport->audioInputDevice, scene->sound_scene, rd->sfra * rd->frs_sec_base / rd->frs_sec);
-								
+
 				qtexport->audioOutputPktPos = 0;
 				qtexport->audioTotalExportedFrames = 0;
 				qtexport->audioTotalSavedFrames = 0;
@@ -583,8 +604,7 @@ int start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty, R
 	return success;
 }
 
-
-int append_qt(struct RenderData *rd, int frame, int *pixels, int rectx, int recty, ReportList *reports)
+int append_qt(struct RenderData *rd, int start_frame, int frame, int *pixels, int rectx, int recty, ReportList *reports)
 {
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	NSBitmapImageRep *blBitmapFormatImage;
@@ -592,7 +612,6 @@ int append_qt(struct RenderData *rd, int frame, int *pixels, int rectx, int rect
 	OSStatus err = noErr;
 	unsigned char *from_Ptr,*to_Ptr;
 	int y,from_i,to_i;
-	
 	
 	/* Create bitmap image rep in blender format (32bit RGBA) */
 	blBitmapFormatImage = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
@@ -608,8 +627,8 @@ int append_qt(struct RenderData *rd, int frame, int *pixels, int rectx, int rect
 		return 0;
 	}
 	
-	from_Ptr = (unsigned char*)pixels;
-	to_Ptr = (unsigned char*)[blBitmapFormatImage bitmapData];
+	from_Ptr = (unsigned char *)pixels;
+	to_Ptr = (unsigned char *)[blBitmapFormatImage bitmapData];
 	for (y = 0; y < recty; y++) {
 		to_i = (recty-y-1)*rectx;
 		from_i = y*rectx;
@@ -630,26 +649,37 @@ int append_qt(struct RenderData *rd, int frame, int *pixels, int rectx, int rect
 	
 	if (qtexport->audioFile) {
 		UInt32 audioPacketsConverted;
+
+		// Upper limit on total exported audio frames for this particular video frame
+		const UInt64 exportedAudioFrameLimit = (frame - rd->sfra) * qtexport->audioInputFormat.mSampleRate * rd->frs_sec_base / rd->frs_sec;
+
 		/* Append audio */
-		while (qtexport->audioTotalExportedFrames < qtexport->audioLastFrame) {	
+		while (qtexport->audioTotalExportedFrames < exportedAudioFrameLimit) {
 
 			qtexport->audioBufferList.mNumberBuffers = 1;
 			qtexport->audioBufferList.mBuffers[0].mNumberChannels = qtexport->audioOutputFormat.mChannelsPerFrame;
 			qtexport->audioBufferList.mBuffers[0].mDataByteSize = AUDIOOUTPUTBUFFERSIZE;
 			qtexport->audioBufferList.mBuffers[0].mData = qtexport->audioOutputBuffer;
-			audioPacketsConverted = AUDIOOUTPUTBUFFERSIZE / qtexport->audioCodecMaxOutputPacketSize;
+
+			// Convert one audio packet at a time so that enclosing while loop can
+			// keep audio processing in sync with video frames.
+			// Previously, this was set to (AUDIOOUTPUTBUFFERSIZE / qtexport->audioCodecMaxOutputPacketSize),
+			// however this may cause AudioConverterFillComplexBuffer to convert audio spanning multiple
+			// video frames, which breaks animation of audio parameters such as volume for fade-in/out.
+			audioPacketsConverted = 1; 
 			
 			err = AudioConverterFillComplexBuffer(qtexport->audioConverter, AudioConverterInputCallback,
-											NULL, &audioPacketsConverted, &qtexport->audioBufferList, qtexport->audioOutputPktDesc);
+			                                      NULL, &audioPacketsConverted, &qtexport->audioBufferList, qtexport->audioOutputPktDesc);
 			if (audioPacketsConverted) {
 				AudioFileWritePackets(qtexport->audioFile, false, qtexport->audioBufferList.mBuffers[0].mDataByteSize,
-									  qtexport->audioOutputPktDesc, qtexport->audioOutputPktPos, &audioPacketsConverted, qtexport->audioOutputBuffer);
+				        qtexport->audioOutputPktDesc, qtexport->audioOutputPktPos, &audioPacketsConverted, qtexport->audioOutputBuffer);
 				qtexport->audioOutputPktPos += audioPacketsConverted;
 				
-				if (qtexport->audioOutputFormat.mFramesPerPacket) { 
+				if (qtexport->audioOutputFormat.mFramesPerPacket) {
 					// this is the common case: format has constant frames per packet
 					qtexport->audioTotalSavedFrames += (audioPacketsConverted * qtexport->audioOutputFormat.mFramesPerPacket);
-				} else {
+				}
+				else {
 					unsigned int i;
 					// if there are variable frames per packet, then we have to do this for each packeet
 					for (i = 0; i < audioPacketsConverted; ++i)
@@ -660,13 +690,13 @@ int append_qt(struct RenderData *rd, int frame, int *pixels, int rectx, int rect
 			}
 			else {
 				//Error getting audio packets
-				BKE_reportf(reports, RPT_ERROR, "Unable to get further audio packets from frame %i, error = 0x%x",qtexport->audioTotalExportedFrames,err);
+				BKE_reportf(reports, RPT_ERROR, "Unable to get further audio packets from frame %i, error = 0x%x",(int)qtexport->audioTotalExportedFrames,err);
 				break;
 			}
 
 		}
 	}
-	[pool drain];	
+	[pool drain];
 
 	return 1;
 }
@@ -735,8 +765,8 @@ void end_qt(void)
 			}
 			
 			/* Save file */
-			dict = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES] 
-											   forKey:QTMovieFlatten];
+			dict = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:YES]
+			        forKey:QTMovieFlatten];
 
 			if (dict) {
 				[qtexport->movie writeToFile:qtexport->filename withAttributes:dict];
@@ -776,12 +806,13 @@ void end_qt(void)
 }
 
 
-void free_qtcomponentdata(void) {
+void free_qtcomponentdata(void)
+{
 }
 
-void quicktime_verify_image_type(RenderData *rd)
+void quicktime_verify_image_type(RenderData *rd, ImageFormatData *imf)
 {
-	if (rd->imtype == R_QUICKTIME) {
+	if (imf->imtype == R_IMF_IMTYPE_QUICKTIME) {
 		if ((rd->qtcodecsettings.codecType<= 0) ||
 			(rd->qtcodecsettings.codecSpatialQuality <0) ||
 			(rd->qtcodecsettings.codecSpatialQuality > 100)) {

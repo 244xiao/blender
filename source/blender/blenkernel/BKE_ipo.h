@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_ipo.h 34962 2011-02-18 13:05:18Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_IPO_H
-#define BKE_IPO_H
+#ifndef __BKE_IPO_H__
+#define __BKE_IPO_H__
 
 /** \file BKE_ipo.h
  *  \ingroup bke
@@ -47,7 +45,7 @@ void do_versions_ipos_to_animato(struct Main *main);
 
 /* --------------------- xxx stuff ------------------------ */
 
-void free_ipo(struct Ipo *ipo);
+void BKE_ipo_free(struct Ipo *ipo);
 
 #ifdef __cplusplus
 };

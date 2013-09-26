@@ -1,7 +1,4 @@
 /*
- * @file KX_IPhysicsController.cpp
- * $Id: KX_IPhysicsController.cpp 35171 2011-02-25 13:35:59Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -36,10 +33,11 @@
 
 #include "PHY_DynamicTypes.h"
 
-KX_IPhysicsController::KX_IPhysicsController(bool dyna, bool sensor, bool compound, void* userdata)
+KX_IPhysicsController::KX_IPhysicsController(bool dyna, bool sensor, bool character, bool compound, void* userdata)
 
 :	m_bDyna(dyna),
 	m_bSensor(sensor),
+	m_bCharacter(character),
 	m_bCompound(compound),
 	m_suspendDynamics(false),
 	m_userdata(userdata)
@@ -49,5 +47,3 @@ KX_IPhysicsController::KX_IPhysicsController(bool dyna, bool sensor, bool compou
 KX_IPhysicsController::~KX_IPhysicsController()
 {
 }
-
-

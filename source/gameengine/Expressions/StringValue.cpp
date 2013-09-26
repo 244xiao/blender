@@ -24,20 +24,20 @@
 // Construction/Destruction
 //////////////////////////////////////////////////////////////////////
 
+/**
+ * pre: false
+ * effect: constructs a new CStringValue
+ */
 CStringValue::CStringValue()
-/*
-pre: false
-effect: constructs a new CStringValue
-*/
 {
 	m_strString = "[Illegal String constructor call]";
 }
 
+/**
+ * pre:
+ * effect: constructs a new CStringValue containing text txt
+ */
 CStringValue::CStringValue(const char *txt,const char *name,AllocationTYPE alloctype)
-/*
-pre:
-effect: constructs a new CStringValue containing text txt
-*/
 {
 	m_strString = txt;
 	SetName(name);
@@ -52,23 +52,23 @@ effect: constructs a new CStringValue containing text txt
 }
 
 
+/**
+ * pre:
+ * ret: a new object containing the result of applying operator op to this
+ * object and val
+ */
 CValue* CStringValue::Calc(VALUE_OPERATOR op, CValue *val)
-/*
-pre:
-ret: a new object containing the result of applying operator op to this
-object and val
-*/
 {
 	//return val->CalrcString(op, this);
 	return val->CalcFinal(VALUE_STRING_TYPE, op, this);
 }
 
+/**
+ * pre: the type of val is dtype
+ * ret: a new object containing the result of applying operator op to val and
+ * this object
+ */
 CValue* CStringValue::CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val)
-/*
-pre: the type of val is dtype
-ret: a new object containing the result of applying operator op to val and
-this object
-*/
 {
 	CValue *ret;
 	
@@ -77,33 +77,34 @@ this object
 			ret = new CErrorValue(val->GetText() + op2str(op) +	GetText());
 		else
 			ret = new CStringValue(val->GetText() + GetText(),"");
-	} else {
-		
+	}
+	else {
 		if (dtype == VALUE_STRING_TYPE || dtype == VALUE_EMPTY_TYPE) {
-			switch(op) {
-			case VALUE_EQL_OPERATOR:
-				ret = new CBoolValue(val->GetText() == GetText());
-				break;
-			case VALUE_NEQ_OPERATOR:
-				ret = new CBoolValue(val->GetText() != GetText());
-				break;
-			case VALUE_GRE_OPERATOR:
-				ret = new CBoolValue(val->GetText() > GetText());
-				break;
-			case VALUE_LES_OPERATOR:
-				ret = new CBoolValue(val->GetText() < GetText());
-				break;
-			case VALUE_GEQ_OPERATOR:
-				ret = new CBoolValue(val->GetText() >= GetText());
-				break;
-			case VALUE_LEQ_OPERATOR:
-				ret = new CBoolValue(val->GetText() <= GetText());
-				break;
-			default:
-				ret =  new CErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
-				break;
+			switch (op) {
+				case VALUE_EQL_OPERATOR:
+					ret = new CBoolValue(val->GetText() == GetText());
+					break;
+				case VALUE_NEQ_OPERATOR:
+					ret = new CBoolValue(val->GetText() != GetText());
+					break;
+				case VALUE_GRE_OPERATOR:
+					ret = new CBoolValue(val->GetText() > GetText());
+					break;
+				case VALUE_LES_OPERATOR:
+					ret = new CBoolValue(val->GetText() < GetText());
+					break;
+				case VALUE_GEQ_OPERATOR:
+					ret = new CBoolValue(val->GetText() >= GetText());
+					break;
+				case VALUE_LEQ_OPERATOR:
+					ret = new CBoolValue(val->GetText() <= GetText());
+					break;
+				default:
+					ret =  new CErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
+					break;
 			}
-		} else {
+		}
+		else {
 			ret =  new CErrorValue(val->GetText() + op2str(op) + "[operator not allowed on strings]");
 		}
 	}

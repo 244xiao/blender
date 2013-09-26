@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_RandomEventManager.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  *  \brief Manager for random events
  */
 
-#ifndef __KX_RANDOMEVENTMGR
-#define __KX_RANDOMEVENTMGR
+#ifndef __SCA_RANDOMEVENTMANAGER_H__
+#define __SCA_RANDOMEVENTMANAGER_H__
 
 #include "SCA_EventManager.h"
 #include <vector>
@@ -49,11 +47,8 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SCA_RandomEventManager"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_RandomEventManager")
 #endif
 };
 
-#endif //__KX_RANDOMEVENTMGR
-
+#endif  /* __SCA_RANDOMEVENTMANAGER_H__ */

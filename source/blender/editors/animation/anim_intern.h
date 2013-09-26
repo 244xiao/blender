@@ -1,6 +1,4 @@
 /*
- * $Id: anim_intern.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,8 +28,8 @@
  */
 
  
-#ifndef ANIM_INTERN_H
-#define ANIM_INTERN_H
+#ifndef __ANIM_INTERN_H__
+#define __ANIM_INTERN_H__
 
 /* KeyingSets/Keyframing Interface ------------- */
 
@@ -42,21 +40,24 @@ extern ListBase builtin_keyingsets;
 
 /* Main Keyframe Management operators: 
  *	These handle keyframes management from various spaces. They only make use of
- * 	Keying Sets.
+ *  Keying Sets.
  */
 void ANIM_OT_keyframe_insert(struct wmOperatorType *ot);
 void ANIM_OT_keyframe_delete(struct wmOperatorType *ot);
 
 /* Main Keyframe Management operators: 
  *	These handle keyframes management from various spaces. They will handle the menus 
- * 	required for each space.
+ *  required for each space.
  */
 void ANIM_OT_keyframe_insert_menu(struct wmOperatorType *ot);
+
 void ANIM_OT_keyframe_delete_v3d(struct wmOperatorType *ot);
+void ANIM_OT_keyframe_clear_v3d(struct wmOperatorType *ot);
 
 /* Keyframe managment operators for UI buttons (RMB menu). */
 void ANIM_OT_keyframe_insert_button(struct wmOperatorType *ot);
 void ANIM_OT_keyframe_delete_button(struct wmOperatorType *ot);
+void ANIM_OT_keyframe_clear_button(struct wmOperatorType *ot);
 
 /* .......... */
 
@@ -81,4 +82,4 @@ void ANIM_OT_driver_button_remove(struct wmOperatorType *ot);
 void ANIM_OT_copy_driver_button(struct wmOperatorType *ot);
 void ANIM_OT_paste_driver_button(struct wmOperatorType *ot);
 
-#endif // ANIM_INTERN_H
+#endif  /* __ANIM_INTERN_H__ */

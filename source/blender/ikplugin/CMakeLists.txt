@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 20156 2009-05-11 16:31:30Z ben2610 $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -25,31 +24,47 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC 
+	.
+	../blenkernel
 	../blenlib
 	../makesdna
-	../blenkernel
-	../ikplugin
 	../../../intern/guardedalloc
-	../../../intern/iksolver/extern
+)
+
+set(INC_SYS
+
 )
 
 set(SRC
 	intern/ikplugin_api.c
-	intern/iksolver_plugin.c
 
 	BIK_api.h
 	intern/ikplugin_api.h
-	intern/iksolver_plugin.h
-	intern/itasc_plugin.h
 )
 
-if(WITH_IK_ITASC)
-	add_definitions(-DWITH_IK_ITASC)
-	list(APPEND INC ../../../extern/Eigen2)
-	list(APPEND INC ../../../intern/itasc)
+if(WITH_IK_SOLVER)
+	add_definitions(-DWITH_IK_SOLVER)
+	list(APPEND INC
+		../../../intern/iksolver/extern
+	)
 	list(APPEND SRC
-		./intern/itasc_plugin.cpp
+		intern/iksolver_plugin.c
+		intern/iksolver_plugin.h
 	)
 endif()
 
-blender_add_lib(bf_ikplugin "${SRC}" "${INC}")
+if(WITH_IK_ITASC)
+	add_definitions(-DWITH_IK_ITASC)
+	list(APPEND INC
+		../../../intern/itasc
+	)
+	list(APPEND INC_SYS
+		../../../extern/Eigen3
+	)
+	list(APPEND SRC
+		intern/itasc_plugin.cpp
+		intern/itasc_plugin.h
+	)
+endif()
+
+blender_add_lib(bf_ikplugin "${SRC}" "${INC}" "${INC_SYS}")

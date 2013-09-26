@@ -1,6 +1,4 @@
 /*
- * $Id: pixelshading.h 35233 2011-02-27 19:31:27Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,17 +25,14 @@
 
 /** \file blender/render/intern/include/pixelshading.h
  *  \ingroup render
+ *
+ * These functions determine what actual color a pixel will have.
  */
 
+#ifndef __PIXELSHADING_H__
+#define __PIXELSHADING_H__
 
-/* pixelshading.h
-*
-* These functions determine what actual color a pixel will have.
-*/
-
-
-#ifndef PIXELSHADING_H
-#define PIXELSHADING_H
+struct ImagePool;
 
 /**
  * Render the pixel at (x,y) for object ap. Apply the jitter mask. 
@@ -48,20 +43,20 @@
  * t[3] - type ZB_POLY or ZB_HALO
  * t[4] - max. distance
  * mask is pixel coverage in bits
- * @return pointer to the object
+ * \return pointer to the object
  */
 int shadeHaloFloat(HaloRen *har, 
-					float *col, int zz, 
-					float dist, float xn, 
-					float yn, short flarec);
+                   float *col, int zz,
+                   float dist, float xn,
+                   float yn, short flarec);
 
 /**
  * Render the sky at pixel (x, y).
  */
-void shadeSkyPixel(float *collector, float fx, float fy, short thread);
-void shadeSkyView(float *colf, float *rco, float *view, float *dxyview, short thread);
+void shadeSkyPixel(float collector[4], float fx, float fy, short thread);
+void shadeSkyView(float col_r[3], const float rco[3], const float view[3], const float dxyview[2], short thread);
 void shadeAtmPixel(struct SunSky *sunsky, float *collector, float fx, float fy, float distance);
-void shadeSunView(float *colf, float *view);
+void shadeSunView(float col_r[3], const float view[3]);
 /* ------------------------------------------------------------------------- */
 
 #endif

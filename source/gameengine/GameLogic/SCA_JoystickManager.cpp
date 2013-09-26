@@ -52,7 +52,7 @@ SCA_JoystickManager::~SCA_JoystickManager()
 {
 	int i;
 	for (i=0; i<JOYINDEX_MAX; i++) {
-		if(m_joystick[i])
+		if (m_joystick[i])
 			m_joystick[i]->ReleaseInstance();
 	}
 }
@@ -60,19 +60,21 @@ SCA_JoystickManager::~SCA_JoystickManager()
 
 void SCA_JoystickManager::NextFrame(double curtime,double deltatime)
 {
+	// We should always handle events in case we want to grab them with Python
+#ifdef WITH_SDL
+	SCA_Joystick::HandleEvents(); /* Handle all SDL Joystick events */
+#endif
+
 	if (m_sensors.Empty()) {
 		return;
 	}
 	else {
 		;
-#ifndef	DISABLE_SDL
-		SCA_Joystick::HandleEvents(); /* Handle all SDL Joystick events */
-#endif
 		SG_DList::iterator<SCA_JoystickSensor> it(m_sensors);
 		for (it.begin();!it.end();++it)
 		{
 			SCA_JoystickSensor* joysensor = *it;
-			if(!joysensor->IsSuspended())
+			if (!joysensor->IsSuspended())
 			{
 				joysensor->Activate(m_logicmgr);
 			}
@@ -83,8 +85,8 @@ void SCA_JoystickManager::NextFrame(double curtime,double deltatime)
 
 SCA_Joystick *SCA_JoystickManager::GetJoystickDevice( short int joyindex)
 {
-	/* 
-	 *Return the instance of SCA_Joystick for use 
- 	 */
+	/*
+	 *Return the instance of SCA_Joystick for use
+	 */
 	return m_joystick[joyindex];
 }

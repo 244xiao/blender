@@ -1,6 +1,4 @@
 /*
- * $Id: meshlaplacian.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,13 +15,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
  * ***** END GPL LICENSE BLOCK *****
  * BIF_meshlaplacian.h: Algorithms using the mesh laplacian.
  */
@@ -33,8 +24,8 @@
  */
 
 
-#ifndef BIF_MESHLAPLACIAN_H
-#define BIF_MESHLAPLACIAN_H
+#ifndef __MESHLAPLACIAN_H__
+#define __MESHLAPLACIAN_H__
 
 //#define RIGID_DEFORM
 
@@ -53,13 +44,8 @@ struct EditMesh;
 struct LaplacianSystem;
 typedef struct LaplacianSystem LaplacianSystem;
 
-LaplacianSystem *laplacian_construct_begin(int totvert, int totface, int lsq);
-
 void laplacian_add_vertex(LaplacianSystem *sys, float *co, int pinned);
 void laplacian_add_triangle(LaplacianSystem *sys, int v1, int v2, int v3);
-
-void laplacian_construct_end(LaplacianSystem *sys);
-void laplacian_delete(LaplacianSystem *sys);
 
 void laplacian_begin_solve(LaplacianSystem *sys, int index);
 void laplacian_add_right_hand_side(LaplacianSystem *sys, int v, float value);
@@ -69,9 +55,9 @@ float laplacian_system_get_solution(int v);
 /* Heat Weighting */
 
 void heat_bone_weighting(struct Object *ob, struct Mesh *me, float (*verts)[3],
-	int numbones, struct bDeformGroup **dgrouplist,
-	struct bDeformGroup **dgroupflip, float (*root)[3], float (*tip)[3],
-	int *selected, const char **error);
+                         int numbones, struct bDeformGroup **dgrouplist,
+                         struct bDeformGroup **dgroupflip, float (*root)[3], float (*tip)[3],
+                         int *selected, const char **error);
 
 #ifdef RIGID_DEFORM
 /* As-Rigid-As-Possible Deformation */

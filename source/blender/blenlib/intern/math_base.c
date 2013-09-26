@@ -1,6 +1,4 @@
 /*
- * $Id: math_base.c 35246 2011-02-27 20:37:56Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -34,15 +32,16 @@
 #include "BLI_math.h"
 
 /* WARNING: MSVC compiling hack for double_round() */
-#if (WIN32 || WIN64) && !(FREE_WINDOWS)
+#if (defined(WIN32) || defined(WIN64)) && !(defined(FREE_WINDOWS))
 
 /* from python 3.1 pymath.c */
 double copysign(double x, double y)
 {
-	/* use atan2 to distinguish -0. from 0. */
-	if (y > 0. || (y == 0. && atan2(y, -1.) > 0.)) {
+	/* use atan2 to distinguish -0.0 from 0.0 */
+	if (y > 0.0 || (y == 0.0 && atan2(y, -1.0) > 0.0)) {
 		return fabs(x);
-	} else {
+	}
+	else {
 		return -fabs(x);
 	}
 }
@@ -58,18 +57,25 @@ double round(double x)
 	return copysign(y, x);
 }
 #else /* OpenSuse 11.1 seems to need this. */
+#  ifdef __GNUC__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wredundant-decls"
+#  endif
 double round(double x);
+#  ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#  endif
 #endif
-
 
 /* from python 3.1 floatobject.c
  * ndigits must be between 0 and 21 */
-double double_round(double x, int ndigits) {
+double double_round(double x, int ndigits)
+{
 	double pow1, pow2, y, z;
 	if (ndigits >= 0) {
 		pow1 = pow(10.0, (double)ndigits);
 		pow2 = 1.0;
-		y = (x*pow1)*pow2;
+		y = (x * pow1) * pow2;
 		/* if y overflows, then rounded value is exactly x */
 		if (!finite(y))
 			return x;
@@ -81,9 +87,9 @@ double double_round(double x, int ndigits) {
 	}
 
 	z = round(y);
-	if (fabs(y-z) == 0.5)
+	if (fabs(y - z) == 0.5)
 		/* halfway between two integers; use round-half-even */
-		z = 2.0*round(y/2.0);
+		z = 2.0 * round(y / 2.0);
 
 	if (ndigits >= 0)
 		z = (z / pow2) / pow1;
@@ -93,4 +99,3 @@ double double_round(double x, int ndigits) {
 	/* if computation resulted in overflow, raise OverflowError */
 	return z;
 }
-

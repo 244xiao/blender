@@ -1,6 +1,5 @@
 /*
  * FloatValue.h: interface for the CFloatValue class.
- * $Id: FloatValue.h 35063 2011-02-22 10:33:14Z jesterking $
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -17,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#if !defined _FLOATVALUE_H
-#define _FLOATVALUE_H
+#ifndef __FLOATVALUE_H__
+#define __FLOATVALUE_H__
 
 #include "Value.h"
 
@@ -51,11 +50,8 @@ protected:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:CFloatValue"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CFloatValue")
 #endif
 };
 
-#endif // !defined _FLOATVALUE_H
-
+#endif  /* __FLOATVALUE_H__ */

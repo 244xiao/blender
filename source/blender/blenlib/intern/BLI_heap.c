@@ -1,6 +1,4 @@
 /*
- * $Id: BLI_heap.c 35246 2011-02-27 20:37:56Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,34 +15,40 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: none of this file.
- *
  * Contributor(s): Brecht Van Lommel
  *
  * ***** END GPL LICENSE BLOCK *****
- * A heap / priority queue ADT.
  */
 
 /** \file blender/blenlib/intern/BLI_heap.c
  *  \ingroup bli
+ *
+ * A heap / priority queue ADT.
  */
 
-
+#include <stdlib.h>
 #include <string.h>
 
 #include "MEM_guardedalloc.h"
+
+#include "BLI_utildefines.h"
 #include "BLI_memarena.h"
 #include "BLI_heap.h"
+
+#ifdef __GNUC__
+#  pragma GCC diagnostic error "-Wsign-conversion"
+#  if (__GNUC__ * 100 + __GNUC_MINOR__) >= 406  /* gcc4.6+ only */
+#    pragma GCC diagnostic error "-Wsign-compare"
+#    pragma GCC diagnostic error "-Wconversion"
+#  endif
+#endif
 
 /***/
 
 struct HeapNode {
-	void *ptr;
-	float value;
-	int index;
+	void        *ptr;
+	float        value;
+	unsigned int index;
 };
 
 struct Heap {
@@ -56,97 +60,121 @@ struct Heap {
 	HeapNode **tree;
 };
 
-#define SWAP(type, a, b) \
-	{ type sw_ap; sw_ap=(a); (a)=(b); (b)=sw_ap; }
-#define HEAP_PARENT(i) ((i-1)>>1)
-#define HEAP_LEFT(i)   ((i<<1)+1)
-#define HEAP_RIGHT(i)  ((i<<1)+2)
+/* internal functions */
+
+#define HEAP_PARENT(i) ((i - 1) >> 1)
+#define HEAP_LEFT(i)   ((i << 1) + 1)
+#define HEAP_RIGHT(i)  ((i << 1) + 2)
 #define HEAP_COMPARE(a, b) (a->value < b->value)
+
+#if 0  /* UNUSED */
 #define HEAP_EQUALS(a, b) (a->value == b->value)
-#define HEAP_SWAP(heap, i, j) \
-	{ SWAP(int, heap->tree[i]->index, heap->tree[j]->index); \
-	  SWAP(HeapNode*, heap->tree[i], heap->tree[j]);  }
+#endif
 
-/***/
-
-Heap *BLI_heap_new(void)
+BLI_INLINE void heap_swap(Heap *heap, const unsigned int i, const unsigned int j)
 {
-	Heap *heap = (Heap*)MEM_callocN(sizeof(Heap), "BLIHeap");
-	heap->bufsize = 1;
-	heap->tree = (HeapNode**)MEM_mallocN(sizeof(HeapNode*), "BLIHeapTree");
-	heap->arena = BLI_memarena_new(1<<16, "heap arena");
 
-	return heap;
+#if 0
+	SWAP(unsigned int,  heap->tree[i]->index, heap->tree[j]->index);
+	SWAP(HeapNode *,    heap->tree[i],        heap->tree[j]);
+#else
+	HeapNode **tree = heap->tree;
+	union {
+		unsigned int  index;
+		HeapNode     *node;
+	} tmp;
+	SWAP_TVAL(tmp.index, tree[i]->index, tree[j]->index);
+	SWAP_TVAL(tmp.node,  tree[i],        tree[j]);
+#endif
 }
 
-void BLI_heap_free(Heap *heap, HeapFreeFP ptrfreefp)
+static void heap_down(Heap *heap, unsigned int i)
 {
-	int i;
+	/* size won't change in the loop */
+	const unsigned int size = heap->size;
 
-	if (ptrfreefp)
-		for (i = 0; i < heap->size; i++)
-			ptrfreefp(heap->tree[i]->ptr);
-	
-	MEM_freeN(heap->tree);
-	BLI_memarena_free(heap->arena);
-	MEM_freeN(heap);
-}
-
-static void BLI_heap_down(Heap *heap, int i)
-{
 	while (1) {
-		int size = heap->size, smallest;
-		int l = HEAP_LEFT(i);
-		int r = HEAP_RIGHT(i);
+		const unsigned int l = HEAP_LEFT(i);
+		const unsigned int r = HEAP_RIGHT(i);
+		unsigned int smallest;
 
-		smallest = ((l < size) && HEAP_COMPARE(heap->tree[l], heap->tree[i]))? l: i;
+		smallest = ((l < size) && HEAP_COMPARE(heap->tree[l], heap->tree[i])) ? l : i;
 
 		if ((r < size) && HEAP_COMPARE(heap->tree[r], heap->tree[smallest]))
 			smallest = r;
-		
+
 		if (smallest == i)
 			break;
 
-		HEAP_SWAP(heap, i, smallest);
+		heap_swap(heap, i, smallest);
 		i = smallest;
 	}
 }
 
-static void BLI_heap_up(Heap *heap, int i)
+static void heap_up(Heap *heap, unsigned int i)
 {
 	while (i > 0) {
-		int p = HEAP_PARENT(i);
+		const unsigned int p = HEAP_PARENT(i);
 
 		if (HEAP_COMPARE(heap->tree[p], heap->tree[i]))
 			break;
 
-		HEAP_SWAP(heap, p, i);
+		heap_swap(heap, p, i);
 		i = p;
 	}
+}
+
+
+/***/
+
+/* use when the size of the heap is known in advance */
+Heap *BLI_heap_new_ex(unsigned int tot_reserve)
+{
+	Heap *heap = (Heap *)MEM_callocN(sizeof(Heap), __func__);
+	/* ensure we have at least one so we can keep doubling it */
+	heap->bufsize = MAX2(1, tot_reserve);
+	heap->tree = (HeapNode **)MEM_mallocN(heap->bufsize * sizeof(HeapNode *), "BLIHeapTree");
+	heap->arena = BLI_memarena_new(1 << 16, "heap arena");
+
+	return heap;
+}
+
+Heap *BLI_heap_new(void)
+{
+	return BLI_heap_new_ex(1);
+}
+
+void BLI_heap_free(Heap *heap, HeapFreeFP ptrfreefp)
+{
+	unsigned int i;
+
+	if (ptrfreefp) {
+		for (i = 0; i < heap->size; i++) {
+			ptrfreefp(heap->tree[i]->ptr);
+		}
+	}
+
+	MEM_freeN(heap->tree);
+	BLI_memarena_free(heap->arena);
+	MEM_freeN(heap);
 }
 
 HeapNode *BLI_heap_insert(Heap *heap, float value, void *ptr)
 {
 	HeapNode *node;
 
-	if ((heap->size + 1) > heap->bufsize) {
-		int newsize = heap->bufsize*2;
-		HeapNode **newtree;
-
-		newtree = (HeapNode**)MEM_mallocN(newsize*sizeof(*newtree), "BLIHeapTree");
-		memcpy(newtree, heap->tree, sizeof(HeapNode*)*heap->size);
-		MEM_freeN(heap->tree);
-
-		heap->tree = newtree;
-		heap->bufsize = newsize;
+	if (UNLIKELY((heap->size + 1) > heap->bufsize)) {
+		heap->bufsize *= 2;
+		heap->tree = MEM_reallocN(heap->tree, heap->bufsize * sizeof(*heap->tree));
 	}
 
 	if (heap->freenodes) {
 		node = heap->freenodes;
-		heap->freenodes = (HeapNode*)(((HeapNode*)heap->freenodes)->ptr);
+		heap->freenodes = (HeapNode *)(((HeapNode *)heap->freenodes)->ptr);
 	}
-	else
-		node = (HeapNode*)BLI_memarena_alloc(heap->arena, sizeof *node);
+	else {
+		node = (HeapNode *)BLI_memarena_alloc(heap->arena, sizeof(*node));
+	}
 
 	node->value = value;
 	node->ptr = ptr;
@@ -156,17 +184,17 @@ HeapNode *BLI_heap_insert(Heap *heap, float value, void *ptr)
 
 	heap->size++;
 
-	BLI_heap_up(heap, heap->size-1);
+	heap_up(heap, heap->size - 1);
 
 	return node;
 }
 
-int BLI_heap_empty(Heap *heap)
+bool BLI_heap_is_empty(Heap *heap)
 {
 	return (heap->size == 0);
 }
 
-int BLI_heap_size(Heap *heap)
+unsigned int BLI_heap_size(Heap *heap)
 {
 	return heap->size;
 }
@@ -180,16 +208,19 @@ void *BLI_heap_popmin(Heap *heap)
 {
 	void *ptr = heap->tree[0]->ptr;
 
+	BLI_assert(heap->size != 0);
+
 	heap->tree[0]->ptr = heap->freenodes;
 	heap->freenodes = heap->tree[0];
 
-	if (heap->size == 1)
+	if (UNLIKELY(heap->size == 1)) {
 		heap->size--;
+	}
 	else {
-		HEAP_SWAP(heap, 0, heap->size-1);
+		heap_swap(heap, 0, heap->size - 1);
 		heap->size--;
 
-		BLI_heap_down(heap, 0);
+		heap_down(heap, 0);
 	}
 
 	return ptr;
@@ -197,12 +228,12 @@ void *BLI_heap_popmin(Heap *heap)
 
 void BLI_heap_remove(Heap *heap, HeapNode *node)
 {
-	int i = node->index;
+	unsigned int i = node->index;
 
 	while (i > 0) {
-		int p = HEAP_PARENT(i);
+		unsigned int p = HEAP_PARENT(i);
 
-		HEAP_SWAP(heap, p, i);
+		heap_swap(heap, p, i);
 		i = p;
 	}
 

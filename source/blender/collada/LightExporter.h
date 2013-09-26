@@ -1,6 +1,4 @@
 /*
- * $Id: LightExporter.h 35816 2011-03-27 09:46:20Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -37,14 +35,17 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "ExportSettings.h"
+
 class LightsExporter: COLLADASW::LibraryLights
 {
 public:
-	LightsExporter(COLLADASW::StreamWriter *sw);
+	LightsExporter(COLLADASW::StreamWriter *sw, const ExportSettings *export_settings);
 	void exportLights(Scene *sce);
 	void operator()(Object *ob);
 private:
 	bool exportBlenderProfile(COLLADASW::Light &cla, Lamp *la);
+	const ExportSettings *export_settings;
 };
 
 #endif

@@ -1,8 +1,4 @@
 /*
- * Jitter offset table
- *
- * $Id: gammaCorrectionTables.c 35233 2011-02-27 19:31:27Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -42,7 +38,7 @@
 /* result remain identical (ton)                                            */   
 
 /* gamma is only used here for correcting adding colors or alpha */
-#define RE_DEFAULT_GAMMA 2.0
+// #define RE_DEFAULT_GAMMA 2.0 // UNUSED
 
 /* This 400 is sort of based on the number of intensity levels needed for    */
 /* the typical dynamic range of a medium, in this case CRTs. (Foley)         */
@@ -107,34 +103,32 @@ void makeGammaTables(float gamma)
 	int i;
 
 	valid_gamma        = gamma;
-	valid_inv_gamma    = 1.0 / gamma;
+	valid_inv_gamma    = 1.0f / gamma;
 	color_step        = 1.0 / RE_GAMMA_TABLE_SIZE;
 	inv_color_step    = (float) RE_GAMMA_TABLE_SIZE; 
 
-	/* We could squeeze out the two range tables to gain some memory.        */	
+	/* We could squeeze out the two range tables to gain some memory.        */
 	for (i = 0; i < RE_GAMMA_TABLE_SIZE; i++) {
-		color_domain_table[i]   = i * color_step;
+		color_domain_table[i]    = i * color_step;
 		gamma_range_table[i]     = pow(color_domain_table[i],
-										valid_gamma);
+		                               valid_gamma);
 		inv_gamma_range_table[i] = pow(color_domain_table[i],
-										valid_inv_gamma);
+		                               valid_inv_gamma);
 	}
 
 	/* The end of the table should match 1.0 carefully. In order to avoid    */
 	/* rounding errors, we just set this explicitly. The last segment may    */
 	/* have a different length than the other segments, but our              */
 	/* interpolation is insensitive to that.                                 */
-	color_domain_table[RE_GAMMA_TABLE_SIZE]   = 1.0;
+	color_domain_table[RE_GAMMA_TABLE_SIZE]    = 1.0;
 	gamma_range_table[RE_GAMMA_TABLE_SIZE]     = 1.0;
 	inv_gamma_range_table[RE_GAMMA_TABLE_SIZE] = 1.0;
 
 	/* To speed up calculations, we make these calc factor tables. They are  */
 	/* multiplication factors used in scaling the interpolation.             */
 	for (i = 0; i < RE_GAMMA_TABLE_SIZE; i++ ) {
-		gamfactor_table[i] = inv_color_step
-			* (gamma_range_table[i + 1] - gamma_range_table[i]) ;
-		inv_gamfactor_table[i] = inv_color_step
-			* (inv_gamma_range_table[i + 1] - inv_gamma_range_table[i]) ;
+		gamfactor_table[i] = inv_color_step * (gamma_range_table[i + 1] - gamma_range_table[i]);
+		inv_gamfactor_table[i] = inv_color_step * (inv_gamma_range_table[i + 1] - inv_gamma_range_table[i]);
 	}
 
 } /* end of void makeGammaTables(float gamma) */

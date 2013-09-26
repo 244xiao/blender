@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -27,12 +26,16 @@ set(INC
 	../../blenloader
 	../../gpu
 	../../imbuf
+	../../bmesh
 	../../makesdna
 	../../makesrna
 	../../render/extern/include
 	../../windowmanager
 	../../../../intern/guardedalloc
-    ${GLEW_INCLUDE_PATH}
+)
+
+set(INC_SYS
+	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -41,17 +44,35 @@ set(SRC
 	render_ops.c
 	render_preview.c
 	render_shading.c
+	render_update.c
+	render_view.c
 
 	render_intern.h
 )
 
 if(WITH_CODEC_QUICKTIME)
-	list(APPEND INC ../../quicktime ${QUICKTIME_INC})
+	list(APPEND INC
+		../../quicktime
+	)
+	list(APPEND INC_SYS
+		${QUICKTIME_INCLUDE_DIRS}
+	)
 	add_definitions(-DWITH_QUICKTIME)
 endif()
 
-if(WITH_OPENMP)
-	add_definitions(-DPARALLEL=1)
+if(WITH_HEADLESS)
+	add_definitions(-DWITH_HEADLESS)
 endif()
 
-blender_add_lib(bf_editor_render "${SRC}" "${INC}")
+if(WITH_FREESTYLE)
+	list(APPEND INC
+		../../freestyle
+	)
+	add_definitions(-DWITH_FREESTYLE)
+endif()
+
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+blender_add_lib(bf_editor_render "${SRC}" "${INC}" "${INC_SYS}")

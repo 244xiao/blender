@@ -29,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __JOYSTICKMANAGER_H_
-#define __JOYSTICKMANAGER_H_
+#ifndef __SCA_JOYSTICKMANAGER_H__
+#define __SCA_JOYSTICKMANAGER_H__
 
 #include "SCA_EventManager.h"
 #include "Joystick/SCA_Joystick.h"
@@ -51,9 +51,7 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SCA_JoystickManager"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_JoystickManager")
 #endif
 };
 

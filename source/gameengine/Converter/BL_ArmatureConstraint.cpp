@@ -1,5 +1,4 @@
 /*
- * $Id: BL_ArmatureConstraint.cpp 35167 2011-02-25 13:30:41Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -62,7 +61,7 @@ PyTypeObject BL_ArmatureConstraint::Type = {
 	py_base_new
 };
 
-PyObject* BL_ArmatureConstraint::py_repr(void)
+PyObject *BL_ArmatureConstraint::py_repr(void)
 {
 	return PyUnicode_FromString(m_name);
 }
@@ -131,10 +130,10 @@ void BL_ArmatureConstraint::ReParent(BL_ArmatureObject* armature)
 		m_constraint = NULL;
 		m_posechannel = NULL;
 		// and locate the constraint
-		for (pchan = (bPoseChannel*)newpose->chanbase.first; pchan; pchan=(bPoseChannel*)pchan->next) {
+		for (pchan = (bPoseChannel*)newpose->chanbase.first; pchan; pchan = (bPoseChannel*)pchan->next) {
 			if (!strcmp(pchan->name, posechannel)) {
 				// now locate the constraint
-				for (pcon = (bConstraint*)pchan->constraints.first; pcon; pcon=(bConstraint*)pcon->next) {
+				for (pcon = (bConstraint *)pchan->constraints.first; pcon; pcon = (bConstraint *)pcon->next) {
 					if (!strcmp(pcon->name, constraint)) {
 						m_constraint = pcon;
 						m_posechannel = pchan;
@@ -147,7 +146,7 @@ void BL_ArmatureConstraint::ReParent(BL_ArmatureObject* armature)
 	}
 }
 
-void BL_ArmatureConstraint::Relink(GEN_Map<GEN_HashedPtr, void*> *obj_map)
+void BL_ArmatureConstraint::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
 {
 	void **h_obj = (*obj_map)[m_target];
 	if (h_obj) {
@@ -247,7 +246,7 @@ void BL_ArmatureConstraint::SetSubtarget(KX_GameObject* subtarget)
 // PYTHON
 
 PyMethodDef BL_ArmatureConstraint::Methods[] = {
-  {NULL,NULL} //Sentinel
+	{NULL,NULL} //Sentinel
 };
 
 // order of definition of attributes, must match Attributes[] array
@@ -268,8 +267,8 @@ PyMethodDef BL_ArmatureConstraint::Methods[] = {
 
 PyAttributeDef BL_ArmatureConstraint::Attributes[] = {
 	// Keep these attributes in order of BCA_ defines!!! used by py_attr_getattr and py_attr_setattr
-	KX_PYATTRIBUTE_RO_FUNCTION("type",BL_ArmatureConstraint,py_attr_getattr),	
-	KX_PYATTRIBUTE_RO_FUNCTION("name",BL_ArmatureConstraint,py_attr_getattr),	
+	KX_PYATTRIBUTE_RO_FUNCTION("type",BL_ArmatureConstraint,py_attr_getattr),
+	KX_PYATTRIBUTE_RO_FUNCTION("name",BL_ArmatureConstraint,py_attr_getattr),
 	KX_PYATTRIBUTE_RW_FUNCTION("enforce",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
 	KX_PYATTRIBUTE_RW_FUNCTION("headtail",BL_ArmatureConstraint,py_attr_getattr,py_attr_setattr),
 	KX_PYATTRIBUTE_RO_FUNCTION("lin_error",BL_ArmatureConstraint,py_attr_getattr),
@@ -287,9 +286,9 @@ PyAttributeDef BL_ArmatureConstraint::Attributes[] = {
 };
 
 
-PyObject* BL_ArmatureConstraint::py_attr_getattr(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureConstraint::py_attr_getattr(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
-	BL_ArmatureConstraint* self= static_cast<BL_ArmatureConstraint*>(self_v);
+	BL_ArmatureConstraint* self = static_cast<BL_ArmatureConstraint*>(self_v);
 	bConstraint* constraint = self->m_constraint;
 	bKinematicConstraint* ikconstraint = (constraint && constraint->type == CONSTRAINT_TYPE_KINEMATIC) ? (bKinematicConstraint*)constraint->data : NULL;
 	int attr_order = attrdef-Attributes;
@@ -313,12 +312,12 @@ PyObject* BL_ArmatureConstraint::py_attr_getattr(void *self_v, const struct KX_P
 	case BCA_ROTERROR:
 		return PyFloat_FromDouble(constraint->rot_error);
 	case BCA_TARGET:
-		if (!self->m_target)	
+		if (!self->m_target)
 			Py_RETURN_NONE;
 		else
 			return self->m_target->GetProxy();
 	case BCA_SUBTARGET:
-		if (!self->m_subtarget)	
+		if (!self->m_subtarget)
 			Py_RETURN_NONE;
 		else
 			return self->m_subtarget->GetProxy();
@@ -335,7 +334,7 @@ PyObject* BL_ArmatureConstraint::py_attr_getattr(void *self_v, const struct KX_P
 		}
 		switch (attr_order) {
 		case BCA_IKWEIGHT:
-			return PyFloat_FromDouble((ikconstraint)?ikconstraint->weight:0.0);
+			return PyFloat_FromDouble((ikconstraint)?ikconstraint->weight : 0.0f);
 		case BCA_IKTYPE:
 			return PyLong_FromLong(ikconstraint->type);
 		case BCA_IKFLAG:
@@ -354,7 +353,7 @@ PyObject* BL_ArmatureConstraint::py_attr_getattr(void *self_v, const struct KX_P
 
 int BL_ArmatureConstraint::py_attr_setattr(void *self_v, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	BL_ArmatureConstraint* self= static_cast<BL_ArmatureConstraint*>(self_v);
+	BL_ArmatureConstraint* self = static_cast<BL_ArmatureConstraint*>(self_v);
 	bConstraint* constraint = self->m_constraint;
 	bKinematicConstraint* ikconstraint = (constraint && constraint->type == CONSTRAINT_TYPE_KINEMATIC) ? (bKinematicConstraint*)constraint->data : NULL;
 	int attr_order = attrdef-Attributes;
@@ -371,7 +370,7 @@ int BL_ArmatureConstraint::py_attr_setattr(void *self_v, const struct KX_PYATTRI
 	switch (attr_order) {
 	case BCA_ENFORCE:
 		dval = PyFloat_AsDouble(value);
-		if (dval < 0.0f || dval > 1.0f) { /* also accounts for non float */
+		if (dval < 0.0 || dval > 1.0) { /* also accounts for non float */
 			PyErr_SetString(PyExc_AttributeError, "constraint.enforce = float: BL_ArmatureConstraint, expected a float between 0 and 1");
 			return PY_SET_ATTR_FAIL;
 		}
@@ -380,7 +379,7 @@ int BL_ArmatureConstraint::py_attr_setattr(void *self_v, const struct KX_PYATTRI
 
 	case BCA_HEADTAIL:
 		dval = PyFloat_AsDouble(value);
-		if (dval < 0.0f || dval > 1.0f) { /* also accounts for non float */
+		if (dval < 0.0 || dval > 1.0) { /* also accounts for non float */
 			PyErr_SetString(PyExc_AttributeError, "constraint.headtail = float: BL_ArmatureConstraint, expected a float between 0 and 1");
 			return PY_SET_ATTR_FAIL;
 		}
@@ -418,7 +417,7 @@ int BL_ArmatureConstraint::py_attr_setattr(void *self_v, const struct KX_PYATTRI
 		switch (attr_order) {
 		case BCA_IKWEIGHT:
 			dval = PyFloat_AsDouble(value);
-			if (dval < 0.0f || dval > 1.0f) { /* also accounts for non float */
+			if (dval < 0.0 || dval > 1.0) { /* also accounts for non float */
 				PyErr_SetString(PyExc_AttributeError, "constraint.weight = float: BL_ArmatureConstraint, expected a float between 0 and 1");
 				return PY_SET_ATTR_FAIL;
 			}
@@ -427,7 +426,7 @@ int BL_ArmatureConstraint::py_attr_setattr(void *self_v, const struct KX_PYATTRI
 
 		case BCA_IKDIST:
 			dval = PyFloat_AsDouble(value);
-			if (dval < 0.0f) { /* also accounts for non float */
+			if (dval < 0.0) {  /* also accounts for non float */
 				PyErr_SetString(PyExc_AttributeError, "constraint.ik_dist = float: BL_ArmatureConstraint, expected a positive float");
 				return PY_SET_ATTR_FAIL;
 			}

@@ -1,6 +1,4 @@
 /*
- * $Id: SG_BBox.cpp 35175 2011-02-25 13:39:04Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -39,8 +37,8 @@
  #include "SG_Node.h"
  
 SG_BBox::SG_BBox() :
-	m_min(0., 0., 0.),
-	m_max(0., 0., 0.)
+	m_min(0.0, 0.0, 0.0),
+	m_max(0.0, 0.0, 0.0)
 {
 }
 
@@ -142,8 +140,8 @@ SG_BBox SG_BBox::transform(const MT_Transform &world) const
 bool SG_BBox::inside(const MT_Point3 &point) const
 {
 	return point[0] >= m_min[0] && point[0] <= m_max[0] &&
-	    point[1] >= m_min[1] && point[1] <= m_max[1] &&
-	    point[2] >= m_min[2] && point[2] <= m_max[2];
+	        point[1] >= m_min[1] && point[1] <= m_max[1] &&
+	        point[2] >= m_min[2] && point[2] <= m_max[2];
 }
 
 bool SG_BBox::inside(const SG_BBox& other) const
@@ -219,7 +217,8 @@ void SG_BBox::split(SG_BBox &left, SG_BBox &right) const
 			right.m_min[2] = m_min[2];
 			right.m_max = m_max;
 			std::cout << "splity" << std::endl;
-		} else {
+		}
+		else {
 			left.m_min = m_min;
 			left.m_max[0] = m_max[0];
 			left.m_max[1] = m_max[1];
@@ -231,9 +230,9 @@ void SG_BBox::split(SG_BBox &left, SG_BBox &right) const
 			right.m_max = m_max;
 			std::cout << "splitz" << std::endl;
 		}
-	} else {
-		if (sizex > sizez)
-		{
+	}
+	else {
+		if (sizex > sizez) {
 			left.m_min = m_min;
 			left.m_max[0] = m_min[0] + sizex/2.0;
 			left.m_max[1] = m_max[1];
@@ -244,7 +243,8 @@ void SG_BBox::split(SG_BBox &left, SG_BBox &right) const
 			right.m_min[2] = m_min[2];
 			right.m_max = m_max;
 			std::cout << "splitx" << std::endl;
-		} else {
+		}
+		else {
 			left.m_min = m_min;
 			left.m_max[0] = m_max[0];
 			left.m_max[1] = m_max[1];

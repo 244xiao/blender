@@ -1,8 +1,4 @@
 /*
- *
- *
- * $Id: DNA_property_types.h 35106 2011-02-23 10:52:22Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -28,8 +24,6 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_PROPERTY_TYPES_H
-#define DNA_PROPERTY_TYPES_H
 
 /** \file DNA_property_types.h
  *  \ingroup DNA
@@ -37,13 +31,18 @@
  *  \author nzc
  *  \attention Renderrecipe and scene decription. The fact that there is a
  *             hierarchy here is a bit strange, and not desirable.
+ *
+ * #bProperty type is specifically for use by Objects game-logic.
  */
+
+#ifndef __DNA_PROPERTY_TYPES_H__
+#define __DNA_PROPERTY_TYPES_H__
 
 /* ********************* PROPERTY ************************ */
 
 typedef struct bProperty {
 	struct bProperty *next, *prev;
-	char name[32];
+	char name[64];	/* MAX_NAME */
 	short type, flag;
 	int data;				/* data should be 4 bytes to store int,float stuff */
 	void *poin;				/* references data unless its a string which is malloc'd */
@@ -55,7 +54,7 @@ typedef struct bProperty {
 #define GPROP_INT		1
 #define GPROP_FLOAT		2
 #define GPROP_STRING	3
-#define GPROP_VECTOR	4
+// #define GPROP_VECTOR	4  // UNUSED
 #define GPROP_TIME		5
 
 /* property->flag */
@@ -63,5 +62,4 @@ typedef struct bProperty {
 
 #define MAX_PROPSTRING	128
 
-#endif
-
+#endif  /* __DNA_PROPERTY_TYPES_H__ */

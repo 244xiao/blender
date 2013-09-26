@@ -1,6 +1,4 @@
 /*
- * $Id: logic_intern.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  */
 
 
-#ifndef ED_LOGIC_INTERN_H
-#define ED_LOGIC_INTERN_H
+#ifndef __LOGIC_INTERN_H__
+#define __LOGIC_INTERN_H__
 
 /* internal exports only */
 struct bContext;
@@ -50,7 +48,6 @@ struct ARegion *logic_has_buttons_region(struct ScrArea *sa);
 /* logic_ops.c */
 
 /* logic_buttons.c */
-void logic_buttons_register(struct ARegionType *art);
 void LOGIC_OT_properties(struct wmOperatorType *ot);
 void LOGIC_OT_links_cut(struct wmOperatorType *ot);
 
@@ -58,5 +55,5 @@ void LOGIC_OT_links_cut(struct wmOperatorType *ot);
 void logic_buttons(struct bContext *C, struct ARegion *ar);
 void make_unique_prop_names(struct bContext *C, char *str);
 
-#endif /* ED_LOGIC_INTERN_H */
+#endif /* __LOGIC_INTERN_H__ */
 

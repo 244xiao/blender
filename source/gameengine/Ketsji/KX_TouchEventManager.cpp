@@ -1,5 +1,4 @@
 /*
- * $Id: KX_TouchEventManager.cpp 35171 2011-02-25 13:35:59Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -83,7 +82,7 @@ bool	 KX_TouchEventManager::newBroadphaseResponse(void *client_data,
 							const PHY_CollData *coll_data)
 {
 	PHY_IPhysicsController* ctrl = static_cast<PHY_IPhysicsController*>(object1);
-	KX_ClientObjectInfo* info = (ctrl) ? static_cast<KX_ClientObjectInfo*>(ctrl->getNewClientInfo()) : NULL;
+	KX_ClientObjectInfo *info = (ctrl) ? static_cast<KX_ClientObjectInfo*>(ctrl->getNewClientInfo()) : NULL;
 	// This call back should only be called for controllers of Near and Radar sensor
 	if (!info)
 		return true;
@@ -102,7 +101,7 @@ bool	 KX_TouchEventManager::newBroadphaseResponse(void *client_data,
 	case KX_ClientObjectInfo::OBACTORSENSOR:
 		// this object may have multiple collision sensors, 
 		// check is any of them is interested in this object
-		for(std::list<SCA_ISensor*>::iterator it = info->m_sensors.begin();
+		for (std::list<SCA_ISensor*>::iterator it = info->m_sensors.begin();
 			it != info->m_sensors.end();
 			++it)
 		{

@@ -1,6 +1,4 @@
 /*
- * $Id: PyObjectPlus.h 35904 2011-03-30 16:14:54Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,11 +29,12 @@
  *  \ingroup expressions
  */
 
+#ifndef __PYOBJECTPLUS_H__
+#define __PYOBJECTPLUS_H__
+
 /* for now keep weakrefs optional */
 #define USE_WEAKREFS
 
-#ifndef _adr_py_lib_h_				// only process once,
-#define _adr_py_lib_h_				// even if multiply included
 
 #ifndef __cplusplus				// c++ only
 #error Must be compiled with C++
@@ -47,22 +46,15 @@
 #include "SG_QList.h"
 #include <stddef.h>
 
-/*------------------------------
- * Python defines
-------------------------------*/
-
 #ifdef WITH_PYTHON
 #ifdef USE_MATHUTILS
 extern "C" {
-#include "../../blender/python/generic/mathutils.h" /* so we can have mathutils callbacks */
+#include "../../blender/python/mathutils/mathutils.h" /* so we can have mathutils callbacks */
+#include "../../blender/python/generic/py_capi_utils.h" /* for PyC_LineSpit only */
 }
 #endif
 
-static inline void Py_Fatal(const char *M) {
-	fprintf(stderr, "%s\n", M);
-	exit(-1);
-};
-
+#define MAX_PROP_NAME 64
 
 /* Use with ShowDeprecationWarning macro */
 typedef struct {
@@ -70,26 +62,27 @@ typedef struct {
 	void *link;
 } WarnLink;
 
-#define ShowDeprecationWarning(old_way, new_way) \
-{ \
-	static WarnLink wlink = {false, NULL}; \
-	if ((m_ignore_deprecation_warnings || wlink.warn_done)==0) \
-	{ \
-		ShowDeprecationWarning_func(old_way, new_way); \
- \
-		WarnLink *wlink_last= GetDeprecationWarningLinkLast(); \
-		wlink.warn_done = true; \
-		wlink.link = NULL; \
-	 \
-		if(wlink_last) { \
-			wlink_last->link= (void *)&(wlink); \
-			SetDeprecationWarningLinkLast(&(wlink)); \
-		} else { \
-			SetDeprecationWarningFirst(&(wlink)); \
-			SetDeprecationWarningLinkLast(&(wlink)); \
-		} \
-	} \
-} \
+#define ShowDeprecationWarning(old_way, new_way)                              \
+{                                                                             \
+	static WarnLink wlink = {false, NULL};                                    \
+	if ((m_ignore_deprecation_warnings || wlink.warn_done)==0)                \
+	{                                                                         \
+		ShowDeprecationWarning_func(old_way, new_way);                        \
+		                                                                      \
+		WarnLink *wlink_last= GetDeprecationWarningLinkLast();                \
+		wlink.warn_done = true;                                               \
+		wlink.link = NULL;                                                    \
+		                                                                      \
+		if(wlink_last) {                                                      \
+			wlink_last->link= (void *)&(wlink);                               \
+			SetDeprecationWarningLinkLast(&(wlink));                          \
+		}                                                                     \
+		else {                                                                \
+			SetDeprecationWarningFirst(&(wlink));                             \
+			SetDeprecationWarningLinkLast(&(wlink));                          \
+		}                                                                     \
+	}                                                                         \
+}                                                                             \
 
 
 
@@ -110,10 +103,10 @@ typedef struct PyObjectPlus_Proxy {
 #define BGE_PROXY_PYOWNS(_self) (((PyObjectPlus_Proxy *)_self)->py_owns)
 #define BGE_PROXY_PYREF(_self) (((PyObjectPlus_Proxy *)_self)->py_ref)
 #ifdef USE_WEAKREFS
-	#define BGE_PROXY_WKREF(_self) (((PyObjectPlus_Proxy *)_self)->in_weakreflist)
+#  define BGE_PROXY_WKREF(_self) (((PyObjectPlus_Proxy *)_self)->in_weakreflist)
 #endif
 
-/* Note, sometimes we dont care what BGE type this is as long as its a proxy */
+/* Note, sometimes we don't care what BGE type this is as long as its a proxy */
 #define BGE_PROXY_CHECK_TYPE(_type) ((_type)->tp_dealloc == PyObjectPlus::py_base_dealloc)
 
 /* Opposite of BGE_PROXY_REF */
@@ -124,45 +117,61 @@ typedef struct PyObjectPlus_Proxy {
 // PyC++ class
 // AttributesPtr correspond to attributes of proxy generic pointer 
 // each PyC++ class must be registered in KX_PythonInitTypes.cpp
-#define __Py_Header \
- public: \
-  static PyTypeObject   Type; \
-  static PyMethodDef    Methods[]; \
-  static PyAttributeDef Attributes[]; \
-  virtual PyTypeObject *GetType(void) {return &Type;}; \
-  virtual PyObject *GetProxy() {return GetProxyPlus_Ext(this, &Type, NULL);}; \
-  virtual PyObject *NewProxy(bool py_owns) {return NewProxyPlus_Ext(this, &Type, NULL, py_owns);}; \
+#define __Py_Header                                                           \
+public:                                                                       \
+	static PyTypeObject   Type;                                               \
+	static PyMethodDef    Methods[];                                          \
+	static PyAttributeDef Attributes[];                                       \
+	virtual PyTypeObject *GetType(void) {                                     \
+		return &Type;                                                         \
+	}                                                                         \
+	virtual PyObject *GetProxy() {                                            \
+		return GetProxyPlus_Ext(this, &Type, NULL);                           \
+	}                                                                         \
+	virtual PyObject *NewProxy(bool py_owns) {                                \
+		return NewProxyPlus_Ext(this, &Type, NULL, py_owns);                  \
+	}                                                                         \
 
 // leave above line empty (macro)!
 // use this macro for class that use generic pointer in proxy
 // GetProxy() and NewProxy() must be defined to set the correct pointer in the proxy
-#define __Py_HeaderPtr \
- public: \
-  static PyTypeObject   Type; \
-  static PyMethodDef    Methods[]; \
-  static PyAttributeDef Attributes[]; \
-  static PyAttributeDef AttributesPtr[]; \
-  virtual PyTypeObject *GetType(void) {return &Type;}; \
-  virtual PyObject *GetProxy(); \
-  virtual PyObject *NewProxy(bool py_owns); \
+#define __Py_HeaderPtr                                                        \
+public:                                                                       \
+	static PyTypeObject   Type;                                               \
+	static PyMethodDef    Methods[];                                          \
+	static PyAttributeDef Attributes[];                                       \
+	static PyAttributeDef AttributesPtr[];                                    \
+	virtual PyTypeObject *GetType(void) {                                     \
+		return &Type;                                                         \
+	}                                                                         \
+	virtual PyObject *GetProxy();                                             \
+	virtual PyObject *NewProxy(bool py_owns);                                 \
 
 // leave above line empty (macro)!
 #ifdef WITH_CXX_GUARDEDALLOC
-#define Py_Header __Py_Header \
-  void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, Type.tp_name); } \
-  void operator delete(void *mem) { MEM_freeN(mem); } \
+#define Py_Header __Py_Header                                                 \
+	void *operator new(size_t num_bytes) {                                    \
+		return MEM_mallocN(num_bytes, Type.tp_name);                          \
+	}                                                                         \
+	void operator delete(void *mem) {                                         \
+		MEM_freeN(mem);                                                       \
+	}                                                                         \
 
 #else
-#define Py_Header __Py_Header
+#  define Py_Header __Py_Header
 #endif
 
 #ifdef WITH_CXX_GUARDEDALLOC
-#define Py_HeaderPtr __Py_HeaderPtr \
-  void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, Type.tp_name); } \
-  void operator delete( void *mem ) { MEM_freeN(mem); } \
+#define Py_HeaderPtr __Py_HeaderPtr                                           \
+	void *operator new(size_t num_bytes) {                                    \
+		return MEM_mallocN(num_bytes, Type.tp_name);                          \
+	}                                                                         \
+	void operator delete(void *mem) {                                         \
+		MEM_freeN(mem);                                                       \
+	}                                                                         \
 
 #else
-#define Py_HeaderPtr __Py_HeaderPtr
+#  define Py_HeaderPtr __Py_HeaderPtr
 #endif
 
 /*
@@ -177,68 +186,112 @@ typedef struct PyObjectPlus_Proxy {
 #define PY_SET_ATTR_SUCCESS		 0
 
 /**
- * These macros are helpfull when embedding Python routines. The second
+ * These macros are helpful when embedding Python routines. The second
  * macro is one that also requires a documentation string
  */
-#define KX_PYMETHOD(class_name, method_name)			\
-	PyObject* Py##method_name(PyObject* args, PyObject* kwds); \
-	static PyObject* sPy##method_name( PyObject* self, PyObject* args, PyObject* kwds) { \
-		if(BGE_PROXY_REF(self)==NULL) { PyErr_SetString(PyExc_RuntimeError, #class_name "." #method_name "() - " BGE_PROXY_ERROR_MSG); return NULL; } \
-		return ((class_name*)BGE_PROXY_REF(self))->Py##method_name(args, kwds);		\
-	}; \
+#define KX_PYMETHOD(class_name, method_name)                                   \
+	PyObject *Py##method_name(PyObject *args, PyObject *kwds);                 \
+	static PyObject *                                                          \
+	sPy##method_name(PyObject *self, PyObject *args, PyObject *kwds) {         \
+		if(BGE_PROXY_REF(self)==NULL) {                                        \
+			PyErr_SetString(PyExc_RuntimeError,                                \
+			                #class_name "." #method_name "() - "               \
+			                BGE_PROXY_ERROR_MSG);                              \
+			return NULL;                                                       \
+		}                                                                      \
+		return((class_name*)BGE_PROXY_REF(self))->Py##method_name(args, kwds); \
+	}                                                                          \
 
-#define KX_PYMETHOD_VARARGS(class_name, method_name)			\
-	PyObject* Py##method_name(PyObject* args); \
-	static PyObject* sPy##method_name( PyObject* self, PyObject* args) { \
-		if(BGE_PROXY_REF(self)==NULL) { PyErr_SetString(PyExc_RuntimeError, #class_name "." #method_name "() - " BGE_PROXY_ERROR_MSG); return NULL; } \
-		return ((class_name*)BGE_PROXY_REF(self))->Py##method_name(args);		\
-	}; \
+#define KX_PYMETHOD_VARARGS(class_name, method_name)                           \
+	PyObject *Py##method_name(PyObject *args);                                 \
+	static PyObject*                                                           \
+	sPy##method_name(PyObject *self, PyObject *args) {                         \
+		if(BGE_PROXY_REF(self)==NULL) {                                        \
+			PyErr_SetString(PyExc_RuntimeError,                                \
+			                #class_name "." #method_name "() - "               \
+			                BGE_PROXY_ERROR_MSG); return NULL;                 \
+		}                                                                      \
+		return((class_name*)BGE_PROXY_REF(self))->Py##method_name(args);       \
+	}                                                                          \
 
-#define KX_PYMETHOD_NOARGS(class_name, method_name)			\
-	PyObject* Py##method_name(); \
-	static PyObject* sPy##method_name( PyObject* self) { \
-		if(BGE_PROXY_REF(self)==NULL) { PyErr_SetString(PyExc_RuntimeError, #class_name "." #method_name "() - " BGE_PROXY_ERROR_MSG); return NULL; } \
-		return ((class_name*)BGE_PROXY_REF(self))->Py##method_name();		\
-	}; \
-	
-#define KX_PYMETHOD_O(class_name, method_name)			\
-	PyObject* Py##method_name(PyObject* value); \
-	static PyObject* sPy##method_name( PyObject* self, PyObject* value) { \
-		if(BGE_PROXY_REF(self)==NULL) { PyErr_SetString(PyExc_RuntimeError, #class_name "." #method_name "(value) - " BGE_PROXY_ERROR_MSG); return NULL; } \
-		return ((class_name*)BGE_PROXY_REF(self))->Py##method_name(value);		\
-	}; \
+#define KX_PYMETHOD_NOARGS(class_name, method_name)                            \
+	PyObject *Py##method_name();                                               \
+	static PyObject*                                                           \
+	sPy##method_name(PyObject *self) {                                         \
+		if(BGE_PROXY_REF(self)==NULL) {                                        \
+			PyErr_SetString(PyExc_RuntimeError,                                \
+			                #class_name "." #method_name "() - "               \
+			                BGE_PROXY_ERROR_MSG); return NULL;                 \
+		}                                                                      \
+		return((class_name*)BGE_PROXY_REF(self))->Py##method_name();           \
+	}                                                                          \
 
-#define KX_PYMETHOD_DOC(class_name, method_name)			\
-	PyObject* Py##method_name(PyObject* args, PyObject* kwds); \
-	static PyObject* sPy##method_name( PyObject* self, PyObject* args, PyObject* kwds) { \
-		if(BGE_PROXY_REF(self)==NULL) { PyErr_SetString(PyExc_RuntimeError, #class_name "." #method_name "(...) - " BGE_PROXY_ERROR_MSG); return NULL; } \
-		return ((class_name*)BGE_PROXY_REF(self))->Py##method_name(args, kwds);		\
-	}; \
-    static const char method_name##_doc[]; \
+#define KX_PYMETHOD_O(class_name, method_name)                                 \
+	PyObject *Py##method_name(PyObject *value);                                \
+	static PyObject*                                                           \
+	sPy##method_name(PyObject *self, PyObject *value) {                        \
+		if(BGE_PROXY_REF(self)==NULL) {                                        \
+			PyErr_SetString(PyExc_RuntimeError,                                \
+			                #class_name "." #method_name "(value) - "          \
+			                BGE_PROXY_ERROR_MSG); return NULL;                 \
+		}                                                                      \
+		return((class_name*)BGE_PROXY_REF(self))->Py##method_name(value);      \
+	}                                                                          \
 
-#define KX_PYMETHOD_DOC_VARARGS(class_name, method_name)			\
-	PyObject* Py##method_name(PyObject* args); \
-	static PyObject* sPy##method_name( PyObject* self, PyObject* args) { \
-		if(BGE_PROXY_REF(self)==NULL) { PyErr_SetString(PyExc_RuntimeError, #class_name "." #method_name "(...) - " BGE_PROXY_ERROR_MSG); return NULL; } \
-		return ((class_name*)BGE_PROXY_REF(self))->Py##method_name(args);		\
-	}; \
-    static const char method_name##_doc[]; \
+#define KX_PYMETHOD_DOC(class_name, method_name)                               \
+	PyObject *Py##method_name(PyObject *args, PyObject *kwds);                 \
+	static PyObject*                                                           \
+	sPy##method_name(PyObject *self, PyObject *args, PyObject *kwds) {         \
+		if(BGE_PROXY_REF(self)==NULL) {                                        \
+			PyErr_SetString(PyExc_RuntimeError,                                \
+			                #class_name "." #method_name "(...) - "            \
+			                BGE_PROXY_ERROR_MSG); return NULL;                 \
+		}                                                                      \
+		return((class_name*)BGE_PROXY_REF(self))->Py##method_name(args, kwds); \
+	}                                                                          \
+	static const char method_name##_doc[];                                     \
 
-#define KX_PYMETHOD_DOC_O(class_name, method_name)			\
-	PyObject* Py##method_name(PyObject* value); \
-	static PyObject* sPy##method_name( PyObject* self, PyObject* value) { \
-		if(BGE_PROXY_REF(self)==NULL) { PyErr_SetString(PyExc_RuntimeError, #class_name "." #method_name "(value) - " BGE_PROXY_ERROR_MSG); return NULL; } \
-		return ((class_name*)BGE_PROXY_REF(self))->Py##method_name(value);		\
-	}; \
-    static const char method_name##_doc[]; \
+#define KX_PYMETHOD_DOC_VARARGS(class_name, method_name)                       \
+	PyObject *Py##method_name(PyObject *args);                                 \
+	static PyObject*                                                           \
+	sPy##method_name(PyObject *self, PyObject *args) {                         \
+		if(BGE_PROXY_REF(self)==NULL) {                                        \
+			PyErr_SetString(PyExc_RuntimeError,                                \
+			                #class_name "." #method_name "(...) - "            \
+			                BGE_PROXY_ERROR_MSG);                              \
+			return NULL;                                                       \
+		}                                                                      \
+		return((class_name*)BGE_PROXY_REF(self))->Py##method_name(args);       \
+	}                                                                          \
+	static const char method_name##_doc[];                                     \
 
-#define KX_PYMETHOD_DOC_NOARGS(class_name, method_name)			\
-	PyObject* Py##method_name(); \
-	static PyObject* sPy##method_name( PyObject* self) { \
-		if(BGE_PROXY_REF(self)==NULL) { PyErr_SetString(PyExc_RuntimeError, #class_name "." #method_name "() - " BGE_PROXY_ERROR_MSG); return NULL; } \
-		return ((class_name*)BGE_PROXY_REF(self))->Py##method_name();		\
-	}; \
-    static const char method_name##_doc[]; \
+#define KX_PYMETHOD_DOC_O(class_name, method_name)                             \
+	PyObject *Py##method_name(PyObject *value);                                \
+	static PyObject *                                                          \
+	sPy##method_name(PyObject *self, PyObject *value) {                        \
+		if(BGE_PROXY_REF(self)==NULL) {                                        \
+			PyErr_SetString(PyExc_RuntimeError,                                \
+			                #class_name "." #method_name "(value) - "          \
+			                BGE_PROXY_ERROR_MSG);                              \
+			return NULL;                                                       \
+		}                                                                      \
+		return ((class_name*)BGE_PROXY_REF(self))->Py##method_name(value);     \
+	}                                                                          \
+	static const char method_name##_doc[];                                     \
+
+#define KX_PYMETHOD_DOC_NOARGS(class_name, method_name)                        \
+	PyObject *Py##method_name();                                               \
+	static PyObject *                                                          \
+	sPy##method_name(PyObject *self) {                                         \
+		if(BGE_PROXY_REF(self)==NULL) {                                        \
+			PyErr_SetString(PyExc_RuntimeError,                                \
+			                #class_name "." #method_name "() - "               \
+			                BGE_PROXY_ERROR_MSG);                              \
+			return NULL;                                                       \
+		}                                                                      \
+		return ((class_name*)BGE_PROXY_REF(self))->Py##method_name();          \
+	}                                                                          \
+	static const char method_name##_doc[];                                     \
 
 
 /* The line above should remain empty */
@@ -246,32 +299,35 @@ typedef struct PyObjectPlus_Proxy {
  * Method table macro (with doc)
  */
 #define KX_PYMETHODTABLE(class_name, method_name) \
-	{#method_name , (PyCFunction) class_name::sPy##method_name, METH_VARARGS, (const char *)class_name::method_name##_doc}
+	{#method_name, (PyCFunction) class_name::sPy##method_name, METH_VARARGS, (const char *)class_name::method_name##_doc}
 
 #define KX_PYMETHODTABLE_O(class_name, method_name) \
-	{#method_name , (PyCFunction) class_name::sPy##method_name, METH_O, (const char *)class_name::method_name##_doc}
+	{#method_name, (PyCFunction) class_name::sPy##method_name, METH_O, (const char *)class_name::method_name##_doc}
 
 #define KX_PYMETHODTABLE_NOARGS(class_name, method_name) \
-	{#method_name , (PyCFunction) class_name::sPy##method_name, METH_NOARGS, (const char *)class_name::method_name##_doc}
+	{#method_name, (PyCFunction) class_name::sPy##method_name, METH_NOARGS, (const char *)class_name::method_name##_doc}
+
+#define KX_PYMETHODTABLE_KEYWORDS(class_name, method_name) \
+	{#method_name, (PyCFunction) class_name::sPy##method_name, METH_VARARGS|METH_KEYWORDS, (const char *)class_name::method_name##_doc}
 
 /**
  * Function implementation macro
  */
 #define KX_PYMETHODDEF_DOC(class_name, method_name, doc_string) \
 const char class_name::method_name##_doc[] = doc_string; \
-PyObject* class_name::Py##method_name(PyObject* args, PyObject*)
+PyObject *class_name::Py##method_name(PyObject *args, PyObject *kwds)
 
 #define KX_PYMETHODDEF_DOC_VARARGS(class_name, method_name, doc_string) \
 const char class_name::method_name##_doc[] = doc_string; \
-PyObject* class_name::Py##method_name(PyObject* args)
+PyObject *class_name::Py##method_name(PyObject *args)
 
 #define KX_PYMETHODDEF_DOC_O(class_name, method_name, doc_string) \
 const char class_name::method_name##_doc[] = doc_string; \
-PyObject* class_name::Py##method_name(PyObject* value)
+PyObject *class_name::Py##method_name(PyObject *value)
 
 #define KX_PYMETHODDEF_DOC_NOARGS(class_name, method_name, doc_string) \
 const char class_name::method_name##_doc[] = doc_string; \
-PyObject* class_name::Py##method_name()
+PyObject *class_name::Py##method_name()
 
 /**
  * Attribute management
@@ -287,7 +343,7 @@ enum KX_PYATTRIBUTE_TYPE {
 	KX_PYATTRIBUTE_TYPE_FUNCTION,
 	KX_PYATTRIBUTE_TYPE_VECTOR,
 	KX_PYATTRIBUTE_TYPE_FLAG,
-	KX_PYATTRIBUTE_TYPE_CHAR,
+	KX_PYATTRIBUTE_TYPE_CHAR
 };
 
 enum KX_PYATTRIBUTE_ACCESS {
@@ -298,7 +354,7 @@ enum KX_PYATTRIBUTE_ACCESS {
 struct KX_PYATTRIBUTE_DEF;
 typedef int (*KX_PYATTRIBUTE_CHECK_FUNCTION)(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 typedef int (*KX_PYATTRIBUTE_SET_FUNCTION)(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-typedef PyObject* (*KX_PYATTRIBUTE_GET_FUNCTION)(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+typedef PyObject *(*KX_PYATTRIBUTE_GET_FUNCTION)(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 
 typedef struct KX_PYATTRIBUTE_DEF {
 	const char *m_name;				// name of the python attribute
@@ -333,168 +389,166 @@ typedef struct KX_PYATTRIBUTE_DEF {
 	} m_typeCheck;
 } PyAttributeDef;
 
-#define KX_PYATTRIBUTE_BOOL_RW(name,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_BOOL, KX_PYATTRIBUTE_RW, 0, 1, 0.f, 0.f, false, false, offsetof(object,field), 0, 1, NULL, NULL, NULL, {&((object *)0)->field, NULL, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_BOOL_RW_CHECK(name,object,field,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_BOOL, KX_PYATTRIBUTE_RW, 0, 1, 0.f, 0.f, false, false, offsetof(object,field), 0, 1, &object::function, NULL, NULL, {&((object *)0)->field, NULL, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_BOOL_RO(name,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_BOOL, KX_PYATTRIBUTE_RO, 0, 1, 0.f, 0.f, false, false, offsetof(object,field), 0, 1, NULL, NULL, NULL, {&((object *)0)->field, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_BOOL_RW(name, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_BOOL, KX_PYATTRIBUTE_RW, 0, 1, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, NULL, NULL, NULL, {&((object *)0)->field, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_BOOL_RW_CHECK(name, object, field, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_BOOL, KX_PYATTRIBUTE_RW, 0, 1, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, &object::function, NULL, NULL, {&((object *)0)->field, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_BOOL_RO(name, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_BOOL, KX_PYATTRIBUTE_RO, 0, 1, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, NULL, NULL, NULL, {&((object *)0)->field, NULL, NULL, NULL, NULL, NULL, NULL} }
 
 /* attribute points to a single bit of an integer field, attribute=true if bit is set */
-#define KX_PYATTRIBUTE_FLAG_RW(name,object,field,bit) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLAG, KX_PYATTRIBUTE_RW, bit, 0, 0.f, 0.f, false, false, offsetof(object,field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_FLAG_RW_CHECK(name,object,field,bit,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLAG, KX_PYATTRIBUTE_RW, bit, 0, 0.f, 0.f, false, false, offsetof(object,field), sizeof(((object *)0)->field), 1, &object::function, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_FLAG_RO(name,object,field,bit) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLAG, KX_PYATTRIBUTE_RO, bit, 0, 0.f, 0.f, false, false, offsetof(object,field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLAG_RW(name, object, field, bit) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLAG, KX_PYATTRIBUTE_RW, bit, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLAG_RW_CHECK(name, object, field, bit, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLAG, KX_PYATTRIBUTE_RW, bit, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLAG_RO(name, object, field, bit) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLAG, KX_PYATTRIBUTE_RO, bit, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
 
 /* attribute points to a single bit of an integer field, attribute=true if bit is set*/
-#define KX_PYATTRIBUTE_FLAG_NEGATIVE_RW(name,object,field,bit) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLAG, KX_PYATTRIBUTE_RW, bit, 1, 0.f, 0.f, false, false, offsetof(object,field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_FLAG_NEGATIVE_RW_CHECK(name,object,field,bit,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLAG, KX_PYATTRIBUTE_RW, bit, 1, 0.f, 0.f, false, false, offsetof(object,field), sizeof(((object *)0)->field), 1, &object::function, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_FLAG_NEGATIVE_RO(name,object,field,bit) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLAG, KX_PYATTRIBUTE_RO, bit, 1, 0.f, 0.f, false, false, offsetof(object,field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLAG_NEGATIVE_RW(name, object, field, bit) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLAG, KX_PYATTRIBUTE_RW, bit, 1, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLAG_NEGATIVE_RW_CHECK(name, object, field, bit, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLAG, KX_PYATTRIBUTE_RW, bit, 1, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLAG_NEGATIVE_RO(name, object, field, bit) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLAG, KX_PYATTRIBUTE_RO, bit, 1, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
 
 // enum field cannot be mapped to pointer (because we would need a pointer for each enum)
 // use field size to verify mapping at runtime only, assuming enum size is equal to int size.
-#define KX_PYATTRIBUTE_ENUM_RW(name,min,max,clamp,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_ENUM, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_ENUM_RW_CHECK(name,min,max,clamp,object,field,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_ENUM, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), sizeof(((object *)0)->field), 1, &object::function, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_ENUM_RO(name,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_ENUM, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object,field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_ENUM_RW(name, min, max, clamp, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_ENUM, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_ENUM_RW_CHECK(name, min, max, clamp, object, field, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_ENUM, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_ENUM_RO(name, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_ENUM, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
 
-#define KX_PYATTRIBUTE_SHORT_RW(name,min,max,clamp,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, 1, NULL, NULL, NULL, {NULL, &((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_SHORT_RW_CHECK(name,min,max,clamp,object,field,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, 1, &object::function, NULL, NULL, {NULL, &((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_SHORT_RO(name,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object,field), 0, 1, NULL, NULL, NULL, {NULL, &((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_SHORT_ARRAY_RW(name,min,max,clamp,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, length, NULL, NULL, NULL, {NULL, ((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_SHORT_ARRAY_RW_CHECK(name,min,max,clamp,object,field,length,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, length, &object::function, NULL, NULL, {NULL, ((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_SHORT_ARRAY_RO(name,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object,field), 0, length, NULL, NULL, NULL, {NULL, ((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_SHORT_RW(name, min, max, clamp, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, NULL, NULL, NULL, {NULL, &((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_SHORT_RW_CHECK(name, min, max, clamp, object, field, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, &object::function, NULL, NULL, {NULL, &((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_SHORT_RO(name, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, NULL, NULL, NULL, {NULL, &((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_SHORT_ARRAY_RW(name, min, max, clamp, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, NULL, NULL, NULL, {NULL, ((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_SHORT_ARRAY_RW_CHECK(name, min, max, clamp, object, field, length, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, &object::function, NULL, NULL, {NULL, ((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_SHORT_ARRAY_RO(name, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, NULL, NULL, NULL, {NULL, ((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
 // SHORT_LIST
-#define KX_PYATTRIBUTE_SHORT_LIST_RW(name,min,max,clamp,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, length, NULL, NULL, NULL, {NULL, &((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_SHORT_LIST_RW_CHECK(name,min,max,clamp,object,field,length,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, length, &object::function, NULL, NULL, {NULL, &((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_SHORT_LIST_RO(name,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object,field), 0, length, NULL, NULL, NULL, {NULL, &((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_SHORT_LIST_RW(name, min, max, clamp, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, NULL, NULL, NULL, {NULL, &((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_SHORT_LIST_RW_CHECK(name, min, max, clamp, object, field, length, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, &object::function, NULL, NULL, {NULL, &((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_SHORT_LIST_RO(name, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_SHORT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, NULL, NULL, NULL, {NULL, &((object *)0)->field, NULL, NULL, NULL, NULL, NULL} }
 
-#define KX_PYATTRIBUTE_INT_RW(name,min,max,clamp,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, 1, NULL, NULL, NULL, {NULL, NULL, &((object *)0)->field, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_INT_RW_CHECK(name,min,max,clamp,object,field,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, 1, &object::function, NULL, NULL, {NULL, NULL, &((object *)0)->field, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_INT_RO(name,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object,field), 0, 1, NULL, NULL, NULL, {NULL, NULL, &((object *)0)->field, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_INT_ARRAY_RW(name,min,max,clamp,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, length, NULL, NULL, NULL, {NULL, NULL, ((object *)0)->field, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_INT_ARRAY_RW_CHECK(name,min,max,clamp,object,field,length,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, length, &object::function, NULL, NULL, {NULL, NULL, ((object *)0)->field, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_INT_ARRAY_RO(name,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object,field), 0, length, NULL, NULL, NULL, {NULL, NULL, ((object *)0)->field, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_INT_RW(name, min, max, clamp, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, NULL, NULL, NULL, {NULL, NULL, &((object *)0)->field, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_INT_RW_CHECK(name, min, max, clamp, object, field, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, &object::function, NULL, NULL, {NULL, NULL, &((object *)0)->field, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_INT_RO(name, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, NULL, NULL, NULL, {NULL, NULL, &((object *)0)->field, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_INT_ARRAY_RW(name, min, max, clamp, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, NULL, NULL, NULL, {NULL, NULL, ((object *)0)->field, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_INT_ARRAY_RW_CHECK(name, min, max, clamp, object, field, length, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, &object::function, NULL, NULL, {NULL, NULL, ((object *)0)->field, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_INT_ARRAY_RO(name, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, NULL, NULL, NULL, {NULL, NULL, ((object *)0)->field, NULL, NULL, NULL, NULL} }
 // INT_LIST
-#define KX_PYATTRIBUTE_INT_LIST_RW(name,min,max,clamp,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, length, NULL, NULL, NULL, {NULL, NULL, &((object *)0)->field, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_INT_LIST_RW_CHECK(name,min,max,clamp,object,field,length,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, length, &object::function, NULL, NULL, {NULL, NULL, &((object *)0)->field, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_INT_LIST_RO(name,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object,field), 0, length, NULL, NULL, NULL, {NULL, NULL, &((object *)0)->field, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_INT_LIST_RW(name, min, max, clamp, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, NULL, NULL, NULL, {NULL, NULL, &((object *)0)->field, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_INT_LIST_RW_CHECK(name, min, max, clamp, object, field, length, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, length, &object::function, NULL, NULL, {NULL, NULL, &((object *)0)->field, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_INT_LIST_RO(name, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_INT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, NULL, NULL, NULL, {NULL, NULL, &((object *)0)->field, NULL, NULL, NULL, NULL} }
 
 // always clamp for float
-#define KX_PYATTRIBUTE_FLOAT_RW(name,min,max,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object,field), 0, 1, NULL, NULL, NULL, {NULL, NULL, NULL, &((object *)0)->field, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_FLOAT_RW_CHECK(name,min,max,object,field,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object,field), 0, 1, &object::function, NULL, NULL, {NULL, NULL, NULL, &((object *)0)->field, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_FLOAT_RO(name,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object,field), 0, 1, NULL, NULL, NULL, {NULL, NULL, NULL, &((object *)0)->field, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLOAT_RW(name, min, max, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, 1, NULL, NULL, NULL, {NULL, NULL, NULL, &((object *)0)->field, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLOAT_RW_CHECK(name, min, max, object, field, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, 1, &object::function, NULL, NULL, {NULL, NULL, NULL, &((object *)0)->field, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLOAT_RO(name, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1, NULL, NULL, NULL, {NULL, NULL, NULL, &((object *)0)->field, NULL, NULL, NULL} }
 // field must be float[n], returns a sequence
-#define KX_PYATTRIBUTE_FLOAT_ARRAY_RW(name,min,max,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object,field), 0, length, NULL, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_FLOAT_ARRAY_RW_CHECK(name,min,max,object,field,length,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object,field), 0, length, &object::function, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_FLOAT_ARRAY_RO(name,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object,field), 0, length, NULL, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLOAT_ARRAY_RW(name, min, max, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, length, NULL, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLOAT_ARRAY_RW_CHECK(name, min, max, object, field, length, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, length, &object::function, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLOAT_ARRAY_RO(name, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, length, NULL, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field, NULL, NULL, NULL} }
 // field must be float[n], returns a vector
-#define KX_PYATTRIBUTE_FLOAT_VECTOR_RW(name,min,max,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, 0, length, min, max, true, false, offsetof(object,field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_FLOAT_VECTOR_RW_CHECK(name,min,max,object,field,length,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, 0, length, min, max, true, false, offsetof(object,field), sizeof(((object *)0)->field), 1, &object::function, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_FLOAT_VECTOR_RO(name,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RO, 0, length, 0.f, 0.f, false, false, offsetof(object,field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLOAT_VECTOR_RW(name, min, max, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, 0, length, min, max, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLOAT_VECTOR_RW_CHECK(name, min, max, object, field, length, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, 0, length, min, max, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLOAT_VECTOR_RO(name, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RO, 0, length, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field, NULL, NULL, NULL} }
 // field must be float[n][n], returns a matrix
-#define KX_PYATTRIBUTE_FLOAT_MATRIX_RW(name,min,max,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, length, length, min, max, true, false, offsetof(object,field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field[0], NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_FLOAT_MATRIX_RW_CHECK(name,min,max,object,field,length,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, length, length, min, max, true, false, offsetof(object,field), sizeof(((object *)0)->field), 1, &object::function, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field[0], NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_FLOAT_MATRIX_RO(name,object,field,length) \
-	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RO, length, length, 0.f, 0.f, false, false, offsetof(object,field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field[0], NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLOAT_MATRIX_RW(name, min, max, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, length, length, min, max, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field[0], NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLOAT_MATRIX_RW_CHECK(name, min, max, object, field, length, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RW, length, length, min, max, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field[0], NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_FLOAT_MATRIX_RO(name, object, field, length) \
+	{ name, KX_PYATTRIBUTE_TYPE_FLOAT, KX_PYATTRIBUTE_RO, length, length, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, ((object *)0)->field[0], NULL, NULL, NULL} }
 
 // only for STR_String member
-#define KX_PYATTRIBUTE_STRING_RW(name,min,max,clamp,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_STRING, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, &((object *)0)->field, NULL, NULL} }
-#define KX_PYATTRIBUTE_STRING_RW_CHECK(name,min,max,clamp,object,field,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_STRING, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object,field), 0, 1, &object::function, NULL, NULL, {NULL, NULL, NULL, NULL, &((object *)0)->field, NULL, NULL} }
-#define KX_PYATTRIBUTE_STRING_RO(name,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_STRING, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object,field), 0, 1 , NULL, NULL, NULL, {NULL, NULL, NULL, NULL, &((object *)0)->field, NULL, NULL} }
+#define KX_PYATTRIBUTE_STRING_RW(name, min, max, clamp, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_STRING, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, &((object *)0)->field, NULL, NULL} }
+#define KX_PYATTRIBUTE_STRING_RW_CHECK(name, min, max, clamp, object, field, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_STRING, KX_PYATTRIBUTE_RW, min, max, 0.f, 0.f, clamp, false, offsetof(object, field), 0, 1, &object::function, NULL, NULL, {NULL, NULL, NULL, NULL, &((object *)0)->field, NULL, NULL} }
+#define KX_PYATTRIBUTE_STRING_RO(name, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_STRING, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1 , NULL, NULL, NULL, {NULL, NULL, NULL, NULL, &((object *)0)->field, NULL, NULL} }
 
 // only for char [] array 
-#define KX_PYATTRIBUTE_CHAR_RW(name,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_CHAR, KX_PYATTRIBUTE_RW, 0, 0, 0.f, 0.f, true, false, offsetof(object,field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, ((object *)0)->field} }
-#define KX_PYATTRIBUTE_CHAR_RW_CHECK(name,object,field,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_CHAR, KX_PYATTRIBUTE_RW, 0, 0, 0.f, 0.f, true, false, offsetof(object,field), sizeof(((object *)0)->field), 1, &object::function, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, ((object *)0)->field} }
-#define KX_PYATTRIBUTE_CHAR_RO(name,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_CHAR, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object,field), sizeof(((object *)0)->field), 1 , NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, ((object *)0)->field} }
+#define KX_PYATTRIBUTE_CHAR_RW(name, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_CHAR, KX_PYATTRIBUTE_RW, 0, 0, 0.f, 0.f, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, ((object *)0)->field} }
+#define KX_PYATTRIBUTE_CHAR_RW_CHECK(name, object, field, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_CHAR, KX_PYATTRIBUTE_RW, 0, 0, 0.f, 0.f, true, false, offsetof(object, field), sizeof(((object *)0)->field), 1, &object::function, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, ((object *)0)->field} }
+#define KX_PYATTRIBUTE_CHAR_RO(name, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_CHAR, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), sizeof(((object *)0)->field), 1 , NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, NULL, ((object *)0)->field} }
 
 // for MT_Vector3 member
-#define KX_PYATTRIBUTE_VECTOR_RW(name,min,max,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_VECTOR, KX_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object,field), 0, 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, &((object *)0)->field, NULL} }
-#define KX_PYATTRIBUTE_VECTOR_RW_CHECK(name,min,max,clamp,object,field,function) \
-	{ name, KX_PYATTRIBUTE_TYPE_VECTOR, KX_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object,field), 0, 1, &object::function, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, &((object *)0)->field, NULL} }
-#define KX_PYATTRIBUTE_VECTOR_RO(name,object,field) \
-	{ name, KX_PYATTRIBUTE_TYPE_VECTOR, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object,field), 0, 1 , NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, &((object *)0)->field, NULL} }
+#define KX_PYATTRIBUTE_VECTOR_RW(name, min, max, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_VECTOR, KX_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, 1, NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, &((object *)0)->field, NULL} }
+#define KX_PYATTRIBUTE_VECTOR_RW_CHECK(name, min, max, clamp, object, field, function) \
+	{ name, KX_PYATTRIBUTE_TYPE_VECTOR, KX_PYATTRIBUTE_RW, 0, 0, min, max, true, false, offsetof(object, field), 0, 1, &object::function, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, &((object *)0)->field, NULL} }
+#define KX_PYATTRIBUTE_VECTOR_RO(name, object, field) \
+	{ name, KX_PYATTRIBUTE_TYPE_VECTOR, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, offsetof(object, field), 0, 1 , NULL, NULL, NULL, {NULL, NULL, NULL, NULL, NULL, &((object *)0)->field, NULL} }
 
-#define KX_PYATTRIBUTE_RW_FUNCTION(name,object,getfunction,setfunction) \
+#define KX_PYATTRIBUTE_RW_FUNCTION(name, object, getfunction, setfunction) \
 	{ name, KX_PYATTRIBUTE_TYPE_FUNCTION, KX_PYATTRIBUTE_RW, 0, 0, 0.f, 0.f, false, false, 0, 0, 1, NULL, &object::setfunction, &object::getfunction, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_RO_FUNCTION(name,object,getfunction) \
+#define KX_PYATTRIBUTE_RO_FUNCTION(name, object, getfunction) \
 	{ name, KX_PYATTRIBUTE_TYPE_FUNCTION, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0.f, false, false, 0, 0, 1, NULL, NULL, &object::getfunction, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_ARRAY_RW_FUNCTION(name,object,length,getfunction,setfunction) \
-	{ name, KX_PYATTRIBUTE_TYPE_FUNCTION, KX_PYATTRIBUTE_RW, 0, 0, 0.f, 0,f, false, false, 0, 0, length, NULL, &object::setfunction, &object::getfunction, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
-#define KX_PYATTRIBUTE_ARRAY_RO_FUNCTION(name,object,length,getfunction) \
-	{ name, KX_PYATTRIBUTE_TYPE_FUNCTION, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0,f, false, false, 0, 0, length, NULL, NULL, &object::getfunction, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_ARRAY_RW_FUNCTION(name, object, length, getfunction, setfunction) \
+	{ name, KX_PYATTRIBUTE_TYPE_FUNCTION, KX_PYATTRIBUTE_RW, 0, 0, 0.f, 0, f, false, false, 0, 0, length, NULL, &object::setfunction, &object::getfunction, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
+#define KX_PYATTRIBUTE_ARRAY_RO_FUNCTION(name, object, length, getfunction) \
+	{ name, KX_PYATTRIBUTE_TYPE_FUNCTION, KX_PYATTRIBUTE_RO, 0, 0, 0.f, 0, f, false, false, 0, 0, length, NULL, NULL, &object::getfunction, {NULL, NULL, NULL, NULL, NULL, NULL, NULL} }
 
 
 /*------------------------------
  * PyObjectPlus
-------------------------------*/
-typedef PyTypeObject * PyParentObject;				// Define the PyParent Object
+ *------------------------------ */
+typedef PyTypeObject *PyParentObject;  /* Define the PyParent Object */
 
 #else // WITH_PYTHON
 
 #ifdef WITH_CXX_GUARDEDALLOC
-#define Py_Header \
- public: \
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:PyObjectPlus"); } \
-	void operator delete( void *mem ) { MEM_freeN(mem); } \
+#define Py_Header                                                             \
+public:                                                                       \
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PyObjectPlus")                              \
 
-#define Py_HeaderPtr \
- public: \
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:PyObjectPlusPtr"); } \
-	void operator delete( void *mem ) { MEM_freeN(mem); } \
+
+#define Py_HeaderPtr                                                          \
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PyObjectPlusPtr")                           \
 
 #else // WITH_CXX_GUARDEDALLOC
 
 #define Py_Header \
- public: \
+public: \
 
 #define Py_HeaderPtr \
- public: \
+public: \
 
-#endif // WITH_CXX_GUARDEDALLOC
+#endif  /* WITH_CXX_GUARDEDALLOC */
 
 #endif
 
@@ -512,7 +566,7 @@ typedef PyTypeObject * PyParentObject;				// Define the PyParent Object
 // possibility to use them at SCA_ILogicBrick, CValue and PyObjectPlus level.
 class PyObjectPlus : public SG_QList
 {				// The PyObjectPlus abstract class
-	Py_Header;							// Always start with Py_Header
+	Py_Header							// Always start with Py_Header
 	
 public:
 	PyObjectPlus();
@@ -524,7 +578,7 @@ public:
 
 	/* These static functions are referenced by ALL PyObjectPlus_Proxy types
 	 * they take the C++ reference from the PyObjectPlus_Proxy and call
-	 * its own virtual py_repr, py_base_dealloc ,etc. functions.
+	 * its own virtual py_repr, py_base_dealloc, etc. functions.
 	 */
 
 	static PyObject*		py_base_new(PyTypeObject *type, PyObject *args, PyObject *kwds); /* allows subclassing */
@@ -545,10 +599,10 @@ public:
 
 	static PyObject *GetProxyPlus_Ext(PyObjectPlus *self, PyTypeObject *tp, void *ptr);
 	/* self=NULL => proxy to generic pointer detached from GE object
-	                if py_owns is true, the memory pointed by ptr will be deleted automatially with MEM_freeN 
-	   self!=NULL=> proxy attached to GE object, ptr is optional and point to a struct from which attributes can be defined
-	                if py_owns is true, the object will be deleted automatically, ptr will NOT be deleted 
-					(assume object destructor takes care of it) */
+	 *              if py_owns is true, the memory pointed by ptr will be deleted automatically with MEM_freeN
+	 * self!=NULL=> proxy attached to GE object, ptr is optional and point to a struct from which attributes can be defined
+	 *              if py_owns is true, the object will be deleted automatically, ptr will NOT be deleted
+	 *              (assume object destructor takes care of it) */
 	static PyObject *NewProxyPlus_Ext(PyObjectPlus *self, PyTypeObject *tp, void *ptr, bool py_owns);
 
 	static	WarnLink*		GetDeprecationWarningLinkFirst(void);
@@ -559,8 +613,8 @@ public:
 	
 	/** enable/disable display of deprecation warnings */
 	static void			SetDeprecationWarnings(bool ignoreDeprecationWarnings);
- 	/** Shows a deprecation warning */
-	static void			ShowDeprecationWarning_func(const char* method,const char* prop);
+	/** Shows a deprecation warning */
+	static void			ShowDeprecationWarning_func(const char *method, const char *prop);
 	static void			ClearDeprecationWarning();
 	
 #endif
@@ -576,7 +630,7 @@ public:
 };
 
 #ifdef WITH_PYTHON
-PyObject *py_getattr_dict(PyObject *pydict, PyObject *tp_dict);
+PyObject *PyUnicode_From_STR_String(const STR_String& str);
 #endif
 
-#endif //  _adr_py_lib_h_
+#endif  /* __PYOBJECTPLUS_H__ */

@@ -1,6 +1,4 @@
 /*
- * $Id: KX_ConvertPhysicsObjects.cpp 35171 2011-02-25 13:35:59Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable : 4786)
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)
 #endif
 
 #include "MT_assert.h"
@@ -42,13 +40,13 @@
 #include "BL_DeformableGameObject.h"
 #include "RAS_MeshObject.h"
 #include "KX_Scene.h"
-#include "SYS_System.h"
+#include "BL_System.h"
 
 #include "PHY_Pro.h" //todo cleanup
 #include "KX_ClientObjectInfo.h"
 
-#include "GEN_Map.h"
-#include "GEN_HashedPtr.h"
+#include "CTR_Map.h"
+#include "CTR_HashedPtr.h"
 
 #include "KX_PhysicsEngineEnums.h"
 #include "PHY_Pro.h"
@@ -56,10 +54,11 @@
 #include "KX_MotionState.h" // bridge between motionstate and scenegraph node
 
 extern "C"{
+	#include "BLI_utildefines.h"
 	#include "BKE_DerivedMesh.h"
 }
 
-#ifdef USE_BULLET
+#ifdef WITH_BULLET
 #include "BulletSoftBody/btSoftBody.h"
 
 #include "CcdPhysicsEnvironment.h"
@@ -69,8 +68,8 @@ extern "C"{
 #include "KX_BulletPhysicsController.h"
 #include "btBulletDynamicsCommon.h"
 
-							#ifdef WIN32
-#if _MSC_VER >= 1310
+#ifdef WIN32
+#if defined(_MSC_VER) && (_MSC_VER >= 1310)
 //only use SIMD Hull code under Win32
 //#define TEST_HULL 1
 #ifdef TEST_HULL
@@ -102,6 +101,7 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 
 	bool isbulletdyna = false;
 	bool isbulletsensor = false;
+	bool isbulletchar = false;
 	bool useGimpact = false;
 	CcdConstructionInfo ci;
 	class PHY_IMotionState* motionstate = new KX_MotionState(gameobj->GetSGNode());
@@ -119,14 +119,24 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 
 	ci.m_MotionState = motionstate;
 	ci.m_gravity = btVector3(0,0,0);
+	ci.m_linearFactor = btVector3(objprop->m_lockXaxis? 0 : 1,
+									objprop->m_lockYaxis? 0 : 1,
+									objprop->m_lockZaxis? 0 : 1);
+	ci.m_angularFactor = btVector3(objprop->m_lockXRotaxis? 0 : 1,
+									objprop->m_lockYRotaxis? 0 : 1,
+									objprop->m_lockZRotaxis? 0 : 1);
 	ci.m_localInertiaTensor =btVector3(0,0,0);
 	ci.m_mass = objprop->m_dyna ? shapeprops->m_mass : 0.f;
 	ci.m_clamp_vel_min = shapeprops->m_clamp_vel_min;
 	ci.m_clamp_vel_max = shapeprops->m_clamp_vel_max;
 	ci.m_margin = objprop->m_margin;
+	ci.m_stepHeight = objprop->m_character ? shapeprops->m_step_height : 0.f;
+	ci.m_jumpSpeed = objprop->m_character ? shapeprops->m_jump_speed : 0.f;
+	ci.m_fallSpeed = objprop->m_character ? shapeprops->m_fall_speed : 0.f;
 	shapeInfo->m_radius = objprop->m_radius;
 	isbulletdyna = objprop->m_dyna;
 	isbulletsensor = objprop->m_sensor;
+	isbulletchar = objprop->m_character;
 	useGimpact = ((isbulletdyna || isbulletsensor) && !objprop->m_softbody);
 
 	ci.m_localInertiaTensor = btVector3(ci.m_mass/3.f,ci.m_mass/3.f,ci.m_mass/3.f);
@@ -211,7 +221,7 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 				shapeInfo->SetMesh(meshobj, dm, false);
 			}
 
-			// Soft bodies require welding. Only avoid remove doubles for non-soft bodies!
+			// Soft bodies can benefit from welding, don't do it on non-soft bodies
 			if (objprop->m_softbody)
 			{
 				shapeInfo->setVertexWeldingThreshold1(objprop->m_soft_welding); //todo: expose this to the UI
@@ -273,7 +283,7 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 			relativeRot.getValue(rot);
 			shapeInfo->m_childTrans.getBasis().setFromOpenGLSubMatrix(rot);
 
-			parentShapeInfo->AddShape(shapeInfo);	
+			parentShapeInfo->AddShape(shapeInfo);
 			compoundShape->addChildShape(shapeInfo->m_childTrans,bm);
 			//do some recalc?
 			//recalc inertia for rigidbody
@@ -346,7 +356,7 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 	ci.m_linearDamping = 1.f - shapeprops->m_lin_drag;
 	ci.m_angularDamping = 1.f - shapeprops->m_ang_drag;
 	//need a bit of damping, else system doesn't behave well
-	ci.m_inertiaFactor = shapeprops->m_inertia/0.4f;//defaults to 0.4, don't want to change behaviour
+	ci.m_inertiaFactor = shapeprops->m_inertia/0.4f;//defaults to 0.4, don't want to change behavior
 	
 	ci.m_do_anisotropic = shapeprops->m_do_anisotropic;
 	ci.m_anisotropicFriction.setValue(shapeprops->m_friction_scaling[0],shapeprops->m_friction_scaling[1],shapeprops->m_friction_scaling[2]);
@@ -355,7 +365,7 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 //////////
 	//do Fh, do Rot Fh
 	ci.m_do_fh = shapeprops->m_do_fh;
-	ci.m_do_rot_fh = shapeprops->m_do_rot_fh ;
+	ci.m_do_rot_fh = shapeprops->m_do_rot_fh;
 	ci.m_fh_damping = smmaterial->m_fh_damping;
 	ci.m_fh_distance = smmaterial->m_fh_distance;
 	ci.m_fh_normal = smmaterial->m_fh_normal;
@@ -402,21 +412,24 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 	////////////////////
 	ci.m_collisionFilterGroup = 
 		(isbulletsensor) ? short(CcdConstructionInfo::SensorFilter) :
-		(isbulletdyna) ? short(CcdConstructionInfo::DefaultFilter) : 
+		(isbulletdyna) ? short(CcdConstructionInfo::DefaultFilter) :
+		(isbulletchar) ? short(CcdConstructionInfo::CharacterFilter) : 
 		short(CcdConstructionInfo::StaticFilter);
 	ci.m_collisionFilterMask = 
 		(isbulletsensor) ? short(CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::SensorFilter) :
 		(isbulletdyna) ? short(CcdConstructionInfo::AllFilter) : 
+		(isbulletchar) ? short(CcdConstructionInfo::AllFilter) :
 		short(CcdConstructionInfo::AllFilter ^ CcdConstructionInfo::StaticFilter);
 	ci.m_bRigid = objprop->m_dyna && objprop->m_angular_rigidbody;
 	
 	ci.m_contactProcessingThreshold = objprop->m_contactProcessingThreshold;//todo: expose this in advanced settings, just like margin, default to 10000 or so
 	ci.m_bSoft = objprop->m_softbody;
 	ci.m_bSensor = isbulletsensor;
+	ci.m_bCharacter = isbulletchar;
 	ci.m_bGimpact = useGimpact;
 	MT_Vector3 scaling = gameobj->NodeGetWorldScaling();
 	ci.m_scaling.setValue(scaling[0], scaling[1], scaling[2]);
-	KX_BulletPhysicsController* physicscontroller = new KX_BulletPhysicsController(ci,isbulletdyna,isbulletsensor,objprop->m_hasCompoundChildren);
+	KX_BulletPhysicsController* physicscontroller = new KX_BulletPhysicsController(ci,isbulletdyna,isbulletsensor,isbulletchar,objprop->m_hasCompoundChildren);
 	// shapeInfo is reference counted, decrement now as we don't use it anymore
 	if (shapeInfo)
 		shapeInfo->Release();
@@ -427,7 +440,7 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 	{
 		env->addCcdPhysicsController( physicscontroller);
 	}
-	physicscontroller->setNewClientInfo(gameobj->getClientInfo());		
+	physicscontroller->setNewClientInfo(gameobj->getClientInfo());
 	{
 		btRigidBody* rbody = physicscontroller->GetRigidBody();
 
@@ -435,16 +448,8 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 		{
 			if (objprop->m_angular_rigidbody)
 			{
-				btVector3 linearFactor(
-					objprop->m_lockXaxis? 0 : 1,
-					objprop->m_lockYaxis? 0 : 1,
-					objprop->m_lockZaxis? 0 : 1);
-				btVector3 angularFactor(
-					objprop->m_lockXRotaxis? 0 : 1,
-					objprop->m_lockYRotaxis? 0 : 1,
-					objprop->m_lockZRotaxis? 0 : 1);
-				rbody->setLinearFactor(linearFactor);
-				rbody->setAngularFactor(angularFactor);
+				rbody->setLinearFactor(ci.m_linearFactor);
+				rbody->setAngularFactor(ci.m_angularFactor);
 			}
 
 			if (rbody && objprop->m_disableSleeping)
@@ -466,7 +471,7 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 	
 	if (objprop->m_dyna && !objprop->m_angular_rigidbody)
 	{
-		/*
+#if 0
 		//setting the inertia could achieve similar results to constraint the up
 		//but it is prone to instability, so use special 'Angular' constraint
 		btVector3 inertia = physicscontroller->GetRigidBody()->getInvInertiaDiagLocal();
@@ -475,7 +480,7 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 
 		physicscontroller->GetRigidBody()->setInvInertiaDiagLocal(inertia);
 		physicscontroller->GetRigidBody()->updateInertiaTensor();
-		*/
+#endif
 
 		//env->createConstraint(physicscontroller,0,PHY_ANGULAR_CONSTRAINT,0,0,0,0,0,1);
 	
@@ -545,18 +550,18 @@ bool KX_ReInstanceBulletShapeFromMesh(KX_GameObject *gameobj, KX_GameObject *fro
 	CcdShapeConstructionInfo	*shapeInfo;
 
 	/* if this is the child of a compound shape this can happen
-	 * dont support compound shapes for now */
-	if(spc==NULL)
+	 * don't support compound shapes for now */
+	if (spc==NULL)
 		return false;
 	
 	shapeInfo = spc->GetShapeInfo();
 	
-	if(shapeInfo->m_shapeType != PHY_SHAPE_MESH/* || spc->GetSoftBody()*/)
+	if (shapeInfo->m_shapeType != PHY_SHAPE_MESH/* || spc->GetSoftBody()*/)
 		return false;
 	
 	spc->DeleteControllerShape();
 	
-	if(from_gameobj==NULL && from_meshobj==NULL)
+	if (from_gameobj==NULL && from_meshobj==NULL)
 		from_gameobj= gameobj;
 	
 	/* updates the arrays used for making the new bullet mesh */
@@ -569,4 +574,4 @@ bool KX_ReInstanceBulletShapeFromMesh(KX_GameObject *gameobj, KX_GameObject *fro
 	spc->ReplaceControllerShape(bm);
 	return true;
 }
-#endif // USE_BULLET
+#endif // WITH_BULLET

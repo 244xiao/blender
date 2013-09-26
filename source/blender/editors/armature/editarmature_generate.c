@@ -1,6 +1,4 @@
 /*
- * $Id: editarmature_generate.c 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,48 +15,28 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
  * ***** END GPL LICENSE BLOCK *****
- * editarmature.c: Interface for creating and posing armature objects
  */
 
 /** \file blender/editors/armature/editarmature_generate.c
  *  \ingroup edarmature
  */
 
-
-#include <string.h>
-#include <math.h>
-#include <float.h>
-
-
 #include "DNA_scene_types.h"
 #include "DNA_armature_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_graph.h"
-#include "BLI_utildefines.h"
- 
-
 
 #include "ED_armature.h"
-#include "armature_intern.h"
 #include "BIF_generate.h"
 
-void setBoneRollFromNormal(EditBone *bone, float *no, float UNUSED(invmat[][4]), float tmat[][3])
+void setBoneRollFromNormal(EditBone *bone, const float no[3], float UNUSED(invmat[4][4]), float tmat[3][3])
 {
-	if (no != NULL && !is_zero_v3(no))
-	{
+	if (no != NULL && !is_zero_v3(no)) {
 		float normal[3];
 
-		copy_v3_v3(normal, no);	
+		copy_v3_v3(normal, no);
 		mul_m3_v3(tmat, normal);
 		
 		bone->roll = ED_rollBoneToVector(bone, normal, FALSE);
@@ -69,16 +47,14 @@ float calcArcCorrelation(BArcIterator *iter, int start, int end, float v0[3], fl
 {
 	int len = 2 + abs(end - start);
 	
-	if (len > 2)
-	{
+	if (len > 2) {
 		float avg_t = 0.0f;
 		float s_t = 0.0f;
 		float s_xyz = 0.0f;
 		int i;
 		
 		/* First pass, calculate average */
-		for (i = start; i <= end; i++)
-		{
+		for (i = start; i <= end; i++) {
 			float v[3];
 			
 			IT_peek(iter, i);
@@ -91,8 +67,7 @@ float calcArcCorrelation(BArcIterator *iter, int start, int end, float v0[3], fl
 		avg_t /= len;
 		
 		/* Second pass, calculate s_xyz and s_t */
-		for (i = start; i <= end; i++)
-		{
+		for (i = start; i <= end; i++) {
 			float v[3], d[3];
 			float dt;
 			
@@ -112,8 +87,7 @@ float calcArcCorrelation(BArcIterator *iter, int start, int end, float v0[3], fl
 		
 		return 1.0f - s_xyz / s_t; 
 	}
-	else
-	{
+	else {
 		return 1.0f;
 	}
 }
@@ -127,15 +101,13 @@ int nextFixedSubdivision(ToolSettings *toolsettings, BArcIterator *iter, int sta
 	float length_threshold;
 	int i;
 	
-	if (stroke_length == 0)
-	{
+	if (stroke_length == 0) {
 		current_length = 0;
 
 		IT_peek(iter, start);
 		v1 = iter->p;
 		
-		for (i = start + 1; i <= end; i++)
-		{
+		for (i = start + 1; i <= end; i++) {
 			IT_peek(iter, i);
 			v2 = iter->p;
 
@@ -156,16 +128,14 @@ int nextFixedSubdivision(ToolSettings *toolsettings, BArcIterator *iter, int sta
 	v1 = iter->p;
 
 	/* < and not <= because we don't care about end, it is P_EXACT anyway */
-	for (i = start + 1; i < end; i++)
-	{
+	for (i = start + 1; i < end; i++) {
 		IT_peek(iter, i);
 		v2 = iter->p;
 
 		current_length += len_v3v3(v1, v2);
 
-		if (current_length >= length_threshold)
-		{
-			VECCOPY(p, v2);
+		if (current_length >= length_threshold) {
+			copy_v3_v3(p, v2);
 			return i;
 		}
 		
@@ -186,16 +156,14 @@ int nextAdaptativeSubdivision(ToolSettings *toolsettings, BArcIterator *iter, in
 	IT_peek(iter, start);
 	start_p = iter->p;
 
-	for (i = start + 2; i <= end; i++)
-	{
+	for (i = start + 2; i <= end; i++) {
 		/* Calculate normal */
 		IT_peek(iter, i);
 		sub_v3_v3v3(n, iter->p, head);
 
-		if (calcArcCorrelation(iter, start, i, start_p, n) < correlation_threshold)
-		{
+		if (calcArcCorrelation(iter, start, i, start_p, n) < correlation_threshold) {
 			IT_peek(iter, i - 1);
-			VECCOPY(p, iter->p);
+			copy_v3_v3(p, iter->p);
 			return i - 1;
 		}
 	}
@@ -210,8 +178,7 @@ int nextLengthSubdivision(ToolSettings *toolsettings, BArcIterator *iter, int st
 	int i;
 	
 	i = start + 1;
-	while (i <= end)
-	{
+	while (i <= end) {
 		float *vec0;
 		float *vec1;
 		
@@ -222,10 +189,8 @@ int nextLengthSubdivision(ToolSettings *toolsettings, BArcIterator *iter, int st
 		vec1 = iter->p;
 		
 		/* If lengthLimit hits the current segment */
-		if (len_v3v3(vec1, head) > lengthLimit)
-		{
-			if (same == 0)
-			{
+		if (len_v3v3(vec1, head) > lengthLimit) {
+			if (same == 0) {
 				float dv[3], off[3];
 				float a, b, c, f;
 				
@@ -242,33 +207,29 @@ int nextLengthSubdivision(ToolSettings *toolsettings, BArcIterator *iter, int st
 				
 				//printf("a %f, b %f, c %f, f %f\n", a, b, c, f);
 				
-				if (isnan(f) == 0 && f < 1.0f)
-				{
-					VECCOPY(p, dv);
+				if (isnan(f) == 0 && f < 1.0f) {
+					copy_v3_v3(p, dv);
 					mul_v3_fl(p, f);
 					add_v3_v3(p, vec0);
 				}
-				else
-				{
-					VECCOPY(p, vec1);
+				else {
+					copy_v3_v3(p, vec1);
 				}
 			}
-			else
-			{
+			else {
 				float dv[3];
 				
 				sub_v3_v3v3(dv, vec1, vec0);
 				normalize_v3(dv);
 				 
-				VECCOPY(p, dv);
+				copy_v3_v3(p, dv);
 				mul_v3_fl(p, lengthLimit);
 				add_v3_v3(p, head);
 			}
 			
 			return i - 1; /* restart at lower bound */
 		}
-		else
-		{
+		else {
 			i++;
 			same = 0; // Reset same
 		}
@@ -277,7 +238,8 @@ int nextLengthSubdivision(ToolSettings *toolsettings, BArcIterator *iter, int st
 	return -1;
 }
 
-EditBone * subdivideArcBy(ToolSettings *toolsettings, bArmature *arm, ListBase *UNUSED(editbones), BArcIterator *iter, float invmat[][4], float tmat[][3], NextSubdivisionFunc next_subdividion)
+EditBone *subdivideArcBy(ToolSettings *toolsettings, bArmature *arm, ListBase *UNUSED(editbones), BArcIterator *iter,
+                         float invmat[4][4], float tmat[3][3], NextSubdivisionFunc next_subdividion)
 {
 	EditBone *lastBone = NULL;
 	EditBone *child = NULL;
@@ -291,27 +253,24 @@ EditBone * subdivideArcBy(ToolSettings *toolsettings, bArmature *arm, ListBase *
 	IT_head(iter);
 	
 	parent = ED_armature_edit_bone_add(arm, "Bone");
-	VECCOPY(parent->head, iter->p);
+	copy_v3_v3(parent->head, iter->p);
 	
-	if (iter->size > 0)
-	{
+	if (iter->size > FLT_EPSILON) {
 		parent->rad_head = iter->size * size_buffer;
 	}
 	
 	normal = iter->no;
 	
 	index = next_subdividion(toolsettings, iter, bone_start, end, parent->head, parent->tail);
-	while (index != -1)
-	{
+	while (index != -1) {
 		IT_peek(iter, index);
 
 		child = ED_armature_edit_bone_add(arm, "Bone");
-		VECCOPY(child->head, parent->tail);
+		copy_v3_v3(child->head, parent->tail);
 		child->parent = parent;
 		child->flag |= BONE_CONNECTED;
 		
-		if (iter->size > 0)
-		{
+		if (iter->size > FLT_EPSILON) {
 			child->rad_head = iter->size * size_buffer;
 			parent->rad_tail = iter->size * size_buffer;
 		}
@@ -331,9 +290,8 @@ EditBone * subdivideArcBy(ToolSettings *toolsettings, bArmature *arm, ListBase *
 	
 	iter->tail(iter);
 
-	VECCOPY(parent->tail, iter->p);
-	if (iter->size > 0)
-	{
+	copy_v3_v3(parent->tail, iter->p);
+	if (iter->size > FLT_EPSILON) {
 		parent->rad_tail = iter->size * size_buffer;
 	}
 		

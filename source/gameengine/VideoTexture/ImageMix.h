@@ -1,31 +1,35 @@
-/* $Id: ImageMix.h 35082 2011-02-22 19:30:37Z jesterking $
------------------------------------------------------------------------------
-This source file is part of VideoTexture library
-
-Copyright (c) 2007 The Zdeno Ash Miklas
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
------------------------------------------------------------------------------
-*/
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Copyright (c) 2007 The Zdeno Ash Miklas
+ *
+ * This source file is part of VideoTexture library
+ *
+ * Contributor(s):
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 /** \file ImageMix.h
  *  \ingroup bgevideotex
  */
- 
-#if !defined IMAGEMIX_H
-#define IMAGEMIX_H
+
+#ifndef __IMAGEMIX_H__
+#define __IMAGEMIX_H__
 
 
 #include "Common.h"
@@ -39,7 +43,7 @@ class ImageSourceMix : public ImageSource
 {
 public:
 	/// constructor
-	ImageSourceMix (const char * id) : ImageSource(id), m_weight(0x100) {}
+	ImageSourceMix (const char *id) : ImageSource(id), m_weight(0x100) {}
 	/// destructor
 	virtual ~ImageSourceMix (void) {}
 
@@ -72,14 +76,14 @@ public:
 	virtual ~ImageMix (void) {}
 
 	/// get weight
-	short getWeight (const char * id);
+	short getWeight(const char *id);
 	/// set weight
-	bool setWeight (const char * id, short weight);
+	bool setWeight(const char *id, short weight);
 
 protected:
 
 	/// create new source
-	virtual ImageSource * newSource (const char * id) { return new ImageSourceMix(id); }
+	virtual ImageSource *newSource(const char *id) { return new ImageSourceMix(id); }
 
 	/// calculate image from sources and set its availability
 	virtual void calcImage (unsigned int texId, double ts);

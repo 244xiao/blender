@@ -30,15 +30,15 @@
  */
 
 
-#ifndef __JOYSENSOR_H_
-#define __JOYSENSOR_H
+#ifndef __JOYSENSOR_H__
+#define __JOYSENSOR_H__
 
 #include "SCA_ISensor.h"
-#include "./Joystick/SCA_JoystickDefines.h"
+#include "Joystick/SCA_JoystickDefines.h"
 
 class SCA_JoystickSensor :public SCA_ISensor
 {
-	Py_Header;
+	Py_Header
 	
 	/**
 	 * Axis 1-JOYAXIS_MAX, MUST be followed by m_axisf
@@ -65,7 +65,7 @@ class SCA_JoystickSensor :public SCA_ISensor
 	 */
 	int 	m_hatf;
 	/**
-	 * The threshold value the axis acts opon
+	 * The threshold value the axis acts upon
 	 */
 	int 	m_precision;
 	/**
@@ -117,7 +117,7 @@ public:
 	virtual bool IsPositiveTrigger();
 	virtual void Init();
 	
-	short int GetJoyIndex(void){
+	short int GetJoyIndex(void) {
 		return m_joyindex;
 	}
 
@@ -128,8 +128,8 @@ public:
 	/* --------------------------------------------------------------------- */
 
 	/* Joystick Index */
-	KX_PYMETHOD_DOC_NOARGS(SCA_JoystickSensor,GetButtonActiveList);
-	KX_PYMETHOD_DOC_VARARGS(SCA_JoystickSensor,GetButtonStatus);
+	KX_PYMETHOD_DOC_NOARGS(SCA_JoystickSensor,GetButtonActiveList)
+	KX_PYMETHOD_DOC_VARARGS(SCA_JoystickSensor,GetButtonStatus)
 
 	static PyObject*	pyattr_get_axis_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_axis_single(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
@@ -161,8 +161,8 @@ public:
 		return 0;
 	}
 	
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
 };
 
-#endif
+#endif  /* __JOYSENSOR_H__ */

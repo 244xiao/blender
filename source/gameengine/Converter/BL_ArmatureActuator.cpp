@@ -1,6 +1,4 @@
 /*
- * $Id: BL_ArmatureActuator.cpp 35167 2011-02-25 13:30:41Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -55,7 +53,8 @@ BL_ArmatureActuator::BL_ArmatureActuator(SCA_IObject* obj,
 						const char *constraintname,
 						KX_GameObject* targetobj,
 						KX_GameObject* subtargetobj,
-						float weight) :
+						float weight,
+						float influence) :
 	SCA_IActuator(obj, KX_ACT_ARMATURE),
 	m_constraint(NULL),
 	m_gametarget(targetobj),
@@ -63,6 +62,7 @@ BL_ArmatureActuator::BL_ArmatureActuator(SCA_IObject* obj,
 	m_posechannel(posechannel),
 	m_constraintname(constraintname),
 	m_weight(weight),
+	m_influence(influence),
 	m_type(type)
 {
 	if (m_gametarget)
@@ -115,7 +115,7 @@ bool BL_ArmatureActuator::UnlinkObject(SCA_IObject* clientobj)
 	return res;
 }
 
-void BL_ArmatureActuator::Relink(GEN_Map<GEN_HashedPtr, void*> *obj_map)
+void BL_ArmatureActuator::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
 {
 	void **h_obj = (*obj_map)[m_gametarget];
 	if (h_obj) {
@@ -146,7 +146,7 @@ void BL_ArmatureActuator::FindConstraint()
 bool BL_ArmatureActuator::Update(double curtime, bool frame)
 {
 	// the only role of this actuator is to ensure that the armature pose will be evaluated
-	bool result = false;	
+	bool result = false;
 	bool bNegativeEvent = IsNegativeEvent();
 	RemoveAllEvents();
 
@@ -174,6 +174,10 @@ bool BL_ArmatureActuator::Update(double curtime, bool frame)
 		case ACT_ARM_SETWEIGHT:
 			if (m_constraint)
 				m_constraint->SetWeight(m_weight);
+			break;
+		case ACT_ARM_SETINFLUENCE:
+			if (m_constraint)
+				m_constraint->SetInfluence(m_influence);
 			break;
 		}
 	}
@@ -218,15 +222,16 @@ PyAttributeDef BL_ArmatureActuator::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("target", BL_ArmatureActuator, pyattr_get_object, pyattr_set_object),
 	KX_PYATTRIBUTE_RW_FUNCTION("subtarget", BL_ArmatureActuator, pyattr_get_object, pyattr_set_object),
 	KX_PYATTRIBUTE_FLOAT_RW("weight",0.0f,1.0f,BL_ArmatureActuator,m_weight),
+	KX_PYATTRIBUTE_FLOAT_RW("influence",0.0f,1.0f,BL_ArmatureActuator,m_influence),
 	KX_PYATTRIBUTE_INT_RW("type",0,ACT_ARM_MAXTYPE,false,BL_ArmatureActuator,m_type),
 	{ NULL }	//Sentinel
 };
 
-PyObject* BL_ArmatureActuator::pyattr_get_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureActuator::pyattr_get_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ArmatureActuator* actuator = static_cast<BL_ArmatureActuator*>(self);
 	KX_GameObject *target = (!strcmp(attrdef->m_name, "target")) ? actuator->m_gametarget : actuator->m_gamesubtarget;
-	if (!target)	
+	if (!target)
 		Py_RETURN_NONE;
 	else
 		return target->GetProxy();
@@ -242,7 +247,7 @@ int BL_ArmatureActuator::pyattr_set_object(void *self, const struct KX_PYATTRIBU
 		return PY_SET_ATTR_FAIL; // ConvertPythonToGameObject sets the error
 		
 	if (target != NULL)
-		target->UnregisterActuator(actuator);	
+		target->UnregisterActuator(actuator);
 
 	target = gameobj;
 		
@@ -252,11 +257,11 @@ int BL_ArmatureActuator::pyattr_set_object(void *self, const struct KX_PYATTRIBU
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject* BL_ArmatureActuator::pyattr_get_constraint(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *BL_ArmatureActuator::pyattr_get_constraint(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	BL_ArmatureActuator* actuator = static_cast<BL_ArmatureActuator*>(self);
 	BL_ArmatureConstraint* constraint = actuator->m_constraint;
-	if (!constraint)	
+	if (!constraint)
 		Py_RETURN_NONE;
 	else
 		return constraint->GetProxy();

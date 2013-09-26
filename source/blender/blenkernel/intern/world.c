@@ -1,9 +1,4 @@
-
-/*  world.c
- * 
- * 
- * $Id: world.c 35336 2011-03-03 17:58:06Z campbellbarton $
- *
+/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -43,61 +38,75 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
-#include "BKE_world.h"
-#include "BKE_library.h"
+#include "BLI_listbase.h"
+#include "BLI_utildefines.h"
+
 #include "BKE_animsys.h"
 #include "BKE_global.h"
-#include "BKE_main.h"
 #include "BKE_icons.h"
+#include "BKE_library.h"
+#include "BKE_library.h"
+#include "BKE_main.h"
+#include "BKE_node.h"
+#include "BKE_world.h"
 
-void free_world(World *wrld)
+void BKE_world_free_ex(World *wrld, int do_id_user)
 {
 	MTex *mtex;
 	int a;
 	
-	for(a=0; a<MAX_MTEX; a++) {
-		mtex= wrld->mtex[a];
-		if(mtex && mtex->tex) mtex->tex->id.us--;
-		if(mtex) MEM_freeN(mtex);
+	for (a = 0; a < MAX_MTEX; a++) {
+		mtex = wrld->mtex[a];
+		if (do_id_user && mtex && mtex->tex) mtex->tex->id.us--;
+		if (mtex) MEM_freeN(mtex);
 	}
 	BKE_previewimg_free(&wrld->preview);
 
 	BKE_free_animdata((ID *)wrld);
 
-	BKE_icon_delete((struct ID*)wrld);
+	/* is no lib link block, but world extension */
+	if (wrld->nodetree) {
+		ntreeFreeTree_ex(wrld->nodetree, do_id_user);
+		MEM_freeN(wrld->nodetree);
+	}
+
+	BKE_icon_delete((struct ID *)wrld);
 	wrld->id.icon_id = 0;
 }
 
-
-World *add_world(const char *name)
+void BKE_world_free(World *wrld)
 {
-	Main *bmain= G.main;
+	BKE_world_free_ex(wrld, TRUE);
+}
+
+World *add_world(Main *bmain, const char *name)
+{
 	World *wrld;
 
-	wrld= alloc_libblock(&bmain->world, ID_WO, name);
+	wrld = BKE_libblock_alloc(&bmain->world, ID_WO, name);
 	
-	wrld->horr= 0.05f;
-	wrld->horg= 0.05f;
-	wrld->horb= 0.05f;
-	wrld->zenr= 0.01f;
-	wrld->zeng= 0.01f;
-	wrld->zenb= 0.01f;
-	wrld->skytype= 0;
-	wrld->stardist= 15.0f;
-	wrld->starsize= 2.0f;
-	
-	wrld->exp= 0.0f;
-	wrld->exposure=wrld->range= 1.0f;
+	wrld->horr = 0.05f;
+	wrld->horg = 0.05f;
+	wrld->horb = 0.05f;
+	wrld->zenr = 0.01f;
+	wrld->zeng = 0.01f;
+	wrld->zenb = 0.01f;
+	wrld->skytype = 0;
+	wrld->stardist = 15.0f;
+	wrld->starsize = 2.0f;
 
-	wrld->aodist= 10.0f;
-	wrld->aosamp= 5;
-	wrld->aoenergy= 1.0f;
-	wrld->ao_env_energy= 1.0f;
-	wrld->ao_indirect_energy= 1.0f;
-	wrld->ao_indirect_bounces= 1;
-	wrld->aobias= 0.05f;
-	wrld->ao_samp_method = WO_AOSAMP_HAMMERSLEY;	
-	wrld->ao_approx_error= 0.25f;
+	wrld->exp = 0.0f;
+	wrld->exposure = wrld->range = 1.0f;
+
+	wrld->aodist = 10.0f;
+	wrld->aosamp = 5;
+	wrld->aoenergy = 1.0f;
+	wrld->ao_env_energy = 1.0f;
+	wrld->ao_indirect_energy = 1.0f;
+	wrld->ao_indirect_bounces = 1;
+	wrld->aobias = 0.05f;
+	wrld->ao_samp_method = WO_AOSAMP_HAMMERSLEY;
+	wrld->ao_approx_error = 0.25f;
 	
 	wrld->preview = NULL;
 	wrld->miststa = 5.0f;
@@ -106,78 +115,98 @@ World *add_world(const char *name)
 	return wrld;
 }
 
-World *copy_world(World *wrld)
+World *BKE_world_copy(World *wrld)
 {
 	World *wrldn;
 	int a;
 	
-	wrldn= copy_libblock(wrld);
+	wrldn = BKE_libblock_copy(&wrld->id);
 	
-	for(a=0; a<MAX_MTEX; a++) {
-		if(wrld->mtex[a]) {
-			wrldn->mtex[a]= MEM_mallocN(sizeof(MTex), "copymaterial");
+	for (a = 0; a < MAX_MTEX; a++) {
+		if (wrld->mtex[a]) {
+			wrldn->mtex[a] = MEM_mallocN(sizeof(MTex), "BKE_world_copy");
 			memcpy(wrldn->mtex[a], wrld->mtex[a], sizeof(MTex));
 			id_us_plus((ID *)wrldn->mtex[a]->tex);
 		}
 	}
-	
-	if (wrld->preview) wrldn->preview = BKE_previewimg_copy(wrld->preview);
 
-#if 0 // XXX old animation system
-	id_us_plus((ID *)wrldn->ipo);
-#endif // XXX old animation system
+	if (wrld->nodetree) {
+		wrldn->nodetree = ntreeCopyTree(wrld->nodetree);
+	}
+	
+	if (wrld->preview)
+		wrldn->preview = BKE_previewimg_copy(wrld->preview);
+
+	return wrldn;
+}
+
+World *localize_world(World *wrld)
+{
+	World *wrldn;
+	int a;
+	
+	wrldn = BKE_libblock_copy(&wrld->id);
+	BLI_remlink(&G.main->world, wrldn);
+	
+	for (a = 0; a < MAX_MTEX; a++) {
+		if (wrld->mtex[a]) {
+			wrldn->mtex[a] = MEM_mallocN(sizeof(MTex), "localize_world");
+			memcpy(wrldn->mtex[a], wrld->mtex[a], sizeof(MTex));
+			/* free world decrements */
+			id_us_plus((ID *)wrldn->mtex[a]->tex);
+		}
+	}
+
+	if (wrld->nodetree)
+		wrldn->nodetree = ntreeLocalize(wrld->nodetree);
+	
+	wrldn->preview = NULL;
 	
 	return wrldn;
 }
 
-void make_local_world(World *wrld)
+void BKE_world_make_local(World *wrld)
 {
-	Main *bmain= G.main;
+	Main *bmain = G.main;
 	Scene *sce;
-	World *wrldn;
-	int local=0, lib=0;
+	int is_local = FALSE, is_lib = FALSE;
 
 	/* - only lib users: do nothing
-		* - only local users: set flag
-		* - mixed: make copy
-		*/
+	 * - only local users: set flag
+	 * - mixed: make copy
+	 */
 	
-	if(wrld->id.lib==NULL) return;
-	if(wrld->id.us==1) {
-		wrld->id.lib= NULL;
-		wrld->id.flag= LIB_LOCAL;
-		new_id(NULL, (ID *)wrld, NULL);
+	if (wrld->id.lib == NULL) return;
+	if (wrld->id.us == 1) {
+		id_clear_lib_data(bmain, &wrld->id);
 		return;
 	}
 	
-	sce= bmain->scene.first;
-	while(sce) {
-		if(sce->world==wrld) {
-			if(sce->id.lib) lib= 1;
-			else local= 1;
+	for (sce = bmain->scene.first; sce && ELEM(FALSE, is_lib, is_local); sce = sce->id.next) {
+		if (sce->world == wrld) {
+			if (sce->id.lib) is_lib = TRUE;
+			else is_local = TRUE;
 		}
-		sce= sce->id.next;
 	}
-	
-	if(local && lib==0) {
-		wrld->id.lib= NULL;
-		wrld->id.flag= LIB_LOCAL;
-		new_id(NULL, (ID *)wrld, NULL);
+
+	if (is_local && is_lib == FALSE) {
+		id_clear_lib_data(bmain, &wrld->id);
 	}
-	else if(local && lib) {
-		wrldn= copy_world(wrld);
-		wrldn->id.us= 0;
-		
-		sce= bmain->scene.first;
-		while(sce) {
-			if(sce->world==wrld) {
-				if(sce->id.lib==NULL) {
-					sce->world= wrldn;
-					wrldn->id.us++;
+	else if (is_local && is_lib) {
+		World *wrld_new = BKE_world_copy(wrld);
+		wrld_new->id.us = 0;
+
+		/* Remap paths of new ID using old library as base. */
+		BKE_id_lib_local_paths(bmain, wrld->id.lib, &wrld_new->id);
+
+		for (sce = bmain->scene.first; sce; sce = sce->id.next) {
+			if (sce->world == wrld) {
+				if (sce->id.lib == NULL) {
+					sce->world = wrld_new;
+					wrld_new->id.us++;
 					wrld->id.us--;
 				}
 			}
-			sce= sce->id.next;
 		}
 	}
 }

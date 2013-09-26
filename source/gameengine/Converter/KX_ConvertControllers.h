@@ -1,6 +1,4 @@
 /*
- * $Id: KX_ConvertControllers.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __KX_CONVERTCONTROLLERS_H
-#define __KX_CONVERTCONTROLLERS_H
+#ifndef __KX_CONVERTCONTROLLERS_H__
+#define __KX_CONVERTCONTROLLERS_H__
 
 #include "KX_Python.h"
 
@@ -45,6 +43,4 @@ void BL_ConvertControllers(
 	class KX_BlenderSceneConverter* converter
 );
 
-
-#endif //__KX_CONVERTCONTROLLERS_H
-
+#endif  /* __KX_CONVERTCONTROLLERS_H__ */

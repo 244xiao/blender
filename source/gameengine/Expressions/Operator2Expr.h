@@ -1,6 +1,5 @@
 /*
  * Operator2Expr.h: interface for the COperator2Expr class.
- * $Id: Operator2Expr.h 35063 2011-02-22 10:33:14Z jesterking $
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -17,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#if !defined _OPERATOR2EXPR_H
-#define _OPERATOR2EXPR_H
+#ifndef __OPERATOR2EXPR_H__
+#define __OPERATOR2EXPR_H__
 
 
 #include "Expression.h"
@@ -30,7 +29,7 @@ class COperator2Expr : public CExpression
 
 public:
 	virtual bool MergeExpression(CExpression* otherexpr);
-	virtual unsigned char GetExpressionID() { return COPERATOR2EXPRESSIONID;};
+	virtual unsigned char GetExpressionID() { return COPERATOR2EXPRESSIONID; }
 	virtual void BroadcastOperators(VALUE_OPERATOR op);
 	CExpression* CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks);
 	//virtual bool IsInside(float x,float y,float z,bool bBorderInclude=true);
@@ -59,11 +58,9 @@ private:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:COperator2Expr"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:COperator2Expr")
 #endif
 };
 
-#endif // !defined _OPERATOR2EXPR_H
+#endif  /* __OPERATOR2EXPR_H__ */
 

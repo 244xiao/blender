@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_vfont_types.h 34941 2011-02-17 20:48:12Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,14 +24,18 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_VFONT_TYPES_H
-#define DNA_VFONT_TYPES_H
 
 /** \file DNA_vfont_types.h
  *  \ingroup DNA
  *  \since mar-2001
  *  \author nzc
+ *
+ * Vector Fonts used for text in the 3D view-port
+ * (unrelated to text used to render the GUI).
  */
+
+#ifndef __DNA_VFONT_TYPES_H__
+#define __DNA_VFONT_TYPES_H__
 
 #include "DNA_ID.h"
 
@@ -43,10 +45,14 @@ struct VFontData;
 typedef struct VFont {
 	ID id;
 	
-	char name[256];
+	char name[1024]; /* 1024 = FILE_MAX */
 	
 	struct VFontData *data;
-	struct PackedFile * packedfile;
+	struct PackedFile *packedfile;
+
+	/* runtime only, holds memory for freetype to read from
+	 * TODO, replace this with blf_font_new() style loading */
+	struct PackedFile *temp_pf;
 } VFont;
 
 /* *************** FONT ****************** */
@@ -60,5 +66,5 @@ typedef struct VFont {
 #define FO_SELCHANGE	10
 
 #define FO_BUILTIN_NAME "<builtin>"
-#endif
 
+#endif  /* __DNA_VFONT_TYPES_H__ */

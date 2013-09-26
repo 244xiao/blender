@@ -1,5 +1,4 @@
 /*
- * $Id: SCA_IObject.cpp 35169 2011-02-25 13:32:11Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -225,7 +224,7 @@ SCA_IController* SCA_IObject::FindController(const STR_String& controllername)
 		{
 			foundcontroller = (*itc);
 			break;
-		}	
+		}
 	}
 	return foundcontroller;
 }
@@ -252,7 +251,7 @@ SCA_IActuator* SCA_IObject::FindActuator(const STR_String& actuatorname)
 void SCA_IObject::Suspend()
 {
 	if ((!m_ignore_activity_culling) 
-		&& (!m_suspended))  {
+		&& (!m_suspended)) {
 		m_suspended = true;
 		/* flag suspend for all sensors */
 		SCA_SensorList::iterator i = m_sensors.begin();

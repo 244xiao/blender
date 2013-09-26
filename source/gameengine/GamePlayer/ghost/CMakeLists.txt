@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 36024 2011-04-05 23:31:01Z campbellbarton $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -26,43 +25,45 @@
 
 set(INC
 	.
-	../../../../intern/string
+	../common
+	../../BlenderRoutines
+	../../Converter
+	../../Expressions
+	../../GameLogic
+	../../Ketsji
+	../../Network
+	../../Network/LoopBackNetwork
+	../../Physics/common
+	../../Rasterizer
+	../../Rasterizer/RAS_OpenGLRasterizer
+	../../SceneGraph
+	../../../blender
+	../../../blender/blenfont
+	../../../blender/blenkernel
+	../../../blender/blenlib
+	../../../blender/blenloader
+	../../../blender/gpu
+	../../../blender/imbuf
+	../../../blender/makesdna
+	../../../blender/makesrna
+	../../../../intern/container
 	../../../../intern/ghost
 	../../../../intern/guardedalloc
+	../../../../intern/string
+)
+
+set(INC_SYS
 	../../../../intern/moto/include
-	../../../../source/gameengine/Rasterizer/RAS_OpenGLRasterizer
-	../../../../source/kernel/gen_system
-	../../../../source/kernel/gen_messaging
-	../../../../source/gameengine/Converter
-	../../../../source/blender/imbuf
-	../../../../source/gameengine/Ketsji
-	../../../../source/blender/blenfont
-	../../../../source/blender/blenlib
-	../../../../source/blender/blenkernel
-	../../../../source/blender/readblenfile
-	../../../../source/blender
-	../../../../source/blender/makesdna
-	../../../../source/blender/makesrna
-	../../../../source/gameengine/Rasterizer
-	../../../../source/gameengine/GameLogic
-	../../../../source/gameengine/Expressions
-	../../../../source/gameengine/Network
-	../../../../source/gameengine/SceneGraph
-	../../../../source/gameengine/Physics/common
-	../../../../source/gameengine/Network/LoopBackNetwork
-	../../../../source/gameengine/GamePlayer/common
-	../../../../source/blender/blenloader
-	../../../../source/blender/gpu
 	${GLEW_INCLUDE_PATH}
 	${PYTHON_INCLUDE_DIRS}
 )
 
-set(SRC 
+set(SRC
 	GPG_Application.cpp
 	GPG_Canvas.cpp
-	GPG_ghost.cpp
 	GPG_KeyboardDevice.cpp
 	GPG_System.cpp
+	GPG_ghost.cpp
 
 	GPG_Application.h
 	GPG_Canvas.h
@@ -76,4 +77,8 @@ if(WITH_CODEC_FFMPEG)
 	add_definitions(-DWITH_FFMPEG)
 endif()
 
-blender_add_lib_nolist(ge_player_ghost "${SRC}" "${INC}")
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+blender_add_lib_nolist(ge_player_ghost "${SRC}" "${INC}" "${INC_SYS}")

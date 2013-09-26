@@ -1,6 +1,4 @@
 /*
- * $Id: PHY_IGraphicController.h 35173 2011-02-25 13:37:23Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,35 +29,32 @@
  *  \ingroup phys
  */
 
-#ifndef PHY_IGRAPHICCONTROLLER_H
-#define PHY_IGRAPHICCONTROLLER_H
+#ifndef __PHY_IGRAPHICCONTROLLER_H__
+#define __PHY_IGRAPHICCONTROLLER_H__
 
 #include "PHY_IController.h"
 
 
 /**
-	PHY_IPhysicsController is the abstract simplified Interface to a physical object.
-	It contains the IMotionState and IDeformableMesh Interfaces.
-*/
+ * PHY_IPhysicsController is the abstract simplified Interface to a physical object.
+ * It contains the IMotionState and IDeformableMesh Interfaces.
+ */
 class PHY_IGraphicController : public PHY_IController
 {
 	public:
-		virtual ~PHY_IGraphicController();
 		/**
-			SynchronizeMotionStates ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
-		*/
+		 * SynchronizeMotionStates ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
+		 */
 		virtual bool SetGraphicTransform()=0;
 		virtual void Activate(bool active=true)=0;
-		virtual void setLocalAabb(const PHY__Vector3& aabbMin,const PHY__Vector3& aabbMax)=0;
+		virtual void setLocalAabb(const class MT_Vector3& aabbMin,const class MT_Vector3& aabbMax)=0;
 		virtual void setLocalAabb(const float* aabbMin,const float* aabbMax)=0;
 
 		virtual PHY_IGraphicController*	GetReplica(class PHY_IMotionState* motionstate) {return 0;}
 
 #ifdef WITH_CXX_GUARDEDALLOC
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:PHY_IController"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PHY_IController")
 #endif
 };
 
-#endif //PHY_IGRAPHICCONTROLLER_H
-
+#endif  /* __PHY_IGRAPHICCONTROLLER_H__ */

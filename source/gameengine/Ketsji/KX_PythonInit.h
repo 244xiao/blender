@@ -1,6 +1,4 @@
 /*
- * $Id: KX_PythonInit.h 35686 2011-03-22 08:35:56Z moguri $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_PYTHON_INIT
-#define __KX_PYTHON_INIT
+#ifndef __KX_PYTHONINIT_H__
+#define __KX_PYTHONINIT_H__
 
 #include "KX_Python.h"
 #include "STR_String.h"
@@ -54,14 +52,18 @@ void		exitGamePlayerPythonScripting();
 PyObject*	initGamePythonScripting(const STR_String& progname, TPythonSecurityLevel level, struct Main *maggie);
 void		exitGamePythonScripting();
 
-void setupGamePython(KX_KetsjiEngine* ketsjiengine, KX_Scene* startscene, Main *blenderdata, PyObject *pyGlobalDict, PyObject **gameLogic, PyObject **gameLogic_keys, int argc, char** argv);
+void setupGamePython(KX_KetsjiEngine *ketsjiengine, KX_Scene *startscene, Main *blenderdata,
+                     PyObject *pyGlobalDict, PyObject **gameLogic, PyObject **gameLogic_keys, int argc, char** argv);
 
-void		setGamePythonPath(char *path);
+void		setGamePythonPath(const char *path);
 void		resetGamePythonPath();
 void		pathGamePythonConfig( char *path );
 int			saveGamePythonConfig( char **marshal_buffer);
 int			loadGamePythonConfig(char *marshal_buffer, int marshal_length);
 #endif
+
+void addImportMain(struct Main *maggie);
+void removeImportMain(struct Main *maggie);
 
 class KX_KetsjiEngine;
 class KX_Scene;
@@ -69,9 +71,22 @@ class KX_Scene;
 void KX_SetActiveScene(class KX_Scene* scene);
 class KX_Scene* KX_GetActiveScene();
 class KX_KetsjiEngine* KX_GetActiveEngine();
+
+typedef int (*PyNextFrameFunc)(void *);
+
+struct PyNextFrameState {
+	/** can be either a GPG_NextFrameState or a BL_KetsjiNextFrameState */
+	void *state;
+	/** can be either GPG_PyNextFrame or BL_KetsjiPyNextFrame */
+	PyNextFrameFunc func;
+};
+extern struct PyNextFrameState pynextframestate;
+
 #include "MT_Vector3.h"
 
 void		KX_RasterizerDrawDebugLine(const MT_Vector3& from,const MT_Vector3& to,const MT_Vector3& color);
+void		KX_RasterizerDrawDebugCircle(const MT_Vector3& center, const MT_Scalar radius, const MT_Vector3& color,
+                                         const MT_Vector3& normal, int nsector);
 
-#endif //__KX_PYTHON_INIT
 
+#endif  /* __KX_PYTHONINIT_H__ */

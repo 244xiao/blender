@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_fluidsim.h 34962 2011-02-18 13:05:18Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BKE_FLUIDSIM_H
-#define BKE_FLUIDSIM_H
+#ifndef __BKE_FLUIDSIM_H__
+#define __BKE_FLUIDSIM_H__
 
 /** \file BKE_fluidsim.h
  *  \ingroup bke
@@ -44,13 +42,13 @@ struct MVert;
 /* old interface */
 
 void initElbeemMesh(struct Scene *scene, struct Object *ob,
-	int *numVertices, float **vertices,
-	int *numTriangles, int **triangles,
-	int useGlobalCoords, int modifierIndex);
+                    int *numVertices, float **vertices,
+                    int *numTriangles, int **triangles,
+                    int useGlobalCoords, int modifierIndex);
 
 /* bounding box & memory estimate */
-void fluid_get_bb(struct MVert *mvert, int totvert, float obmat[][4],
-		 float start[3], float size[3]);
+void fluid_get_bb(struct MVert *mvert, int totvert, float obmat[4][4],
+                  float start[3], float size[3]);
 
 void fluid_estimate_memory(struct Object *ob, struct FluidsimSettings *fss, char *value);
 

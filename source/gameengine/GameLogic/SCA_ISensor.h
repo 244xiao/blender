@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_ISensor.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -33,8 +31,8 @@
  *   pulsemode and pulsefrequency, and event suppression.
  */
 
-#ifndef __SCA_ISENSOR
-#define __SCA_ISENSOR
+#ifndef __SCA_ISENSOR_H__
+#define __SCA_ISENSOR_H__
 
 #include "SCA_IController.h"
 
@@ -49,7 +47,7 @@
  */
 class SCA_ISensor : public SCA_ILogicBrick
 {
-	Py_Header;
+	Py_Header
 protected:
 	class SCA_EventManager* m_eventmgr;
 
@@ -105,11 +103,11 @@ public:
 	};
 
 	SCA_ISensor(SCA_IObject* gameobj,
-				class SCA_EventManager* eventmgr);;
+				class SCA_EventManager* eventmgr);
 	~SCA_ISensor();
 	virtual void	ReParent(SCA_IObject* parent);
 
-	/** Because we want sensors to share some behaviour, the Activate has     */
+	/** Because we want sensors to share some behavior, the Activate has     */
 	/* an implementation on this level. It requires an evaluate on the lower */
 	/* level of individual sensors. Mapping the old activate()s is easy.     */
 	/* The IsPosTrig() also has to change, to keep things consistent.        */
@@ -120,10 +118,10 @@ public:
 
 	virtual CValue* GetReplica()=0;
 
-	/** Set parameters for the pulsing behaviour.
-	 * @param posmode Trigger positive pulses?
-	 * @param negmode Trigger negative pulses?
-	 * @param freq    Frequency to use when doing pulsing.
+	/** Set parameters for the pulsing behavior.
+	 * \param posmode Trigger positive pulses?
+	 * \param negmode Trigger negative pulses?
+	 * \param freq    Frequency to use when doing pulsing.
 	 */
 	void SetPulseMode(bool posmode,
 					  bool negmode,
@@ -214,8 +212,7 @@ public:
 		KX_SENSOR_JUST_DEACTIVATED
 	
 	};
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 };
 
-#endif //__SCA_ISENSOR
-
+#endif  /* __SCA_ISENSOR_H__ */

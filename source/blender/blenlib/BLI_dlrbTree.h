@@ -1,6 +1,4 @@
 /*
- * $Id: BLI_dlrbTree.h 34966 2011-02-18 13:58:08Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -25,8 +23,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BLI_DLRB_TREE_H
-#define BLI_DLRB_TREE_H
+#ifndef __BLI_DLRBTREE_H__
+#define __BLI_DLRBTREE_H__
 
 /** \file BLI_dlrbTree.h
  *  \ingroup bli
@@ -48,7 +46,7 @@
 /* Basic Layout for a Node */
 typedef struct DLRBT_Node {
 	/* ListBase capabilities */
-	struct DLRBT_Node *next, *prev;		
+	struct DLRBT_Node *next, *prev;
 	
 	/* Tree Associativity settings */
 	struct DLRBT_Node *left, *right;
@@ -60,7 +58,7 @@ typedef struct DLRBT_Node {
 
 /* Red/Black defines for tree_col */
 typedef enum eDLRBT_Colors {
-	DLRBT_BLACK= 0,
+	DLRBT_BLACK = 0,
 	DLRBT_RED,
 } eDLRBT_Colors;
 
@@ -69,17 +67,17 @@ typedef enum eDLRBT_Colors {
 /* The Tree Data */
 typedef struct DLRBT_Tree {
 	/* ListBase capabilities */
-	void *first, *last;			/* these should be based on DLRBT_Node-s */
+	void *first, *last;         /* these should be based on DLRBT_Node-s */
 
 	/* Root Node */
-	void *root;					/* this should be based on DLRBT_Node-s */
+	void *root;                 /* this should be based on DLRBT_Node-s */
 } DLRBT_Tree;
 
 /* Callback Types --------------------------------- */
 
 /* return -1, 0, 1 for whether the given data is less than, equal to, or greater than the given node 
  *	- node: <DLRBT_Node> the node to compare to
- *	- data: pointer to the relevant data or values stored in the bitpattern dependant on the function
+ *	- data: pointer to the relevant data or values stored in the bitpattern dependent on the function
  */
 typedef short (*DLRBT_Comparator_FP)(void *node, void *data);
 
@@ -89,8 +87,8 @@ typedef short (*DLRBT_Comparator_FP)(void *node, void *data);
 typedef DLRBT_Node *(*DLRBT_NAlloc_FP)(void *data);
 
 /* update an existing node instance accordingly to be in sync with the given data *	
- * 	- node: <DLRBT_Node> the node to update
- *	- data: pointer to the relevant data or values stored in the bitpattern dependant on the function
+ *  - node: <DLRBT_Node> the node to update
+ *	- data: pointer to the relevant data or values stored in the bitpattern dependent on the function
  */
 typedef void (*DLRBT_NUpdate_FP)(void *node, void *data);
 
@@ -99,10 +97,10 @@ typedef void (*DLRBT_NUpdate_FP)(void *node, void *data);
 
 /* ADT Management ------------------------------- */
 
-/* Create a new tree, and initialise as necessary */
+/* Create a new tree, and initialize as necessary */
 DLRBT_Tree *BLI_dlrbTree_new(void);
 
-/* Initialises some given trees */
+/* Initializes some given trees */
 void BLI_dlrbTree_init(DLRBT_Tree *tree);
 
 /* Free some tree */
@@ -139,12 +137,12 @@ short BLI_dlrbTree_contains(DLRBT_Tree *tree, DLRBT_Comparator_FP cmp_cb, void *
 /* Add the given data to the tree, and return the node added */
 // NOTE: for duplicates, the update_cb is called (if available), and the existing node is returned
 DLRBT_Node *BLI_dlrbTree_add(DLRBT_Tree *tree, DLRBT_Comparator_FP cmp_cb, 
-			DLRBT_NAlloc_FP new_cb, DLRBT_NUpdate_FP update_cb, void *data);
+                             DLRBT_NAlloc_FP new_cb, DLRBT_NUpdate_FP update_cb, void *data);
 
 
 /* Remove the given element from the tree and balance again */
 // FIXME: this is not implemented yet... 
-void BLI_dlrbTree_remove(DLRBT_Tree *tree, DLRBT_Node *node);
+// void BLI_dlrbTree_remove(DLRBT_Tree *tree, DLRBT_Node *node);
 
 /* Node Operations (Manual) --------------------- */
 /* These methods require custom code for creating BST nodes and adding them to the 
@@ -160,4 +158,4 @@ void BLI_dlrbTree_insert(DLRBT_Tree *tree, DLRBT_Node *node);
 
 /* ********************************************** */
 
-#endif // BLI_DLRB_TREE_H
+#endif  /* __BLI_DLRBTREE_H__ */

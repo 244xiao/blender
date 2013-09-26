@@ -1,6 +1,4 @@
 /*
- * $Id: BLI_args.h 34989 2011-02-19 12:05:20Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BLI_ARGS_H
-#define BLI_ARGS_H
+#ifndef __BLI_ARGS_H__
+#define __BLI_ARGS_H__
 
 /** \file BLI_args.h
  *  \ingroup bli
@@ -38,18 +36,31 @@
 struct bArgs;
 typedef struct bArgs bArgs;
 
-/* returns the number of extra arguments consumed by the function. 0 is normal value, -1 stops parsing arguments, other negative indicates skip */
-typedef int	(*BA_ArgCallback)(int argc, const char **argv, void *data);
+/**
+ * Returns the number of extra arguments consumed by the function.
+ * -  0 is normal value,
+ * - -1 stops parsing arguments, other negative indicates skip
+ */
+typedef int (*BA_ArgCallback)(int argc, const char **argv, void *data);
 
 struct bArgs *BLI_argsInit(int argc, const char **argv);
 void BLI_argsFree(struct bArgs *ba);
 
-/* pass starts at 1, -1 means valid all the time
+/**
+ * Pass starts at 1, -1 means valid all the time
  * short_arg or long_arg can be null to specify no short or long versions
- * */
-void BLI_argsAdd(struct bArgs *ba, int pass, const char *short_arg, const char *long_arg, const char *doc, BA_ArgCallback cb, void *data);
-/* short_case and long_case specify if those arguments are case specific */
-void BLI_argsAddCase(struct bArgs *ba, int pass, const char *short_arg, int short_case, const char *long_arg, int long_case, const char *doc, BA_ArgCallback cb, void *data);
+ */
+void BLI_argsAdd(struct bArgs *ba, int pass,
+                 const char *short_arg, const char *long_arg,
+                 const char *doc, BA_ArgCallback cb, void *data);
+
+/**
+ * Short_case and long_case specify if those arguments are case specific
+ */
+void BLI_argsAddCase(struct bArgs *ba, int pass,
+                     const char *short_arg, int short_case,
+                     const char *long_arg, int long_case,
+                     const char *doc, BA_ArgCallback cb, void *data);
 
 void BLI_argsParse(struct bArgs *ba, int pass, BA_ArgCallback default_cb, void *data);
 

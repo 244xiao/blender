@@ -1,7 +1,4 @@
-/*  
- * 
- * $Id: bullet.c 35247 2011-02-27 20:40:57Z jesterking $
- *
+/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -48,7 +45,7 @@ BulletSoftBody *bsbNew(void)
 {
 	BulletSoftBody *bsb;
 	
-	bsb= MEM_callocN(sizeof(BulletSoftBody), "bulletsoftbody");
+	bsb = MEM_callocN(sizeof(BulletSoftBody), "bulletsoftbody");
 		
 	bsb->flag = OB_BSB_BENDING_CONSTRAINTS | OB_BSB_SHAPE_MATCHING | OB_BSB_AERO_VPOINT;
 	bsb->linStiff = 0.5f;
@@ -57,7 +54,7 @@ BulletSoftBody *bsbNew(void)
 
 	
 	bsb->viterations	=	0;
-	bsb->piterations	=	2;	
+	bsb->piterations	=	2;
 	bsb->diterations	=	0;
 	bsb->citerations	=	4;
 	

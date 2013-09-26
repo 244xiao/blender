@@ -1,6 +1,4 @@
 /*
- * $Id: BLI_vfontdata.h 34966 2011-02-18 13:58:08Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BLI_VFONTDATA_H
-#define BLI_VFONTDATA_H
+#ifndef __BLI_VFONTDATA_H__
+#define __BLI_VFONTDATA_H__
 
 /** \file BLI_vfontdata.h
  *  \ingroup bli
@@ -41,48 +39,23 @@
 struct PackedFile;
 struct VFont;
 
-#define MAX_VF_CHARS 256
-
 typedef struct VFontData {
 	ListBase characters;
-	// ListBase nurbsbase[MAX_VF_CHARS];
-	// float	    resol[MAX_VF_CHARS];
-	// float	    width[MAX_VF_CHARS];
-	// float	    *points[MAX_VF_CHARS];
-	 char		name[128];	
+	char name[128];
 } VFontData;
 
 typedef struct VChar {
 	struct VChar    *next, *prev;
-	 ListBase        nurbsbase;
-	intptr_t   index;
-	float           resol;
-	float           width;
+	ListBase nurbsbase;
+	intptr_t index;
+	float resol;
+	float width;
 	float           *points;
 } VChar;
 
-struct TmpFont
-{
-	struct TmpFont *next, *prev;
-	struct PackedFile *pf;
-	struct VFont *vfont;
-};
+VFontData *BLI_vfontdata_from_freetypefont(struct PackedFile *pf);
 
-/**
- * Construct a new VFontData structure from 
- * Freetype font data in a PackedFile.
- * 
- * @param pf The font data.
- * @retval A new VFontData structure, or NULL
- * if unable to load.
- */
-	VFontData*
-BLI_vfontdata_from_freetypefont(
-	struct PackedFile *pf);
-
-	int
-BLI_vfontchar_from_freetypefont(
-	struct VFont *vfont, unsigned long character);
+int BLI_vfontchar_from_freetypefont(struct VFont *vfont, unsigned long character);
 
 #endif
 

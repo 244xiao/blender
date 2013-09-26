@@ -1,6 +1,4 @@
 /*
- * $Id: KX_WorldInfo.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_WORLDINFO_H
-#define __KX_WORLDINFO_H
+#ifndef __KX_WORLDINFO_H__
+#define __KX_WORLDINFO_H__
 
 #include "MT_Scalar.h"
 
@@ -45,7 +43,7 @@ class MT_CmMatrix4x4;
 class KX_WorldInfo
 {
 public:
-	KX_WorldInfo(){}
+	KX_WorldInfo() {}
 	virtual ~KX_WorldInfo();
 
 	virtual bool	hasWorld()=0;
@@ -72,11 +70,8 @@ public:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_WorldInfo"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_WorldInfo")
 #endif
 };
 
-#endif //__KX_WORLDINFO_H
-
+#endif  /* __KX_WORLDINFO_H__ */

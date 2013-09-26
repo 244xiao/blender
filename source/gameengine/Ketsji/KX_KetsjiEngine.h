@@ -1,6 +1,4 @@
 /*
- * $Id: KX_KetsjiEngine.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_KETSJI_ENGINE
-#define __KX_KETSJI_ENGINE
+#ifndef __KX_KETSJIENGINE_H__
+#define __KX_KETSJIENGINE_H__
 
 #include "MT_CmMatrix4x4.h"
 #include "MT_Matrix4x4.h"
@@ -43,7 +41,6 @@
 #include "KX_Python.h"
 #include "KX_WorldInfo.h"
 #include <vector>
-#include <set>
 
 class KX_TimeCategoryLogger;
 
@@ -62,6 +59,11 @@ enum KX_ExitRequestMode
 	KX_EXIT_REQUEST_MAX
 };
 
+typedef struct {
+	short matmode;
+	short glslflag;
+}	GlobalSettings;
+
 /**
  * KX_KetsjiEngine is the core game engine class.
  */
@@ -69,33 +71,34 @@ class KX_KetsjiEngine
 {
 
 private:
-	class RAS_ICanvas*				m_canvas; // 2D Canvas (2D Rendering Device Context)
+	class RAS_ICanvas*					m_canvas; // 2D Canvas (2D Rendering Device Context)
 	class RAS_IRasterizer*				m_rasterizer;  // 3D Rasterizer (3D Rendering)
-	class KX_ISystem*				m_kxsystem;
+	class KX_ISystem*					m_kxsystem;
 	class RAS_IRenderTools*				m_rendertools;
 	class KX_ISceneConverter*			m_sceneconverter;
-	class NG_NetworkDeviceInterface*		m_networkdevice;
+	class NG_NetworkDeviceInterface*	m_networkdevice;
 #ifdef WITH_PYTHON
-	/* borrowed from sys.modules["__main__"], dont manage ref's */
+	/* borrowed from sys.modules["__main__"], don't manage ref's */
 	PyObject*					m_pythondictionary;
+	PyObject*					m_pyprofiledict;
 #endif
 	class SCA_IInputDevice*				m_keyboarddevice;
 	class SCA_IInputDevice*				m_mousedevice;
 	class KX_Dome*						m_dome; // dome stereo mode
 
 	/** Lists of scenes scheduled to be removed at the end of the frame. */
-	std::set<STR_String> m_removingScenes;
+	std::vector<STR_String> m_removingScenes;
 	/** Lists of overley scenes scheduled to be added at the end of the frame. */
-	std::set<STR_String> m_addingOverlayScenes;
+	std::vector<STR_String> m_addingOverlayScenes;
 	/** Lists of background scenes scheduled to be added at the end of the frame. */
-	std::set<STR_String> m_addingBackgroundScenes;
+	std::vector<STR_String> m_addingBackgroundScenes;
 	/** Lists of scenes scheduled to be replaced at the end of the frame. */
-	std::set<std::pair<STR_String,STR_String> >	m_replace_scenes;
+	std::vector<std::pair<STR_String,STR_String> >	m_replace_scenes;
 
 	/* The current list of scenes. */
 	KX_SceneList		m_scenes;
 	/* State variable recording the presence of object debug info in the current scene list. */
-	bool				m_propertiesPresent;	
+	bool				m_propertiesPresent;
 
 	bool				m_bInitialized;
 	int					m_activecam;
@@ -108,6 +111,7 @@ private:
 	double				m_frameTime;//discrete timestamp of the 'game logic frame'
 	double				m_clockTime;//current time
 	double				m_previousClockTime;//previous clock time
+	double				m_previousAnimTime; //the last time animations were updated
 	double				m_remainingTime;
 
 	static int				m_maxLogicFrame;	/* maximum number of consecutive logic frame */
@@ -115,8 +119,12 @@ private:
 	static double			m_ticrate;
 	static double			m_anim_framerate; /* for animation playback only - ipo and action */
 
+	static bool				m_restrict_anim_fps;
+
 	static double			m_suspendedtime;
 	static double			m_suspendeddelta;
+
+	static short			m_exitkey; /* Key used to exit the BGE */
 
 	int					m_exitcode;
 	STR_String			m_exitstring;
@@ -128,7 +136,7 @@ private:
 	int				m_drawingmode;
 	float			m_cameraZoom;
 	
-	bool			m_overrideCam;	
+	bool			m_overrideCam;
 	STR_String		m_overrideSceneName;
 	
 	bool			m_overrideCamUseOrtho;
@@ -142,14 +150,13 @@ private:
 	int m_curreye;
 
 	/** Categories for profiling display. */
-	typedef enum
-	{
+	typedef enum {
 		tc_first = 0,
 		tc_physics = 0,
 		tc_logic,
+		tc_animations,
 		tc_network,
 		tc_scenegraph,
-		tc_sound,
 		tc_rasterizer,
 		tc_services,	// time spend in miscelaneous activities
 		tc_overhead,	// profile info drawing overhead
@@ -190,13 +197,14 @@ private:
 	/** Blue component of framing bar color. */
 	float					m_overrideFrameColorB;
 
+	/** Settings that doesn't go away with Game Actuator */
+	GlobalSettings m_globalsettings;
+
 	void					RenderFrame(KX_Scene* scene, KX_Camera* cam);
 	void					PostRenderScene(KX_Scene* scene);
 	void					RenderDebugProperties();
 	void					RenderShadowBuffers(KX_Scene *scene);
 	void					SetBackGround(KX_WorldInfo* worldinfo);
-	void					DoSound(KX_Scene* scene);
-	void					RenderFonts(KX_Scene* scene);
 
 public:
 	KX_KetsjiEngine(class KX_ISystem* system);
@@ -211,17 +219,18 @@ public:
 	void			SetRenderTools(RAS_IRenderTools* rendertools);
 	void			SetRasterizer(RAS_IRasterizer* rasterizer);
 #ifdef WITH_PYTHON
-	void			SetPyNamespace(PyObject* pythondictionary);
-	PyObject*		GetPyNamespace(){return m_pythondictionary;};
+	void			SetPyNamespace(PyObject *pythondictionary);
+	PyObject*		GetPyNamespace() { return m_pythondictionary; }
+	PyObject*		GetPyProfileDict();
 #endif
 	void			SetSceneConverter(KX_ISceneConverter* sceneconverter);
 	void			SetAnimRecordMode(bool animation_record, int startFrame);
 
-	RAS_IRasterizer*		GetRasterizer(){return m_rasterizer;};
-	RAS_ICanvas*		    GetCanvas(){return m_canvas;};
-	RAS_IRenderTools*	    GetRenderTools(){return m_rendertools;};
-	SCA_IInputDevice*		GetKeyboardDevice(){return m_keyboarddevice;};
-	SCA_IInputDevice*		GetMouseDevice(){return m_mousedevice;};
+	RAS_IRasterizer*		GetRasterizer() { return m_rasterizer; }
+	RAS_ICanvas*		    GetCanvas() { return m_canvas; }
+	RAS_IRenderTools*	    GetRenderTools() { return m_rendertools; }
+	SCA_IInputDevice*		GetKeyboardDevice() { return m_keyboarddevice; }
+	SCA_IInputDevice*		GetMouseDevice() { return m_mousedevice; }
 
 	/// Dome functions
 	void			InitDome(short res, short mode, short angle, float resbuf, short tilt, struct Text* text); 
@@ -255,7 +264,7 @@ public:
 	void			GetSceneViewport(KX_Scene* scene, KX_Camera* cam, RAS_Rect& area, RAS_Rect& viewport);
 
 	void SetDrawType(int drawingtype);
-	int  GetDrawType(){return m_drawingmode;};
+	int  GetDrawType() { return m_drawingmode; }
 
 	void SetCameraZoom(float camzoom);
 	
@@ -269,13 +278,13 @@ public:
 	
 	/**
 	 * Sets display of all frames.
-	 * @param bUseFixedTime	New setting for display all frames.
+	 * \param bUseFixedTime	New setting for display all frames.
 	 */ 
 	void SetUseFixedTime(bool bUseFixedTime);
 
 	/**
 	 * Returns display of all frames.
-	 * @return Current setting for display all frames.
+	 * \return Current setting for display all frames.
 	 */ 
 	bool GetUseFixedTime(void) const;
 
@@ -321,6 +330,16 @@ public:
 	static void SetMaxPhysicsFrame(int frame);
 
 	/**
+	 * Gets whether or not to lock animation updates to the animframerate
+	 */
+	static bool GetRestrictAnimationFPS();
+
+	/**
+	 * Sets whether or not to lock animation updates to the animframerate
+	 */
+	static void SetRestrictAnimationFPS(bool bRestrictAnimFPS);
+
+	/**
 	 * Gets the framerate for playing animations. (actions and ipos)
 	 */
 	static double GetAnimFrameRate();
@@ -334,71 +353,84 @@ public:
 	 */
 	static double GetAverageFrameRate();
 
+	static void SetExitKey(short key);
+
+	static short GetExitKey();
+
 	/**
 	 * Activates or deactivates timing information display.
-	 * @param frameRate		Display for frame rate on or off.
-	 * @param profile		Display for individual components on or off.
-	 * @param properties	Display of scene object debug properties on or off.
+	 * \param frameRate		Display for frame rate on or off.
+	 * \param profile		Display for individual components on or off.
+	 * \param properties	Display of scene object debug properties on or off.
 	 */ 
 	void SetTimingDisplay(bool frameRate, bool profile, bool properties);
 
 	/**
 	 * Returns status of timing information display.
-	 * @param frameRate		Display for frame rate on or off.
-	 * @param profile		Display for individual components on or off.
-	 * @param properties	Display of scene object debug properties on or off.
+	 * \param frameRate		Display for frame rate on or off.
+	 * \param profile		Display for individual components on or off.
+	 * \param properties	Display of scene object debug properties on or off.
 	 */ 
 	void GetTimingDisplay(bool& frameRate, bool& profile, bool& properties) const;
 
 	/** 
 	 * Sets cursor hiding on every frame.
-	 * @param hideCursor Turns hiding on or off.
+	 * \param hideCursor Turns hiding on or off.
 	 */
 	void SetHideCursor(bool hideCursor);
 
 	/** 
 	 * Returns the current setting for cursor hiding.
-	 * @return The current setting for cursor hiding.
+	 * \return The current setting for cursor hiding.
 	 */
 	bool GetHideCursor(void) const;
 
 	/** 
 	 * Enables/disables the use of the framing bar color of the Blender file's scenes.
-	 * @param overrideFrameColor The new setting.
+	 * \param overrideFrameColor The new setting.
 	 */
 	void SetUseOverrideFrameColor(bool overrideFrameColor);
 
 	/** 
-	 * Enables/disables the use of the framing bar color of the Blender file's scenes.
-	 * @param useSceneFrameColor The new setting.
+	 * Check if the frame color is being overridden.
 	 */
 	bool GetUseOverrideFrameColor(void) const; 
 
 	/** 
 	 * Set the color used for framing bar color instead of the one in the Blender file's scenes.
-	 * @param r Red component of the override color.
-	 * @param g Green component of the override color.
-	 * @param b Blue component of the override color.
+	 * \param r Red component of the override color.
+	 * \param g Green component of the override color.
+	 * \param b Blue component of the override color.
 	 */
 	void SetOverrideFrameColor(float r, float g, float b);
 
 	/** 
 	 * Returns the color used for framing bar color instead of the one in the Blender file's scenes.
-	 * @param r Red component of the override color.
-	 * @param g Green component of the override color.
-	 * @param b Blue component of the override color.
+	 * \param r Red component of the override color.
+	 * \param g Green component of the override color.
+	 * \param b Blue component of the override color.
 	 */
 	void GetOverrideFrameColor(float& r, float& g, float& b) const;
 
 	KX_Scene*		CreateScene(const STR_String& scenename);
-	KX_Scene*		CreateScene(Scene *scene);
-	
+	KX_Scene*		CreateScene(Scene *scene, bool libloading=false);
+
+	GlobalSettings*	GetGlobalSettings(void);
+	void			SetGlobalSettings(GlobalSettings* gs);
+
+	/**
+	 * Invalidate all the camera matrices and handle other
+	 * needed changes when resized.
+	 * It's only called from Blenderplayer.
+	 */
+	void			Resize();
+
 protected:
 	/**
 	 * Processes all scheduled scene activity.
 	 * At the end, if the scene lists have changed,
 	 * SceneListsChanged(void) is called.
-	 * @see SceneListsChanged(void).
+	 * \see SceneListsChanged(void).
 	 */
 	void			ProcessScheduledScenes(void);
 
@@ -418,12 +450,8 @@ protected:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_KetsjiEngine"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_KetsjiEngine")
 #endif
 };
 
-#endif //__KX_KETSJI_ENGINE
-
-
+#endif  /* __KX_KETSJIENGINE_H__ */

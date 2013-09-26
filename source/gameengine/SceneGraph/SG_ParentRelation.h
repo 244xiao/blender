@@ -1,6 +1,4 @@
 /*
- * $Id: SG_ParentRelation.h 35175 2011-02-25 13:39:04Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,9 +28,9 @@
 
 /** \file SG_ParentRelation.h
  *  \ingroup bgesg
- * @page SG_ParentRelationPage SG_ParentRelation   
-
- * @section SG_ParentRelationSection SG_ParentRelation
+ * \page SG_ParentRelationPage SG_ParentRelation   
+ *
+ * \section SG_ParentRelationSection SG_ParentRelation
  * 
  * This is an abstract interface class to the Scene Graph library. 
  * It allows you to specify how child nodes react to parent nodes.
@@ -50,9 +48,9 @@
  * should not be value types and should be allocated on the heap.
  *
  */
- 
-#ifndef __SG_ParentRelation_h
-#define __SG_ParentRelation_h
+
+#ifndef __SG_PARENTRELATION_H__
+#define __SG_PARENTRELATION_H__
 
 class SG_Spatial;
 
@@ -78,14 +76,13 @@ public :
 
 	virtual 
 	~SG_ParentRelation(
-	){
-	};
+	) {};
 
 	/** 
 	 * You must provide a way of duplicating an
 	 * instance of an SG_ParentRelation. This should
 	 * return a pointer to a new duplicate allocated
-	 * on the heap. Responsibilty for deleting the 
+	 * on the heap. Responsibility for deleting the
 	 * duplicate resides with the caller of this method.
 	 */
 
@@ -121,7 +118,7 @@ protected :
 	 */
 
 	SG_ParentRelation(
-	) {	
+	) {
 	};
 
 	/**
@@ -134,11 +131,9 @@ protected :
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SG_ParentRelation"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_ParentRelation")
 #endif
-};	
+};
 
 #endif
 

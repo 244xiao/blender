@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_gpencil_types.h 35935 2011-04-01 11:55:21Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -24,12 +22,13 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_GPENCIL_TYPES_H
-#define DNA_GPENCIL_TYPES_H
 
 /** \file DNA_gpencil_types.h
  *  \ingroup DNA
  */
+
+#ifndef __DNA_GPENCIL_TYPES_H__
+#define __DNA_GPENCIL_TYPES_H__
 
 #include "DNA_listBase.h"
 #include "DNA_ID.h"
@@ -40,8 +39,9 @@
  *	   This assumes that the bottom-left corner is (0,0)
  */
 typedef struct bGPDspoint {
-	float x, y, z;			/* co-ordinates of point (usually 2d, but can be 3d as well) */				
+	float x, y, z;			/* co-ordinates of point (usually 2d, but can be 3d as well) */
 	float pressure;			/* pressure of input device (from 0 to 1) at this point */
+	float time;				/* seconds since start of stroke */
 } bGPDspoint;
 
 /* Grease-Pencil Annotations - 'Stroke'
@@ -50,12 +50,14 @@ typedef struct bGPDspoint {
  */
 typedef struct bGPDstroke {
 	struct bGPDstroke *next, *prev;
-	
 	bGPDspoint *points;		/* array of data-points for stroke */
+	void *pad;				/* keep 4 pointers at the beginning, padding for 'inittime' is tricky 64/32bit */
 	int totpoints;			/* number of data-points in array */
 	
-	short thickness;		/* thickness of stroke (currently not used) */	
+	short thickness;		/* thickness of stroke (currently not used) */
 	short flag;				/* various settings about this stroke */
+
+	double inittime;		/* Init time of stroke */
 } bGPDstroke;
 
 /* bGPDstroke->flag */
@@ -95,13 +97,14 @@ typedef struct bGPDlayer {
 	ListBase frames;		/* list of annotations to display for frames (bGPDframe list) */
 	bGPDframe *actframe;	/* active frame (should be the frame that is currently being displayed) */
 	
-	int flag;				/* settings for layer */		
+	int flag;				/* settings for layer */
 	short thickness;		/* current thickness to apply to strokes */
 	short gstep;			/* max number of frames between active and ghost to show (0=only those on either side) */
 	
 	float color[4];			/* color that should be used to draw all the strokes in this layer */
 	
-	char info[128];			/* optional reference info about this layer (i.e. "director's comments, 12/3") */
+	char info[128];			/* optional reference info about this layer (i.e. "director's comments, 12/3")
+							 * this is used for the name of the layer  too and kept unique. */
 } bGPDlayer;
 
 /* bGPDlayer->flag */
@@ -132,7 +135,7 @@ typedef struct bGPdata {
 	int flag;				/* settings for this datablock */
 	
 	/* not-saved stroke buffer data (only used during paint-session) 
-	 * 	- buffer must be initialised before use, but freed after 
+	 * 	- buffer must be initialized before use, but freed after 
 	 *	  whole paint operation is over
 	 */
 	short sbuffer_size;			/* number of elements currently in cache */
@@ -141,16 +144,16 @@ typedef struct bGPdata {
 } bGPdata;
 
 /* bGPdata->flag */
-// XXX many of these flags should be depreceated for more general ideas in 2.5
+// XXX many of these flags should be deprecated for more general ideas in 2.5
 	/* don't allow painting to occur at all */
-	// XXX is depreceated - not well understood
+	// XXX is deprecated - not well understood
 #define GP_DATA_LMBPLOCK	(1<<0)
 	/* show debugging info in viewport (i.e. status print) */
 #define GP_DATA_DISPINFO	(1<<1)
 	/* in Action Editor, show as expanded channel */
 #define GP_DATA_EXPAND		(1<<2)
 	/* is the block overriding all clicks? */
-	// XXX is depreceated - nasty old concept
+	// XXX is deprecated - nasty old concept
 #define GP_DATA_EDITPAINT	(1<<3)
 	/* new strokes are added in viewport space */
 #define GP_DATA_VIEWALIGN	(1<<4)
@@ -160,4 +163,4 @@ typedef struct bGPdata {
 
 #define GP_DATA_DEPTH_STROKE_ENDPOINTS (1<<7)
 
-#endif /*  DNA_GPENCIL_TYPES_H */
+#endif /*  __DNA_GPENCIL_TYPES_H__ */

@@ -1,6 +1,4 @@
 /*
- * $Id: KX_NetworkEventManager.cpp 35171 2011-02-25 13:35:59Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +23,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * Ketsji Logic Extenstion: Network Event Manager generic implementation
+ * Ketsji Logic Extension: Network Event Manager generic implementation
  */
 
 /** \file gameengine/Ketsji/KXNetwork/KX_NetworkEventManager.cpp
@@ -66,8 +64,8 @@ void KX_NetworkEventManager::NextFrame()
 	for (it.begin();!it.end();++it)
 	{
 //	    printf("KX_NetworkEventManager::proceed sensor %.2f\n", curtime);
-	    // process queue
-	    (*it)->Activate(m_logicmgr);
+		// process queue
+		(*it)->Activate(m_logicmgr);
 	}
 
 	// now a list of triggerer sensors has been built

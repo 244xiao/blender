@@ -1,6 +1,4 @@
 /*
- * $Id: bpy.h 35236 2011-02-27 20:10:08Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -25,6 +23,13 @@
  *  \ingroup pythonintern
  */
 
- 
-void BPy_init_modules( void );
+#ifndef __BPY_H__
+
+void BPy_init_modules(void);
 extern PyObject *bpy_package_py;
+
+/* bpy_interface_atexit.c */
+void BPY_atexit_register(void);
+void BPY_atexit_unregister(void);
+
+#endif  /* __BPY_H__ */

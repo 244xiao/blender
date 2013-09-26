@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_sca.h 34962 2011-02-18 13:05:18Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_SCA_H
-#define BKE_SCA_H
+#ifndef __BKE_SCA_H__
+#define __BKE_SCA_H__
 
 /** \file BKE_sca.h
  *  \ingroup bke
@@ -75,6 +73,8 @@ void sca_remove_ob_poin(struct Object *obt, struct Object *ob);
 void sca_move_sensor(struct bSensor *sens_to_move, struct Object *ob, int move_up);
 void sca_move_controller(struct bController *cont_to_move, struct Object *ob, int move_up);
 void sca_move_actuator(struct bActuator *act_to_move, struct Object *ob, int move_up);
+
+const char *sca_state_name_get(Object *ob, short bit);
 
 #endif
 

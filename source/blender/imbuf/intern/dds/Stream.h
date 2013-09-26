@@ -1,6 +1,4 @@
 /*
- * $Id: Stream.h 35239 2011-02-27 20:23:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributors: Amorilia (amorilia@gamebox.net)
+ * Contributors: Amorilia (amorilia@users.sourceforge.net)
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -29,15 +27,15 @@
 
 /* simple memory stream functions with buffer overflow check */
 
-#ifndef _STREAM_H
-#define _STREAM_H
+#ifndef __STREAM_H__
+#define __STREAM_H__
 
 struct Stream
 {
 	unsigned char *mem; // location in memory
 	unsigned int size;  // size
 	unsigned int pos;   // current position
-	Stream(unsigned char *m, unsigned int s) : mem(m), size(s), pos(0) {};
+	Stream(unsigned char *m, unsigned int s) : mem(m), size(s), pos(0) {}
 	unsigned int seek(unsigned int p);
 };
 
@@ -47,5 +45,4 @@ unsigned int mem_read(Stream & mem, unsigned short & i);
 unsigned int mem_read(Stream & mem, unsigned char & i);
 unsigned int mem_read(Stream & mem, unsigned char *i, unsigned int cnt);
 
-#endif // _STREAM_H
-
+#endif  /* __STREAM_H__ */

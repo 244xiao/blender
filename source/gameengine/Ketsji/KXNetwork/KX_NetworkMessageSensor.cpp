@@ -1,6 +1,4 @@
 /*
- * $Id: KX_NetworkMessageSensor.cpp 35171 2011-02-25 13:35:59Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +23,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * Ketsji Logic Extenstion: Network Message Sensor generic implementation
+ * Ketsji Logic Extension: Network Message Sensor generic implementation
  */
 
 /** \file gameengine/Ketsji/KXNetwork/KX_NetworkMessageSensor.cpp
@@ -40,7 +38,7 @@
 #include "NG_NetworkMessage.h"
 #include "NG_NetworkScene.h"
 #include "NG_NetworkObject.h"
-#include "SCA_IObject.h"	
+#include "SCA_IObject.h"
 #include "InputParser.h"
 #include "ListValue.h"
 #include "StringValue.h"
@@ -50,11 +48,11 @@
 #endif
 
 KX_NetworkMessageSensor::KX_NetworkMessageSensor(
-	class KX_NetworkEventManager* eventmgr,	// our eventmanager
-	class NG_NetworkScene *NetworkScene,	// our scene
-	SCA_IObject* gameobj,					// the sensor controlling object
-	const STR_String &subject
-) :
+        class KX_NetworkEventManager* eventmgr,	// our eventmanager
+        class NG_NetworkScene *NetworkScene,	// our scene
+        SCA_IObject* gameobj,					// the sensor controlling object
+        const STR_String &subject
+        ) :
     SCA_ISensor(gameobj,eventmgr),
     m_NetworkScene(NetworkScene),
     m_subject(subject),
@@ -67,14 +65,15 @@ KX_NetworkMessageSensor::KX_NetworkMessageSensor(
 
 void KX_NetworkMessageSensor::Init()
 {
-    m_IsUp = false;
+	m_IsUp = false;
 }
 
 KX_NetworkMessageSensor::~KX_NetworkMessageSensor()
 {
 }
 
-CValue* KX_NetworkMessageSensor::GetReplica() {
+CValue* KX_NetworkMessageSensor::GetReplica()
+{
 	// This is the standard sensor implementation of GetReplica
 	// There may be more network message sensor specific stuff to do here.
 	CValue* replica = new KX_NetworkMessageSensor(*this);
@@ -146,7 +145,7 @@ bool KX_NetworkMessageSensor::Evaluate()
 	// Return always true if a message was received otherwise we can loose messages
 	if (m_IsUp)
 		return true;
-	// Is it usefull to return also true when the first frame without a message?? 
+	// Is it useful to return also true when the first frame without a message??
 	// This will cause a fast on/off cycle that seems useless!
 	return result;
 }
@@ -202,7 +201,7 @@ PyAttributeDef KX_NetworkMessageSensor::Attributes[] = {
 	{ NULL }	//Sentinel
 };
 
-PyObject* KX_NetworkMessageSensor::pyattr_get_bodies(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_NetworkMessageSensor::pyattr_get_bodies(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_NetworkMessageSensor *self = static_cast<KX_NetworkMessageSensor*>(self_v);
 	if (self->m_BodyList) {
@@ -212,7 +211,7 @@ PyObject* KX_NetworkMessageSensor::pyattr_get_bodies(void *self_v, const KX_PYAT
 	}
 }
 
-PyObject* KX_NetworkMessageSensor::pyattr_get_subjects(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_NetworkMessageSensor::pyattr_get_subjects(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_NetworkMessageSensor *self = static_cast<KX_NetworkMessageSensor*>(self_v);
 	if (self->m_SubjectList) {

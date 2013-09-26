@@ -1,6 +1,4 @@
 /*
- * $Id: UI_interface_icons.h 35016 2011-02-21 07:25:24Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,29 +29,36 @@
  *  \ingroup editorui
  */
 
-#ifndef UI_INTERFACE_ICONS_H
-#define UI_INTERFACE_ICONS_H
+#ifndef __UI_INTERFACE_ICONS_H__
+#define __UI_INTERFACE_ICONS_H__
 
+struct bContext;
 struct Image;
 struct ImBuf;
 struct World;
 struct Tex;
 struct Lamp;
 struct Material;
+struct PreviewImage;
+struct PointerRNA;
 
 typedef struct IconFile {
 	struct IconFile *next, *prev;
-	char filename[80];	// FILE_MAXFILE size
+	char filename[256]; /* FILE_MAXFILE size */
 	int index;
 } IconFile;
 
 #define ICON_DEFAULT_HEIGHT 16
-#define ICON_DEFAULT_WIDTH	16
+#define ICON_DEFAULT_WIDTH  16
+
+#define ICON_DEFAULT_HEIGHT_SCALE ((int)(UI_UNIT_Y * 0.8f))
+#define ICON_DEFAULT_WIDTH_SCALE  ((int)(UI_UNIT_X * 0.8f))
+
 #define PREVIEW_DEFAULT_HEIGHT 96
 
 /*
- Resizable Icons for Blender
-*/
+ * Resizable Icons for Blender
+ */
 void UI_icons_init(int first_dyn_id);
 int UI_icon_get_width(int icon_id);
 int UI_icon_get_height(int icon_id);
@@ -64,7 +69,7 @@ void UI_icon_draw_preview_aspect(float x, float y, int icon_id, float aspect);
 void UI_icon_draw_preview_aspect_size(float x, float y, int icon_id, float aspect, int size);
 
 void UI_icon_draw_aspect(float x, float y, int icon_id, float aspect, float alpha);
-void UI_icon_draw_aspect_color(float x, float y, int icon_id, float aspect, float *rgb);
+void UI_icon_draw_aspect_color(float x, float y, int icon_id, float aspect, const float rgb[3]);
 void UI_icon_draw_size(float x, float y, int size, int icon_id, float alpha);
 void UI_icons_free(void);
 void UI_icons_free_drawinfo(void *drawinfo);
@@ -72,5 +77,8 @@ void UI_icons_free_drawinfo(void *drawinfo);
 struct ListBase *UI_iconfile_list(void);
 int UI_iconfile_get_index(const char *filename);
 
+struct PreviewImage *UI_icon_to_preview(int icon_id);
 
-#endif /*  UI_INTERFACE_ICONS_H */
+int UI_rnaptr_icon_get(struct bContext *C, struct PointerRNA *ptr, int rnaicon, const bool big);
+
+#endif /*  __UI_INTERFACE_ICONS_H__ */

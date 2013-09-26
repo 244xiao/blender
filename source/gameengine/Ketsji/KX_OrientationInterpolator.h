@@ -1,6 +1,4 @@
 /*
- * $Id: KX_OrientationInterpolator.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef KX_ORIENTATIONINTERPOLATOR
-#define KX_ORIENTATIONINTERPOLATOR
+#ifndef __KX_ORIENTATIONINTERPOLATOR_H__
+#define __KX_ORIENTATIONINTERPOLATOR_H__
 
 #include "KX_IInterpolator.h"
 
@@ -41,12 +39,12 @@ class KX_IScalarInterpolator;
 
 class KX_OrientationInterpolator : public KX_IInterpolator {
 public:
-	KX_OrientationInterpolator(MT_Matrix3x3& target, 
-							   KX_IScalarInterpolator **ipos)
-		: m_target(target) 
-    {
-		m_ipos[0] = ipos[0]; 
-		m_ipos[1] = ipos[1]; 
+	KX_OrientationInterpolator(MT_Matrix3x3& target,
+	                           KX_IScalarInterpolator **ipos)
+	    : m_target(target)
+	{
+		m_ipos[0] = ipos[0];
+		m_ipos[1] = ipos[1];
 		m_ipos[2] = ipos[2];
 	}
 	
@@ -58,9 +56,7 @@ private:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-private:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_OrientationInterpolator"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_OrientationInterpolator")
 #endif
 };
 

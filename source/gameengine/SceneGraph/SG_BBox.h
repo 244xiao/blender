@@ -1,6 +1,4 @@
 /*
- * $Id: SG_BBox.h 35082 2011-02-22 19:30:37Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -83,7 +81,7 @@ public:
 	/**
 	 * Scales the bounding box about the optional point.
 	 */
-	void scale(const MT_Vector3 &size, const MT_Point3 &point = MT_Point3(0., 0., 0.));
+	void scale(const MT_Vector3 &size, const MT_Point3 &point = MT_Point3(0.0, 0.0, 0.0));
 #endif
 	SG_BBox transform(const MT_Transform &world) const;
 	/**
@@ -119,14 +117,14 @@ public:
 	/**
 	 * Get the eight points that define this bounding box.
 	 *
-	 * @param world a world transform to apply to the produced points bounding box.
+	 * \param world a world transform to apply to the produced points bounding box.
 	 */
 	void get(MT_Point3 *box, const MT_Transform &world) const;
 	/**
 	 * Get the eight points that define this axis aligned bounding box.
 	 * This differs from SG_BBox::get() in that the produced box will be world axis aligned.
 	 * The maximum & minimum local points will be transformed *before* splitting to 8 points.
-	 * @param world a world transform to be applied.
+	 * \param world a world transform to be applied.
 	 */
 	void getaa(MT_Point3 *box, const MT_Transform &world) const;
 	
@@ -138,9 +136,7 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SG_BBox"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_BBox")
 #endif
 };
 

@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_nla_types.h 34941 2011-02-17 20:48:12Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,12 +25,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef DNA_NLA_TYPES_H
-#define DNA_NLA_TYPES_H
-
 /** \file DNA_nla_types.h
  *  \ingroup DNA
  */
+
+#ifndef __DNA_NLA_TYPES_H__
+#define __DNA_NLA_TYPES_H__
 
 #include "DNA_listBase.h"
 
@@ -52,13 +50,12 @@ typedef struct bActionModifier {
 	
 	/* path deform modifier */
 	short no_rot_axis;
-	struct Object *ob;	
+	struct Object *ob;
 } bActionModifier;
 
-/* NLA-Modifier Types */
-#define ACTSTRIP_MOD_DEFORM		0
-#define ACTSTRIP_MOD_NOISE		1
-#define ACTSTRIP_MOD_OOMPH		2
+/* NLA-Modifier Types (UNUSED) */
+// #define ACTSTRIP_MOD_DEFORM		0
+// #define ACTSTRIP_MOD_NOISE		1
 
 typedef struct bActionStrip {
 	struct bActionStrip *next, *prev;

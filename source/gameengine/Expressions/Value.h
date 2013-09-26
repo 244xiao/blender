@@ -1,6 +1,5 @@
 /*
  * Value.h: interface for the CValue class.
- * $Id: Value.h 35063 2011-02-22 10:33:14Z jesterking $
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -17,15 +16,17 @@
  *  \ingroup expressions
  */
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable:4786)
-#endif //WIN32
-
 #ifndef __VALUE_H__
 #define __VALUE_H__
 
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)
+#endif
+
 #include <map>		// array functionality for the propertylist
 #include "STR_String.h"	// STR_String class
+
+using namespace std;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -50,14 +51,6 @@
 #ifndef GEN_NO_ASSERTD
 #undef  assertd
 #define	assertd(exp)			((void)NULL)
-#endif
-
-
-#ifndef USE_PRAGMA_ONCE
-#ifdef WIN32
-	#pragma once
-
-#endif //WIN32
 #endif
 
 enum VALUE_OPERATOR {
@@ -151,21 +144,19 @@ struct ValueFlags {
 
 /**
  *	Base Class for all Actions performed on CValue's. Can be extended for undo/redo system in future.
-*/
+ */
 class CAction
 {
 public:
 	CAction() {
 	};
-	virtual ~CAction(){
+	virtual ~CAction() {
 	};
 	virtual void Execute() const =0;
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:CAction"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CAction")
 #endif
 };
 
@@ -180,7 +171,7 @@ public:
  *
  * Together with CExpression, CValue and it's derived classes can be used to
  * parse expressions into a parsetree with error detecting/correcting capabilities
- * also expandible by a CFactory pluginsystem 
+ * also expandable by a CFactory pluginsystem 
  *
  * Base class for all editor functionality, flexible object type that allows
  * calculations and uses reference counting for memory management.
@@ -201,7 +192,7 @@ public:
 class CValue  : public PyObjectPlus
 
 {
-Py_Header;
+Py_Header
 public:
 	enum AllocationTYPE {
 		STACKVALUE		= 0,
@@ -219,22 +210,22 @@ public:
 	CValue();
 
 #ifdef WITH_PYTHON
-	//static PyObject*	PyMake(PyObject*,PyObject*);
+	//static PyObject *PyMake(PyObject *, PyObject *);
 	virtual PyObject *py_repr(void)
 	{
-		return PyUnicode_FromString((const char*)GetText());
+		return PyUnicode_From_STR_String(GetText());
 	}
 
-	virtual PyObject*	ConvertValueToPython() {
+	virtual PyObject *ConvertValueToPython() {
 		return NULL;
 	}
 
-	virtual CValue*	ConvertPythonToValue(PyObject* pyobj, const char *error_prefix);
+	virtual CValue *ConvertPythonToValue(PyObject *pyobj, const bool do_type_exception, const char *error_prefix);
 	
-	static PyObject * pyattr_get_name(void * self, const KX_PYATTRIBUTE_DEF * attrdef);
+	static PyObject *pyattr_get_name(void *self, const KX_PYATTRIBUTE_DEF *attrdef);
 	
-	virtual PyObject* ConvertKeysToPython( void );
-#endif // WITH_PYTHON
+	virtual PyObject *ConvertKeysToPython( void );
+#endif  /* WITH_PYTHON */
 
 	
 	
@@ -251,33 +242,33 @@ public:
 	};
 
 	/// Reference Counting
-	int					GetRefCount()											
+	int GetRefCount()
 	{ 
 		return m_refcount; 
 	}
 
 	// Add a reference to this value
-	CValue*				AddRef()												
+	CValue *AddRef()
 	{
 		// Increase global reference count, used to see at the end of the program
 		// if all CValue-derived classes have been dereferenced to 0
 		//debug(gRefCountValue++);
-	#ifdef _DEBUG
+#ifdef _DEBUG
 		//gRefCountValue++;
-	#endif
+#endif
 		m_refcount++; 
 		return this;
 	}
 
 	// Release a reference to this value (when reference count reaches 0, the value is removed from the heap)
-	int			Release()								
+	int			Release()
 	{
 		// Decrease global reference count, used to see at the end of the program
 		// if all CValue-derived classes have been dereferenced to 0
 		//debug(gRefCountValue--);
-	#ifdef _DEBUG
+#ifdef _DEBUG
 		//gRefCountValue--;
-	#endif
+#endif
 		// Decrease local reference count, if it reaches 0 the object should be freed
 		if (--m_refcount > 0)
 		{
@@ -315,18 +306,18 @@ public:
 	virtual CValue*		FindIdentifier(const STR_String& identifiername);
 	/** Set the wireframe color of this value depending on the CSG
 	 * operator type <op>
-	 * @attention: not implemented */
+	 * \attention: not implemented */
 	virtual void		SetColorOperator(VALUE_OPERATOR op);
 
 	virtual const STR_String &	GetText() = 0;
 	virtual double		GetNumber() = 0;
-	double*				ZeroVector() { return m_sZeroVec; };
+	double*				ZeroVector() { return m_sZeroVec; }
 	virtual double*		GetVector3(bool bGetTransformedVec = false);
 
 	virtual STR_String&	GetName() = 0;											// Retrieve the name of the value
 	virtual void		SetName(const char *name) = 0;								// Set the name of the value
 	/** Sets the value to this cvalue.
-	 * @attention this particular function should never be called. Why not abstract? */
+	 * \attention this particular function should never be called. Why not abstract? */
 	virtual void		SetValue(CValue* newval);
 	virtual CValue*		GetReplica() =0;
 	virtual void			ProcessReplica();
@@ -349,22 +340,22 @@ public:
 	virtual bool		IsSelected()											{ return m_ValFlags.Selected; }
 	inline bool			IsReleaseRequested()									{ return m_ValFlags.ReleaseRequested; }
 	virtual bool		IsVisible()												{ return m_ValFlags.Visible;}
-	virtual void		SetCustomFlag1(bool bCustomFlag)						{ m_ValFlags.CustomFlag1 = bCustomFlag;};
-	virtual bool		IsCustomFlag1()											{ return m_ValFlags.CustomFlag1;};
+	virtual void		SetCustomFlag1(bool bCustomFlag)						{ m_ValFlags.CustomFlag1 = bCustomFlag;}
+	virtual bool		IsCustomFlag1()											{ return m_ValFlags.CustomFlag1;}
 
-	virtual void		SetCustomFlag2(bool bCustomFlag)						{ m_ValFlags.CustomFlag2 = bCustomFlag;};
-	virtual bool		IsCustomFlag2()											{ return m_ValFlags.CustomFlag2;};
+	virtual void		SetCustomFlag2(bool bCustomFlag)						{ m_ValFlags.CustomFlag2 = bCustomFlag;}
+	virtual bool		IsCustomFlag2()											{ return m_ValFlags.CustomFlag2;}
 
-protected:																		
+protected:
 	virtual void		DisableRefCount();										// Disable reference counting for this value
-	//virtual void		AddDataToReplica(CValue* replica);						
+	//virtual void		AddDataToReplica(CValue* replica);
 	virtual				~CValue();
 private:
-	// Member variables															
+	// Member variables
 	std::map<STR_String,CValue*>*		m_pNamedPropertyArray;									// Properties for user/game etc
 	ValueFlags			m_ValFlags;												// Frequently used flags in a bitfield (low memoryusage)
-	int					m_refcount;												// Reference Counter	
-	static	double m_sZeroVec[3];	
+	int					m_refcount;												// Reference Counter
+	static	double m_sZeroVec[3];
 
 };
 
@@ -380,18 +371,23 @@ private:
 // of object. So, for *any* CValue-derived object this should be set to CValue,
 // for *any* CExpression-derived object this should be set to CExpression.
 //
-#define PLUGIN_DECLARE_SERIAL(class_name, root_base_class_name)											\
-public:																									\
-	virtual root_base_class_name *	Copy()					{ return new class_name; }					\
-	virtual bool EdSerialize(CompressorArchive& arch,class CFactoryManager* facmgr,bool bIsStoring);    \
-	virtual bool EdIdSerialize(CompressorArchive& arch,class CFactoryManager* facmgr,bool bIsStoring)	\
-{																										\
-	if (bIsStoring)																						\
-		arch.StoreString(#class_name);																	\
-																										\
-	return false;																						\
-}																										\
-	
+#define PLUGIN_DECLARE_SERIAL(class_name, root_base_class_name)                \
+public:                                                                        \
+	virtual root_base_class_name *Copy() {                                     \
+		return new class_name;                                                 \
+	}                                                                          \
+	virtual bool EdSerialize(CompressorArchive& arch,                          \
+	                         class CFactoryManager* facmgr,                    \
+	                         bool bIsStoring);                                 \
+	virtual bool EdIdSerialize(CompressorArchive& arch,                        \
+	                           class CFactoryManager* facmgr,                  \
+	                           bool bIsStoring)                                \
+	{                                                                          \
+		if (bIsStoring)                                                        \
+			arch.StoreString(#class_name);                                     \
+		return false;                                                          \
+	}                                                                          \
+
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -425,18 +421,14 @@ public:
 		//if (namefromprop.Length() > 0)
 		//	return namefromprop;
 		return m_strNewName;
-	};						// name of Value
+	}						// name of Value
 	
 protected:
 	STR_String					m_strNewName;				    // Identification
 
-
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:CPropValue"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CPropValue")
 #endif
 };
 
-#endif // !defined _VALUEBASECLASS_H
-
+#endif  /* __VALUE_H__ */

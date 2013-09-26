@@ -1,6 +1,4 @@
 /*
- * $Id: KX_KetsjiEngine.cpp 35417 2011-03-09 01:25:59Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,10 +30,9 @@
  *  \ingroup ketsji
  */
 
-
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable : 4786)
-#endif //WIN32
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)
+#endif
 
 #include <iostream>
 #include <stdio.h>
@@ -48,27 +45,25 @@
 #include "BoolValue.h"
 #include "FloatValue.h"
 
-#define KX_NUM_ITERATIONS 4
 #include "RAS_BucketManager.h"
 #include "RAS_Rect.h"
 #include "RAS_IRasterizer.h"
 #include "RAS_IRenderTools.h"
 #include "RAS_ICanvas.h"
-#include "STR_String.h"
 #include "MT_Vector3.h"
 #include "MT_Transform.h"
 #include "SCA_IInputDevice.h"
-#include "KX_Scene.h"
-#include "MT_CmMatrix4x4.h"
 #include "KX_Camera.h"
-#include "KX_FontObject.h"
 #include "KX_Dome.h"
 #include "KX_Light.h"
 #include "KX_PythonInit.h"
 #include "KX_PyConstraintBinding.h"
 #include "PHY_IPhysicsEnvironment.h"
 
-#include "AUD_C-API.h"
+#ifdef WITH_AUDASPACE
+#  include "AUD_C-API.h"
+#  include "AUD_I3DDevice.h"
+#endif
 
 #include "NG_NetworkScene.h"
 #include "NG_NetworkDeviceInterface.h"
@@ -81,18 +76,26 @@
 #include "DNA_world_types.h"
 #include "DNA_scene_types.h"
 
+#include "KX_NavMeshObject.h"
+
 // If define: little test for Nzc: guarded drawing. If the canvas is
 // not valid, skip rendering this frame.
 //#define NZC_GUARDED_OUTPUT
 #define DEFAULT_LOGIC_TIC_RATE 60.0
-#define DEFAULT_PHYSICS_TIC_RATE 60.0
+//#define DEFAULT_PHYSICS_TIC_RATE 60.0
+
+#ifdef FREE_WINDOWS /* XXX mingw64 (gcc 4.7.0) defines a macro for DrawText that translates to DrawTextA. Not good */
+#ifdef DrawText
+#undef DrawText
+#endif
+#endif
 
 const char KX_KetsjiEngine::m_profileLabels[tc_numCategories][15] = {
 	"Physics:",		// tc_physics
-	"Logic",		// tc_logic
+	"Logic:",		// tc_logic
+	"Animations:",	// tc_animations
 	"Network:",		// tc_network
 	"Scenegraph:",	// tc_scenegraph
-	"Sound:",		// tc_sound
 	"Rasterizer:",	// tc_rasterizer
 	"Services:",	// tc_services
 	"Overhead:",	// tc_overhead
@@ -106,13 +109,15 @@ double KX_KetsjiEngine::m_anim_framerate = 25.0;
 double KX_KetsjiEngine::m_suspendedtime = 0.0;
 double KX_KetsjiEngine::m_suspendeddelta = 0.0;
 double KX_KetsjiEngine::m_average_framerate = 0.0;
+bool   KX_KetsjiEngine::m_restrict_anim_fps = false;
+short  KX_KetsjiEngine::m_exitkey = 130; //ESC Key
 
 
 /**
  *	Constructor of the Ketsji Engine
  */
 KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
-     :	m_canvas(NULL),
+	:	m_canvas(NULL),
 	m_rasterizer(NULL),
 	m_kxsystem(system),
 	m_rendertools(NULL),
@@ -135,6 +140,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 	m_frameTime(0.f),
 	m_clockTime(0.f),
 	m_previousClockTime(0.f),
+	m_previousAnimTime(0.f),
 
 
 	m_exitcode(KX_EXIT_REQUEST_NO_REQUEST),
@@ -177,7 +183,10 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 
 	for (int i = tc_first; i < tc_numCategories; i++)
 		m_logger->AddCategory((KX_TimeCategory)i);
-		
+
+#ifdef WITH_PYTHON
+	m_pyprofiledict = PyDict_New();
+#endif
 }
 
 
@@ -188,8 +197,12 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 KX_KetsjiEngine::~KX_KetsjiEngine()
 {
 	delete m_logger;
-	if(m_usedome)
+	if (m_usedome)
 		delete m_dome;
+
+#ifdef WITH_PYTHON
+	Py_CLEAR(m_pyprofiledict);
+#endif
 }
 
 
@@ -244,10 +257,16 @@ void KX_KetsjiEngine::SetRasterizer(RAS_IRasterizer* rasterizer)
  * At the moment the bge.logic module is imported into 'pythondictionary' after this function is called.
  * if this function ever changes to assign a copy, make sure the game logic module is imported into this dictionary before hand.
  */
-void KX_KetsjiEngine::SetPyNamespace(PyObject* pythondictionary)
+void KX_KetsjiEngine::SetPyNamespace(PyObject *pythondictionary)
 {
 	MT_assert(pythondictionary);
 	m_pythondictionary = pythondictionary;
+}
+
+PyObject* KX_KetsjiEngine::GetPyProfileDict()
+{
+	Py_INCREF(m_pyprofiledict);
+	return m_pyprofiledict;
 }
 #endif
 
@@ -266,8 +285,7 @@ void KX_KetsjiEngine::InitDome(short res, short mode, short angle, float resbuf,
 
 void KX_KetsjiEngine::RenderDome()
 {
-	GLuint	viewport[4]={0};
-	glGetIntegerv(GL_VIEWPORT,(GLint *)viewport);
+	const GLint *viewport = m_canvas->GetViewPort();
 	
 	m_dome->SetViewPort(viewport);
 
@@ -291,10 +309,10 @@ void KX_KetsjiEngine::RenderDome()
 		return;
 
 	KX_SceneList::iterator sceneit;
-	KX_Scene* scene;
+	KX_Scene* scene = NULL;
 
 	int n_renders=m_dome->GetNumberRenders();// usually 4 or 6
-	for (int i=0;i<n_renders;i++){
+	for (int i=0;i<n_renders;i++) {
 		m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER|RAS_ICanvas::DEPTH_BUFFER);
 		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); sceneit++)
 		// for each scene, call the proceed functions
@@ -307,11 +325,11 @@ void KX_KetsjiEngine::RenderDome()
 			SetWorldSettings(scene->GetWorldInfo());
 
 			// shadow buffers
-			if (i == 0){
+			if (i == 0) {
 				RenderShadowBuffers(scene);
 			}
 			// Avoid drawing the scene with the active camera twice when it's viewport is enabled
-			if(cam && !cam->GetViewport())
+			if (cam && !cam->GetViewport())
 			{
 				if (scene->IsClearingZBuffer())
 					m_rasterizer->ClearDepthBuffer();
@@ -320,15 +338,16 @@ void KX_KetsjiEngine::RenderDome()
 		
 				// do the rendering
 				m_dome->RenderDomeFrame(scene,cam, i);
+				//render all the font objects for this scene
+				scene->RenderFonts();
 			}
 			
 			list<class KX_Camera*>* cameras = scene->GetCameras();
 			
 			// Draw the scene once for each camera with an enabled viewport
 			list<KX_Camera*>::iterator it = cameras->begin();
-			while(it != cameras->end())
-			{
-				if((*it)->GetViewport())
+			while (it != cameras->end()) {
+				if ((*it)->GetViewport())
 				{
 					if (scene->IsClearingZBuffer())
 						m_rasterizer->ClearDepthBuffer();
@@ -337,6 +356,8 @@ void KX_KetsjiEngine::RenderDome()
 			
 					// do the rendering
 					m_dome->RenderDomeFrame(scene, (*it),i);
+					//render all the font objects for this scene
+					scene->RenderFonts();
 				}
 				
 				it++;
@@ -348,7 +369,7 @@ void KX_KetsjiEngine::RenderDome()
 			// no FlushDebugLines
 		}
 		m_dome->BindImages(i);
-	}	
+	}
 
 	m_canvas->EndFrame();//XXX do we really need that?
 
@@ -378,12 +399,12 @@ void KX_KetsjiEngine::RenderDome()
 	// Draw Callback for the last scene
 #ifdef WITH_PYTHON
 	scene->RunDrawingCallbacks(scene->GetPostDrawCB());
-#endif	
+#endif
 	EndFrame();
 }
 
 /**
- * Ketsji Init(), Initializes datastructures and converts data from
+ * Ketsji Init(), Initializes data-structures and converts data from
  * Blender into Ketsji native (realtime) format also sets up the
  * graphics context
  */
@@ -421,7 +442,7 @@ void KX_KetsjiEngine::StartEngine(bool clearIpo)
 void KX_KetsjiEngine::ClearFrame()
 {
 	// clear unless we're drawing overlapping stereo
-	if(m_rasterizer->InterlacedStereo() &&
+	if (m_rasterizer->InterlacedStereo() &&
 		m_rasterizer->GetEye() == RAS_IRasterizer::RAS_STEREO_RIGHTEYE)
 		return;
 
@@ -437,34 +458,34 @@ void KX_KetsjiEngine::ClearFrame()
 		list<class KX_Camera*>* cameras = scene->GetCameras();
 
 		list<KX_Camera*>::iterator it;
-		for(it = cameras->begin(); it != cameras->end(); it++)
+		for (it = cameras->begin(); it != cameras->end(); it++)
 		{
 			GetSceneViewport(scene, (*it), area, viewport);
 
-			if(!doclear) {
+			if (!doclear) {
 				clearvp = viewport;
 				doclear = true;
 			}
 			else {
-				if(viewport.GetLeft() < clearvp.GetLeft())
+				if (viewport.GetLeft() < clearvp.GetLeft())
 					clearvp.SetLeft(viewport.GetLeft());
-				if(viewport.GetBottom() < clearvp.GetBottom())
+				if (viewport.GetBottom() < clearvp.GetBottom())
 					clearvp.SetBottom(viewport.GetBottom());
-				if(viewport.GetRight() > clearvp.GetRight())
+				if (viewport.GetRight() > clearvp.GetRight())
 					clearvp.SetRight(viewport.GetRight());
-				if(viewport.GetTop() > clearvp.GetTop())
+				if (viewport.GetTop() > clearvp.GetTop())
 					clearvp.SetTop(viewport.GetTop());
 
 			}
 		}
 	}
 
-	if(doclear) {
+	if (doclear) {
 		KX_Scene* firstscene = *m_scenes.begin();
 		SetBackGround(firstscene->GetWorldInfo());
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(),
-			clearvp.GetRight(), clearvp.GetTop());	
+			clearvp.GetRight(), clearvp.GetTop());
 		m_rasterizer->ClearColorBuffer();
 	}
 }
@@ -485,11 +506,13 @@ bool KX_KetsjiEngine::BeginFrame()
 	}
 	
 	return false;
-}		
+}
 
 
 void KX_KetsjiEngine::EndFrame()
 {
+	m_rendertools->MotionBlur(m_rasterizer);
+
 	// Show profiling info
 	m_logger->StartLog(tc_overhead, m_kxsystem->GetTimeInSeconds(), true);
 	if (m_show_framerate || m_show_profile || (m_show_debug_properties && m_propertiesPresent))
@@ -497,10 +520,23 @@ void KX_KetsjiEngine::EndFrame()
 		RenderDebugProperties();
 	}
 
-	m_average_framerate = m_logger->GetAverage();
-	if (m_average_framerate < 1e-6)
-		m_average_framerate = 1e-6;
-	m_average_framerate = 1.0/m_average_framerate;
+	double tottime = m_logger->GetAverage(), time;
+	if (tottime < 1e-6)
+		tottime = 1e-6;
+
+#ifdef WITH_PYTHON
+	for (int i = tc_first; i < tc_numCategories; ++i) {
+		time = m_logger->GetAverage((KX_TimeCategory)i);
+		PyObject *val = PyTuple_New(2);
+		PyTuple_SetItem(val, 0, PyFloat_FromDouble(time*1000.f));
+		PyTuple_SetItem(val, 1, PyFloat_FromDouble(time/tottime * 100.f));
+
+		PyDict_SetItemString(m_pyprofiledict, m_profileLabels[i], val);
+		Py_DECREF(val);
+	}
+#endif
+
+	m_average_framerate = 1.0/tottime;
 
 	// Go to next profiling measurement, time spend after this call is shown in the next frame.
 	m_logger->NextMeasurement(m_kxsystem->GetTimeInSeconds());
@@ -523,29 +559,27 @@ bool KX_KetsjiEngine::NextFrame()
 {
 	double timestep = 1.0/m_ticrate;
 	double framestep = timestep;
-//	static hidden::Clock sClock;
+	//	static hidden::Clock sClock;
 
-m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(),true);
+	m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(),true);
 
-//float dt = sClock.getTimeMicroseconds() * 0.000001f;
-//sClock.reset();
+	//float dt = sClock.getTimeMicroseconds() * 0.000001f;
+	//sClock.reset();
 
-if (m_bFixedTime)
-	m_clockTime += timestep;
-else
-{
-
-//	m_clockTime += dt;
-	m_clockTime = m_kxsystem->GetTimeInSeconds();
-}
+	if (m_bFixedTime) {
+		m_clockTime += timestep;
+	}
+	else {
+		// m_clockTime += dt;
+		m_clockTime = m_kxsystem->GetTimeInSeconds();
+	}
 	
 	double deltatime = m_clockTime - m_frameTime;
 	if (deltatime<0.f)
 	{
-		printf("problem with clock\n");
-		deltatime = 0.f;
-		m_clockTime = 0.f;
-		m_frameTime = 0.f;
+		// We got here too quickly, which means there is nothing todo, just return and don't render.
+		// Not sure if this is the best fix, but it seems to stop the jumping framerate issue (#33088)
+		return false;
 	}
 
 
@@ -576,22 +610,24 @@ else
 		framestep = (frames*timestep)/m_maxLogicFrame;
 		frames = m_maxLogicFrame;
 	}
-		
+
 	while (frames)
 	{
 	
 
 		m_frameTime += framestep;
 		
+		m_sceneconverter->MergeAsyncLoads();
+
 		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
 		// for each scene, call the proceed functions
 		{
 			KX_Scene* scene = *sceneit;
 	
 			/* Suspension holds the physics and logic processing for an
-			* entire scene. Objects can be suspended individually, and
-			* the settings for that preceed the logic and physics
-			* update. */
+			 * entire scene. Objects can be suspended individually, and
+			 * the settings for that precede the logic and physics
+			 * update. */
 			m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
 
 			m_sceneconverter->resetNoneDynamicObjectToIpo();//this is for none dynamic objects with ipo
@@ -626,7 +662,7 @@ else
 				scene->GetPhysicsEnvironment()->endFrame();
 				
 				// Update scenegraph after physics step. This maps physics calculations
-				// into node positions.		
+				// into node positions.
 				//m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				//SG_SetActiveStage(SG_STAGE_PHYSICS1_UPDATE);
 				//scene->UpdateParents(m_frameTime);
@@ -655,7 +691,14 @@ else
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_ACTUATOR_UPDATE);
 				scene->UpdateParents(m_frameTime);
-				
+
+				if (!GetRestrictAnimationFPS())
+				{
+					m_logger->StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
+					SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
+					scene->UpdateAnimations(m_frameTime);
+				}
+
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS2);
 				scene->GetPhysicsEnvironment()->beginFrame();
@@ -670,17 +713,15 @@ else
 			
 			
 				if (m_animation_record)
-				{					
+				{
 					m_sceneconverter->WritePhysicsObjectToAnimationIpo(++m_currentFrame);
 				}
 
 				scene->setSuspendedTime(0.0);
 			} // suspended
 			else
-				if(scene->getSuspendedTime()==0.0)
+				if (scene->getSuspendedTime()==0.0)
 					scene->setSuspendedTime(m_clockTime);
-	
-			DoSound(scene);
 			
 			m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
 		}
@@ -705,7 +746,7 @@ else
 	bool bUseAsyncLogicBricks= false;//true;
 
 	if (bUseAsyncLogicBricks)
-	{	
+	{
 		// Logic update sub frame: this will let some logic bricks run at the
 		// full frame rate.
 		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
@@ -736,7 +777,7 @@ else
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
 				scene->GetPhysicsEnvironment()->proceedDeltaTime(m_clockTime,timestep,timestep);
 				// Update scenegraph after physics step. This maps physics calculations
-				// into node positions.		
+				// into node positions.
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS2);
 				scene->UpdateParents(m_clockTime);
@@ -749,21 +790,37 @@ else
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_ACTUATOR);
 				scene->UpdateParents(m_clockTime);
-				 
- 				scene->setSuspendedTime(0.0);
-			} // suspended
- 			else
- 				if(scene->getSuspendedTime()==0.0)
- 					scene->setSuspendedTime(m_clockTime);
 
-			DoSound(scene);
+				scene->setSuspendedTime(0.0);
+			} // suspended
+			else
+				if (scene->getSuspendedTime()==0.0)
+					scene->setSuspendedTime(m_clockTime);
 
 			m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
 		}
 	}
 
+		
+	// Handle the animations independently of the logic time step
+	if (GetRestrictAnimationFPS())
+	{
+		double clocktime = m_kxsystem->GetTimeInSeconds();
+		m_logger->StartLog(tc_animations, clocktime, true);
+		SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
 
-	m_previousClockTime = m_clockTime;
+		double anim_timestep = 1.0/KX_GetActiveScene()->GetAnimationFPS();
+		if (clocktime - m_previousAnimTime > anim_timestep)
+		{
+			// Sanity/debug print to make sure we're actually going at the fps we want (should be close to anim_timestep)
+			// printf("Anim fps: %f\n", 1.0/(m_clockTime - m_previousAnimTime));
+			m_previousAnimTime = clocktime;
+			for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
+			{
+				(*sceneit)->UpdateAnimations(clocktime);
+			}
+		}
+	}
 	
 	// Start logging time spend outside main loop
 	m_logger->StartLog(tc_outside, m_kxsystem->GetTimeInSeconds(), true);
@@ -775,7 +832,7 @@ else
 
 void KX_KetsjiEngine::Render()
 {
-	if(m_usedome){
+	if (m_usedome) {
 		RenderDome();
 		return;
 	}
@@ -841,7 +898,7 @@ void KX_KetsjiEngine::Render()
 		RenderShadowBuffers(scene);
 
 		// Avoid drawing the scene with the active camera twice when it's viewport is enabled
-		if(cam && !cam->GetViewport())
+		if (cam && !cam->GetViewport())
 		{
 			if (scene->IsClearingZBuffer())
 				m_rasterizer->ClearDepthBuffer();
@@ -856,9 +913,8 @@ void KX_KetsjiEngine::Render()
 		
 		// Draw the scene once for each camera with an enabled viewport
 		list<KX_Camera*>::iterator it = cameras->begin();
-		while(it != cameras->end())
-		{
-			if((*it)->GetViewport())
+		while (it != cameras->end()) {
+			if ((*it)->GetViewport())
 			{
 				if (scene->IsClearingZBuffer())
 					m_rasterizer->ClearDepthBuffer();
@@ -875,7 +931,7 @@ void KX_KetsjiEngine::Render()
 	}
 
 	// only one place that checks for stereo
-	if(m_rasterizer->Stereo())
+	if (m_rasterizer->Stereo())
 	{
 		m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_RIGHTEYE);
 
@@ -902,13 +958,12 @@ void KX_KetsjiEngine::Render()
 			//RenderFrame(scene);
 			RenderFrame(scene, cam);
 
-			list<class KX_Camera*>* cameras = scene->GetCameras();			
+			list<class KX_Camera*>* cameras = scene->GetCameras();
 	
 			// Draw the scene once for each camera with an enabled viewport
 			list<KX_Camera*>::iterator it = cameras->begin();
-			while(it != cameras->end())
-			{
-				if((*it)->GetViewport())
+			while (it != cameras->end()) {
+				if ((*it)->GetViewport())
 				{
 					if (scene->IsClearingZBuffer())
 						m_rasterizer->ClearDepthBuffer();
@@ -923,7 +978,7 @@ void KX_KetsjiEngine::Render()
 			}
 			PostRenderScene(scene);
 		}
-	} // if(m_rasterizer->Stereo())
+	} // if (m_rasterizer->Stereo())
 
 	EndFrame();
 }
@@ -954,9 +1009,9 @@ int KX_KetsjiEngine::GetExitCode()
 	}
 	
 	// check if the window has been closed.
-	if(!m_exitcode)
+	if (!m_exitcode)
 	{
-		//if(!m_canvas->Check()) {
+		//if (!m_canvas->Check()) {
 		//	m_exitcode = KX_EXIT_REQUEST_OUTSIDE;
 		//}
 	}
@@ -972,35 +1027,12 @@ const STR_String& KX_KetsjiEngine::GetExitString()
 }
 
 
-
-void KX_KetsjiEngine::DoSound(KX_Scene* scene)
-{
-	m_logger->StartLog(tc_sound, m_kxsystem->GetTimeInSeconds(), true);
-
-	KX_Camera* cam = scene->GetActiveCamera();
-	if (!cam)
-		return;
-
-	float f[4];
-
-	cam->NodeGetWorldPosition().getValue(f);
-	AUD_setListenerLocation(f);
-
-	cam->GetLinearVelocity().getValue(f);
-	AUD_setListenerVelocity(f);
-
-	cam->NodeGetWorldOrientation().getRotation().getValue(f);
-	AUD_setListenerOrientation(f);
-}
-
-
-
 void KX_KetsjiEngine::SetBackGround(KX_WorldInfo* wi)
 {
 	if (wi->hasWorld())
 	{
 		if (m_drawingmode == RAS_IRasterizer::KX_TEXTURED)
-		{	
+		{
 			m_rasterizer->SetBackColor(
 				wi->getBackColorRed(),
 				wi->getBackColorGreen(),
@@ -1025,7 +1057,7 @@ void KX_KetsjiEngine::SetWorldSettings(KX_WorldInfo* wi)
 		);
 
 		if (m_drawingmode >= RAS_IRasterizer::KX_SOLID)
-		{	
+		{
 			if (wi->hasMist())
 			{
 				m_rasterizer->SetFog(
@@ -1055,37 +1087,30 @@ void KX_KetsjiEngine::EnableCameraOverride(const STR_String& forscene)
 	m_overrideSceneName = forscene;
 }
 
-
-
 void KX_KetsjiEngine::SetCameraZoom(float camzoom)
 {
 	m_cameraZoom = camzoom;
 }
-
-
 
 void KX_KetsjiEngine::SetCameraOverrideUseOrtho(bool useOrtho)
 {
 	m_overrideCamUseOrtho = useOrtho;
 }
 
-
-
 void KX_KetsjiEngine::SetCameraOverrideProjectionMatrix(const MT_CmMatrix4x4& mat)
 {
 	m_overrideCamProjMat = mat;
 }
-
 
 void KX_KetsjiEngine::SetCameraOverrideViewMatrix(const MT_CmMatrix4x4& mat)
 {
 	m_overrideCamViewMat = mat;
 }
 
-void KX_KetsjiEngine::SetCameraOverrideClipping(float near, float far)
+void KX_KetsjiEngine::SetCameraOverrideClipping(float nearfrust, float farfrust)
 {
-	m_overrideCamNear = near;
-	m_overrideCamFar = far;
+	m_overrideCamNear = nearfrust;
+	m_overrideCamFar = farfrust;
 }
 
 void KX_KetsjiEngine::SetCameraOverrideLens(float lens)
@@ -1111,7 +1136,7 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera* cam, RAS_Rect
 
 		// Don't do bars on user specified viewport
 		RAS_FrameSettings settings = scene->GetFramingType();
-		if(settings.FrameType() == RAS_FrameSettings::e_frame_bars)
+		if (settings.FrameType() == RAS_FrameSettings::e_frame_bars)
 			settings.SetFrameType(RAS_FrameSettings::e_frame_extend);
 
 		RAS_FramingManager::ComputeViewport(
@@ -1147,14 +1172,14 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 
 	m_rendertools->SetAuxilaryClientInfo(scene);
 
-	for(i=0; i<lightlist->GetCount(); i++) {
+	for (i=0; i<lightlist->GetCount(); i++) {
 		KX_GameObject *gameobj = (KX_GameObject*)lightlist->GetValue(i);
 
 		KX_LightObject *light = (KX_LightObject*)gameobj;
 
 		light->Update();
 
-		if(m_drawingmode == RAS_IRasterizer::KX_TEXTURED && light->HasShadowBuffer()) {
+		if (m_drawingmode == RAS_IRasterizer::KX_TEXTURED && light->HasShadowBuffer()) {
 			/* make temporary camera */
 			RAS_CameraData camdata = RAS_CameraData();
 			KX_Camera *cam = new KX_Camera(scene, scene->m_callbacks, camdata, true, true);
@@ -1167,7 +1192,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			m_rasterizer->SetDrawingMode(RAS_IRasterizer::KX_SHADOW);
 
 			/* binds framebuffer object, sets up camera .. */
-			light->BindShadowBuffer(m_rasterizer, cam, camtrans);
+			light->BindShadowBuffer(m_rasterizer, m_canvas, cam, camtrans);
 
 			/* update scene */
 			scene->CalculateVisibleMeshes(m_rasterizer, cam, light->GetShadowLayer());
@@ -1197,11 +1222,11 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 	GetSceneViewport(scene, cam, area, viewport);
 
 	// store the computed viewport in the scene
-	scene->SetSceneViewport(viewport);	
+	scene->SetSceneViewport(viewport);
 
 	// set the viewport for this frame and scene
 	m_canvas->SetViewPort(viewport.GetLeft(), viewport.GetBottom(),
-		viewport.GetRight(), viewport.GetTop());	
+		viewport.GetRight(), viewport.GetTop());
 	
 	// see KX_BlenderMaterial::Activate
 	//m_rasterizer->SetAmbient();
@@ -1218,7 +1243,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 			projmat.setValue(m_overrideCamProjMat.getPointer());
 			cam->SetProjectionMatrix(projmat);
 		}
-	} else if (cam->hasValidProjectionMatrix() && !cam->GetViewport() )
+	} else if (cam->hasValidProjectionMatrix())
 	{
 		m_rasterizer->SetProjectionMatrix(cam->GetProjectionMatrix());
 	} else
@@ -1230,7 +1255,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 		focallength = cam->GetFocalLength();
 		MT_Matrix4x4 projmat;
 
-		if(override_camera) {
+		if (override_camera) {
 			nearfrust = m_overrideCamNear;
 			farfrust = m_overrideCamFar;
 		}
@@ -1244,6 +1269,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 				cam->GetScale(),
 				nearfrust,
 				farfrust,
+				cam->GetSensorFit(),
 				frustum
 			);
 			if (!cam->GetViewport()) {
@@ -1261,6 +1287,9 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 				area,
 				viewport,
 				cam->GetLens(),
+				cam->GetSensorWidth(),
+				cam->GetSensorHeight(),
+				cam->GetSensorFit(),
 				nearfrust,
 				farfrust,
 				frustum
@@ -1309,35 +1338,25 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 	scene->RenderBuckets(camtrans, m_rasterizer, m_rendertools);
 
 	//render all the font objects for this scene
-	RenderFonts(scene);
+	scene->RenderFonts();
 	
 	if (scene->GetPhysicsEnvironment())
 		scene->GetPhysicsEnvironment()->debugDrawWorld();
 }
 
-void KX_KetsjiEngine::RenderFonts(KX_Scene* scene)
-{
-	list<class KX_FontObject*>* fonts = scene->GetFonts();
-	
-	list<KX_FontObject*>::iterator it = fonts->begin();
-	while(it != fonts->end())
-	{
-		(*it)->DrawText();
-		++it;
-	}
-}
-
 /*
-To run once per scene
-*/
+ * To run once per scene
+ */
 void KX_KetsjiEngine::PostRenderScene(KX_Scene* scene)
 {
-	m_rendertools->MotionBlur(m_rasterizer);
+	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up)
+	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
+	
+	m_rasterizer->FlushDebugShapes();
 	scene->Render2DFilters(m_canvas);
 #ifdef WITH_PYTHON
-	scene->RunDrawingCallbacks(scene->GetPostDrawCB());	
+	scene->RunDrawingCallbacks(scene->GetPostDrawCB());
 #endif
-	m_rasterizer->FlushDebugLines();
 }
 
 void KX_KetsjiEngine::StopEngine()
@@ -1356,10 +1375,10 @@ void KX_KetsjiEngine::StopEngine()
 		{
 			KX_Scene* scene = *sceneit;
 			m_sceneconverter->RemoveScene(scene);
-		}	
+		}
 		m_scenes.clear();
 
-		// cleanup all the stuff		
+		// cleanup all the stuff
 		m_rasterizer->Exit();
 	}
 }
@@ -1388,8 +1407,14 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene* scene)
 		KX_Camera* activecam = NULL;
 
 		RAS_CameraData camdata = RAS_CameraData();
-		if (override_camera) camdata.m_lens = m_overrideCamLens;
-
+		if (override_camera)
+		{
+			camdata.m_lens = m_overrideCamLens;
+			camdata.m_clipstart = m_overrideCamNear;
+			camdata.m_clipend = m_overrideCamFar;
+			
+			camdata.m_perspective= !m_overrideCamUseOrtho;
+		}
 		activecam = new KX_Camera(scene,KX_Scene::m_callbacks,camdata);
 		activecam->SetName("__default__cam__");
 	
@@ -1425,8 +1450,17 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene* scene)
 void KX_KetsjiEngine::RenderDebugProperties()
 {
 	STR_String debugtxt;
-	int xcoord = 10;	// mmmm, these constants were taken from blender source
-	int ycoord = 14;	// to 'mimic' behaviour
+	int title_xmargin = -7;
+	int title_y_top_margin = 4;
+	int title_y_bottom_margin = 2;
+
+	int const_xindent = 4;
+	int const_ysize = 14;
+
+	int xcoord = 12;	// mmmm, these constants were taken from blender source
+	int ycoord = 17;	// to 'mimic' behavior
+	
+	int profile_indent = 72;
 
 	float tottime = m_logger->GetAverage();
 	if (tottime < 1e-6f) {
@@ -1437,58 +1471,96 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	RAS_Rect viewport;
 	m_canvas->SetViewPort(0, 0, int(m_canvas->GetWidth()), int(m_canvas->GetHeight()));
 	
+	if (m_show_framerate || m_show_profile) {
+		/* Title for profiling("Profile") */
+		m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+		                            "Profile",
+		                            xcoord + const_xindent + title_xmargin, // Adds the constant x indent (0 for now) to the title x margin
+		                            ycoord,
+		                            m_canvas->GetWidth() /* RdV, TODO ?? */,
+		                            m_canvas->GetHeight() /* RdV, TODO ?? */);
+
+		// Increase the indent by default increase
+		ycoord += const_ysize;
+		// Add the title indent afterwards
+		ycoord += title_y_bottom_margin;
+	}
+
 	/* Framerate display */
 	if (m_show_framerate) {
-		debugtxt.Format("swap : %.3f (%.3f frames per second)", tottime, 1.0/tottime);
-		m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED, 
-									debugtxt.Ptr(),
-									xcoord,
-									ycoord, 
-									m_canvas->GetWidth() /* RdV, TODO ?? */, 
-									m_canvas->GetHeight() /* RdV, TODO ?? */);
-		ycoord += 14;
+		m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+		                            "Frametime :",
+		                            xcoord + const_xindent,
+		                            ycoord,
+		                            m_canvas->GetWidth() /* RdV, TODO ?? */,
+		                            m_canvas->GetHeight() /* RdV, TODO ?? */);
+		
+		debugtxt.Format("%5.1fms (%.1ffps)", tottime * 1000.f, 1.0/tottime);
+		m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+		                            debugtxt.ReadPtr(),
+		                            xcoord + const_xindent + profile_indent,
+		                            ycoord,
+		                            m_canvas->GetWidth() /* RdV, TODO ?? */,
+		                            m_canvas->GetHeight() /* RdV, TODO ?? */);
+		// Increase the indent by default increase
+		ycoord += const_ysize;
 	}
 
-	/* Profile and framerate display */
-	if (m_show_profile)
-	{		
-		for (int j = tc_first; j < tc_numCategories; j++)
-		{
-			debugtxt.Format(m_profileLabels[j]);
-			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED, 
-										debugtxt.Ptr(),
-										xcoord,ycoord,
-										m_canvas->GetWidth(), 
-										m_canvas->GetHeight());
+	/* Profile display */
+	if (m_show_profile) {
+		for (int j = tc_first; j < tc_numCategories; j++) {
+			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+			                            m_profileLabels[j],
+			                            xcoord + const_xindent,
+			                            ycoord,
+			                            m_canvas->GetWidth(),
+			                            m_canvas->GetHeight());
+
 			double time = m_logger->GetAverage((KX_TimeCategory)j);
-			debugtxt.Format("%.3fms (%2.2f %%)", time*1000.f, time/tottime * 100.f);
-			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED, 
-										debugtxt.Ptr(),
-										xcoord + 60 ,ycoord,
-										m_canvas->GetWidth(), 
-										m_canvas->GetHeight());
-			ycoord += 14;
+
+			debugtxt.Format("%5.2fms | %d%%", time*1000.f, (int)(time/tottime * 100.f));
+			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+			                            debugtxt.ReadPtr(),
+			                            xcoord + const_xindent + profile_indent, ycoord,
+			                            m_canvas->GetWidth(),
+			                            m_canvas->GetHeight());
+
+			m_rendertools->RenderBox2D(xcoord + (int)(2.2 * profile_indent), ycoord, m_canvas->GetWidth(), m_canvas->GetHeight(), time/tottime);
+			ycoord += const_ysize;
 		}
 	}
+	// Add the ymargin for titles below the other section of debug info
+	ycoord += title_y_top_margin;
 
 	/* Property display*/
-	if (m_show_debug_properties && m_propertiesPresent)
-	{
+	if (m_show_debug_properties && m_propertiesPresent) {
+
+		/* Title for debugging("Debug properties") */
+		m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+		                            "Debug Properties",
+		                            xcoord + const_xindent + title_xmargin, // Adds the constant x indent (0 for now) to the title x margin
+		                            ycoord,
+		                            m_canvas->GetWidth() /* RdV, TODO ?? */,
+		                            m_canvas->GetHeight() /* RdV, TODO ?? */);
+
+		// Increase the indent by default increase
+		ycoord += const_ysize;
+		// Add the title indent afterwards
+		ycoord += title_y_bottom_margin;
+
 		KX_SceneList::iterator sceneit;
-		for (sceneit = m_scenes.begin();sceneit != m_scenes.end() ; sceneit++)
-		{
+		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); sceneit++) {
 			KX_Scene* scene = *sceneit;
 			/* the 'normal' debug props */
 			vector<SCA_DebugProp*>& debugproplist = scene->GetDebugProperties();
 			
 			for (vector<SCA_DebugProp*>::iterator it = debugproplist.begin();
-				 !(it==debugproplist.end());it++)
+			     !(it==debugproplist.end());it++)
 			{
-				CValue* propobj = (*it)->m_obj;
+				CValue *propobj = (*it)->m_obj;
 				STR_String objname = propobj->GetName();
 				STR_String propname = (*it)->m_name;
-				if (propname == "__state__")
-				{
+				if (propname == "__state__") {
 					// reserve name for object state
 					KX_GameObject* gameobj = static_cast<KX_GameObject*>(propobj);
 					unsigned int state = gameobj->GetState();
@@ -1506,28 +1578,26 @@ void KX_KetsjiEngine::RenderDebugProperties()
 							first = false;
 						}
 					}
-					m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED, 
-													debugtxt.Ptr(),
-													xcoord,
-													ycoord,
-													m_canvas->GetWidth(),
-													m_canvas->GetHeight());
-					ycoord += 14;
+					m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+					                            debugtxt.ReadPtr(),
+					                            xcoord + const_xindent,
+					                            ycoord,
+					                            m_canvas->GetWidth(),
+					                            m_canvas->GetHeight());
+					ycoord += const_ysize;
 				}
-				else
-				{
-					CValue* propval = propobj->GetProperty(propname);
-					if (propval)
-					{
+				else {
+					CValue *propval = propobj->GetProperty(propname);
+					if (propval) {
 						STR_String text = propval->GetText();
-						debugtxt = objname + "." + propname + " = " + text;
-						m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED, 
-													debugtxt.Ptr(),
-													xcoord,
-													ycoord,
-													m_canvas->GetWidth(),
-													m_canvas->GetHeight());
-						ycoord += 14;
+						debugtxt = objname + ": '" + propname + "' = " + text;
+						m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
+						                            debugtxt.ReadPtr(),
+						                            xcoord + const_xindent,
+						                            ycoord,
+						                            m_canvas->GetWidth(),
+						                            m_canvas->GetHeight());
+						ycoord += const_ysize;
 					}
 				}
 			}
@@ -1538,7 +1608,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 KX_SceneList* KX_KetsjiEngine::CurrentScenes()
 {
-	return &m_scenes;	
+	return &m_scenes;
 }
 
 
@@ -1554,7 +1624,7 @@ KX_Scene* KX_KetsjiEngine::FindScene(const STR_String& scenename)
 		sceneit++;
 	}
 
-	return ((sceneit == m_scenes.end()) ? NULL : *sceneit);	
+	return ((sceneit == m_scenes.end()) ? NULL : *sceneit);
 }
 
 
@@ -1562,20 +1632,15 @@ KX_Scene* KX_KetsjiEngine::FindScene(const STR_String& scenename)
 void KX_KetsjiEngine::ConvertAndAddScene(const STR_String& scenename,bool overlay)
 {
 	// only add scene when it doesn't exist!
-	if (FindScene(scenename))
-	{
-		STR_String tmpname = scenename;
-		printf("warning: scene %s already exists, not added!\n",tmpname.Ptr());
+	if (FindScene(scenename)) {
+		printf("warning: scene %s already exists, not added!\n",scenename.ReadPtr());
 	}
-	else
-	{
-		if (overlay)
-		{
-			m_addingOverlayScenes.insert(scenename);
+	else {
+		if (overlay) {
+			m_addingOverlayScenes.push_back(scenename);
 		}
-		else
-		{
-			m_addingBackgroundScenes.insert(scenename);
+		else {
+			m_addingBackgroundScenes.push_back(scenename);
 		}
 	}
 }
@@ -1587,7 +1652,7 @@ void KX_KetsjiEngine::RemoveScene(const STR_String& scenename)
 {
 	if (FindScene(scenename))
 	{
-		m_removingScenes.insert(scenename);
+		m_removingScenes.push_back(scenename);
 	}
 	else
 	{
@@ -1602,7 +1667,7 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 {
 	if (m_removingScenes.size())
 	{
-		set<STR_String>::iterator scenenameit;
+		vector<STR_String>::iterator scenenameit;
 		for (scenenameit=m_removingScenes.begin();scenenameit != m_removingScenes.end();scenenameit++)
 		{
 			STR_String scenename = *scenenameit;
@@ -1617,13 +1682,13 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 					m_scenes.erase(sceneit);
 					break;
 				}
-			}	
+			}
 		}
 		m_removingScenes.clear();
 	}
 }
 
-KX_Scene* KX_KetsjiEngine::CreateScene(Scene *scene)
+KX_Scene* KX_KetsjiEngine::CreateScene(Scene *scene, bool libloading)
 {
 	KX_Scene* tmpscene = new KX_Scene(m_keyboarddevice,
 									  m_mousedevice,
@@ -1634,7 +1699,8 @@ KX_Scene* KX_KetsjiEngine::CreateScene(Scene *scene)
 
 	m_sceneconverter->ConvertScene(tmpscene,
 							  m_rendertools,
-							  m_canvas);
+							  m_canvas,
+							  libloading);
 
 	return tmpscene;
 }
@@ -1647,7 +1713,7 @@ KX_Scene* KX_KetsjiEngine::CreateScene(const STR_String& scenename)
 
 void KX_KetsjiEngine::AddScheduledScenes()
 {
-	set<STR_String>::iterator scenenameit;
+	vector<STR_String>::iterator scenenameit;
 
 	if (m_addingOverlayScenes.size())
 	{
@@ -1683,7 +1749,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 
 void KX_KetsjiEngine::ReplaceScene(const STR_String& oldscene,const STR_String& newscene)
 {
-	m_replace_scenes.insert(std::make_pair(oldscene,newscene));
+	m_replace_scenes.push_back(std::make_pair(oldscene,newscene));
 }
 
 // replace scene is not the same as removing and adding because the
@@ -1694,7 +1760,7 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 {
 	if (m_replace_scenes.size())
 	{
-		set<pair<STR_String,STR_String> >::iterator scenenameit;
+		vector<pair<STR_String,STR_String> >::iterator scenenameit;
 		
 		for (scenenameit = m_replace_scenes.begin();
 			scenenameit != m_replace_scenes.end();
@@ -1719,7 +1785,7 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 			}
 		}
 		m_replace_scenes.clear();
-	}	
+	}
 }
 
 
@@ -1751,8 +1817,8 @@ void	KX_KetsjiEngine::SetAnimRecordMode(bool animation_record, int startFrame)
 	m_animation_record = animation_record;
 	if (animation_record)
 	{
-		//when recording physics keyframes, always run at a fixed framerate
-		m_bFixedTime = true;
+		//when recording physics keyframes, run at a variable (capped) frame rate (fixed time == full speed)
+		m_bFixedTime = false;
 	}
 	m_currentFrame = startFrame;
 }
@@ -1797,6 +1863,16 @@ void KX_KetsjiEngine::SetMaxPhysicsFrame(int frame)
 	m_maxPhysicsFrame = frame;
 }
 
+bool KX_KetsjiEngine::GetRestrictAnimationFPS()
+{
+	return m_restrict_anim_fps;
+}
+
+void KX_KetsjiEngine::SetRestrictAnimationFPS(bool bRestrictAnimFPS)
+{
+	m_restrict_anim_fps = bRestrictAnimFPS;
+}
+
 double KX_KetsjiEngine::GetAnimFrameRate()
 {
 	return m_anim_framerate;
@@ -1825,6 +1901,16 @@ void KX_KetsjiEngine::SetAnimFrameRate(double framerate)
 double KX_KetsjiEngine::GetAverageFrameRate()
 {
 	return m_average_framerate;
+}
+
+void KX_KetsjiEngine::SetExitKey(short key)
+{
+	m_exitkey = key;
+}
+
+short KX_KetsjiEngine::GetExitKey()
+{
+	return m_exitkey;
 }
 
 void KX_KetsjiEngine::SetTimingDisplay(bool frameRate, bool profile, bool properties)
@@ -1872,7 +1958,7 @@ void KX_KetsjiEngine::SceneListsChanged(void)
 	while ((sceneit != m_scenes.end()) && (!m_propertiesPresent))
 	{
 		KX_Scene* scene = *sceneit;
-		vector<SCA_DebugProp*>& debugproplist = scene->GetDebugProperties();	
+		vector<SCA_DebugProp*>& debugproplist = scene->GetDebugProperties();
 		m_propertiesPresent = !debugproplist.empty();
 		sceneit++;
 	}
@@ -1918,4 +2004,32 @@ void KX_KetsjiEngine::GetOverrideFrameColor(float& r, float& g, float& b) const
 	b = m_overrideFrameColorB;
 }
 
+
+void KX_KetsjiEngine::Resize()
+{
+	KX_SceneList::iterator sceneit;
+
+	/* extended mode needs to recalculate camera frustrums when */
+	KX_Scene* firstscene = *m_scenes.begin();
+	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
+
+	if (framesettings.FrameType() == RAS_FrameSettings::e_frame_extend) {
+		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); sceneit++) {
+			KX_Camera* cam = ((KX_Scene *)*sceneit)->GetActiveCamera();
+			cam->InvalidateProjectionMatrix();
+		}
+	}
+}
+
+
+void KX_KetsjiEngine::SetGlobalSettings(GlobalSettings* gs)
+{
+	m_globalsettings.matmode = gs->matmode;
+	m_globalsettings.glslflag = gs->glslflag;
+}
+
+GlobalSettings* KX_KetsjiEngine::GetGlobalSettings(void)
+{
+	return &m_globalsettings;
+}
 

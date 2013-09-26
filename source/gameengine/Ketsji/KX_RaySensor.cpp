@@ -1,7 +1,6 @@
 /*
  * Cast a ray and feel for objects
  *
- * $Id: KX_RaySensor.cpp 35171 2011-02-25 13:35:59Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -83,7 +82,7 @@ void KX_RaySensor::Init()
 
 KX_RaySensor::~KX_RaySensor() 
 {
-    /* Nothing to be done here. */
+	/* Nothing to be done here. */
 }
 
 
@@ -109,7 +108,7 @@ bool KX_RaySensor::IsPositiveTrigger()
 	return result;
 }
 
-bool KX_RaySensor::RayHit(KX_ClientObjectInfo* client, KX_RayCast* result, void * const data)
+bool KX_RaySensor::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void * const data)
 {
 
 	KX_GameObject* hitKXObj = client->m_gameobject;
@@ -152,9 +151,9 @@ bool KX_RaySensor::RayHit(KX_ClientObjectInfo* client, KX_RayCast* result, void 
 }
 
 /* this function is used to pre-filter the object before casting the ray on them.
-   This is useful for "X-Ray" option when we want to see "through" unwanted object.
+ * This is useful for "X-Ray" option when we want to see "through" unwanted object.
  */
-bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo* client)
+bool KX_RaySensor::NeedRayCast(KX_ClientObjectInfo *client)
 {
 	if (client->m_type > KX_ClientObjectInfo::ACTOR)
 	{
@@ -279,7 +278,7 @@ bool KX_RaySensor::Evaluate()
 
 	/* now pass this result to some controller */
 
-    if (m_rayHit)
+	if (m_rayHit)
 	{
 		if (!m_bTriggered)
 		{
@@ -288,14 +287,14 @@ bool KX_RaySensor::Evaluate()
 			m_bTriggered = true;
 		}
 		else
-		  {
+		{
 			// notify logicsystem that ray is STILL hitting ...
 			result = false;
-		    
-		  }
+
+		}
 	}
-    else
-      {
+	else
+	{
 		if (m_bTriggered)
 		{
 			m_bTriggered = false;
@@ -306,9 +305,9 @@ bool KX_RaySensor::Evaluate()
 		{
 			result = false;
 		}
-	
-      }
-    if (reset)
+
+	}
+	if (reset)
 		// force an event
 		result = true;
 
@@ -353,7 +352,7 @@ PyAttributeDef KX_RaySensor::Attributes[] = {
 	KX_PYATTRIBUTE_BOOL_RW("useMaterial", KX_RaySensor, m_bFindMaterial),
 	KX_PYATTRIBUTE_BOOL_RW("useXRay", KX_RaySensor, m_bXRay),
 	KX_PYATTRIBUTE_FLOAT_RW("range", 0, 10000, KX_RaySensor, m_distance),
-	KX_PYATTRIBUTE_STRING_RW("propName", 0, 100, false, KX_RaySensor, m_propertyname),
+	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, KX_RaySensor, m_propertyname),
 	KX_PYATTRIBUTE_INT_RW("axis", 0, 5, true, KX_RaySensor, m_axis),
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("hitPosition", KX_RaySensor, m_hitPosition, 3),
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RO("rayDirection", KX_RaySensor, m_rayDirection, 3),
@@ -362,7 +361,7 @@ PyAttributeDef KX_RaySensor::Attributes[] = {
 	{ NULL }	//Sentinel
 };
 
-PyObject* KX_RaySensor::pyattr_get_hitobject(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_RaySensor::pyattr_get_hitobject(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_RaySensor* self = static_cast<KX_RaySensor*>(self_v);
 	if (self->m_hitObject)

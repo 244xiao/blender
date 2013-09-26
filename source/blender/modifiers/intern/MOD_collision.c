@@ -1,34 +1,32 @@
 /*
-* $Id: MOD_collision.c 35614 2011-03-18 15:31:32Z jhk $
-*
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software  Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-* The Original Code is Copyright (C) 2005 by the Blender Foundation.
-* All rights reserved.
-*
-* Contributor(s): Daniel Dunbar
-*                 Ton Roosendaal,
-*                 Ben Batt,
-*                 Brecht Van Lommel,
-*                 Campbell Barton
-*
-* ***** END GPL LICENSE BLOCK *****
-*
-*/
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2005 by the Blender Foundation.
+ * All rights reserved.
+ *
+ * Contributor(s): Daniel Dunbar
+ *                 Ton Roosendaal,
+ *                 Ben Batt,
+ *                 Brecht Van Lommel,
+ *                 Campbell Barton
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ *
+ */
 
 /** \file blender/modifiers/intern/MOD_collision.c
  *  \ingroup modifiers
@@ -57,7 +55,7 @@
 
 static void initData(ModifierData *md) 
 {
-	CollisionModifierData *collmd = (CollisionModifierData*) md;
+	CollisionModifierData *collmd = (CollisionModifierData *) md;
 	
 	collmd->x = NULL;
 	collmd->xnew = NULL;
@@ -71,23 +69,22 @@ static void initData(ModifierData *md)
 
 static void freeData(ModifierData *md)
 {
-	CollisionModifierData *collmd = (CollisionModifierData*) md;
+	CollisionModifierData *collmd = (CollisionModifierData *) md;
 	
-	if (collmd) 
-	{
-		if(collmd->bvhtree)
+	if (collmd) {
+		if (collmd->bvhtree)
 			BLI_bvhtree_free(collmd->bvhtree);
-		if(collmd->x)
+		if (collmd->x)
 			MEM_freeN(collmd->x);
-		if(collmd->xnew)
+		if (collmd->xnew)
 			MEM_freeN(collmd->xnew);
-		if(collmd->current_x)
+		if (collmd->current_x)
 			MEM_freeN(collmd->current_x);
-		if(collmd->current_xnew)
+		if (collmd->current_xnew)
 			MEM_freeN(collmd->current_xnew);
-		if(collmd->current_v)
+		if (collmd->current_v)
 			MEM_freeN(collmd->current_v);
-		if(collmd->mfaces)
+		if (collmd->mfaces)
 			MEM_freeN(collmd->mfaces);
 		
 		collmd->x = NULL;
@@ -102,63 +99,57 @@ static void freeData(ModifierData *md)
 	}
 }
 
-static int dependsOnTime(ModifierData *UNUSED(md))
+static bool dependsOnTime(ModifierData *UNUSED(md))
 {
-	return 1;
+	return true;
 }
 
 static void deformVerts(ModifierData *md, Object *ob,
-						DerivedMesh *derivedData,
-						float (*vertexCos)[3],
-						int UNUSED(numVerts),
-						int UNUSED(useRenderParams),
-						int UNUSED(isFinalCalc))
+                        DerivedMesh *derivedData,
+                        float (*vertexCos)[3],
+                        int UNUSED(numVerts),
+                        ModifierApplyFlag UNUSED(flag))
 {
-	CollisionModifierData *collmd = (CollisionModifierData*) md;
+	CollisionModifierData *collmd = (CollisionModifierData *) md;
 	DerivedMesh *dm = NULL;
 	MVert *tempVert = NULL;
 	
 	/* if possible use/create DerivedMesh */
-	if(derivedData) dm = CDDM_copy(derivedData);
-	else if(ob->type==OB_MESH) dm = CDDM_from_mesh(ob->data, ob);
+	if (derivedData) dm = CDDM_copy(derivedData);
+	else if (ob->type == OB_MESH) dm = CDDM_from_mesh(ob->data, ob);
 	
-	if(!ob->pd)
-	{
+	if (!ob->pd) {
 		printf("CollisionModifier deformVerts: Should not happen!\n");
 		return;
 	}
 	
-	if(dm)
-	{
+	if (dm) {
 		float current_time = 0;
 		unsigned int numverts = 0;
 
 		CDDM_apply_vert_coords(dm, vertexCos);
 		CDDM_calc_normals(dm);
 		
-		current_time = BKE_curframe(md->scene);
+		current_time = BKE_scene_frame_get(md->scene);
 		
-		if(G.rt > 0)
+		if (G.debug_value > 0)
 			printf("current_time %f, collmd->time_xnew %f\n", current_time, collmd->time_xnew);
 		
-		numverts = dm->getNumVerts ( dm );
+		numverts = dm->getNumVerts(dm);
 		
-		if((current_time > collmd->time_xnew)|| (BKE_ptcache_get_continue_physics()))
-		{
+		if (current_time > collmd->time_xnew) {
 			unsigned int i;
 
-			// check if mesh has changed
-			if(collmd->x && (numverts != collmd->numverts))
+			/* check if mesh has changed */
+			if (collmd->x && (numverts != collmd->numverts))
 				freeData((ModifierData *)collmd);
-			
-			if(collmd->time_xnew == -1000) // first time
-			{
-				collmd->x = dm->dupVertArray(dm); // frame start position
-				
-				for ( i = 0; i < numverts; i++ )
-				{
-					// we save global positions
-					mul_m4_v3( ob->obmat, collmd->x[i].co );
+
+			if (collmd->time_xnew == -1000) { /* first time */
+				collmd->x = dm->dupVertArray(dm); /* frame start position */
+
+				for (i = 0; i < numverts; i++) {
+					/* we save global positions */
+					mul_m4_v3(ob->obmat, collmd->x[i].co);
 				}
 				
 				collmd->xnew = MEM_dupallocN(collmd->x); // frame end position
@@ -168,38 +159,36 @@ static void deformVerts(ModifierData *md, Object *ob,
 
 				collmd->numverts = numverts;
 				
-				collmd->mfaces = dm->dupFaceArray(dm);
-				collmd->numfaces = dm->getNumFaces(dm);
+				DM_ensure_tessface(dm); /* BMESH - UNTIL MODIFIER IS UPDATED FOR MPoly */
+
+				collmd->mfaces = dm->dupTessFaceArray(dm);
+				collmd->numfaces = dm->getNumTessFaces(dm);
 				
-				// create bounding box hierarchy
+				/* create bounding box hierarchy */
 				collmd->bvhtree = bvhtree_build_from_mvert(collmd->mfaces, collmd->numfaces, collmd->x, numverts, ob->pd->pdef_sboft);
-				
+
 				collmd->time_x = collmd->time_xnew = current_time;
 			}
-			else if(numverts == collmd->numverts)
-			{
-				// put positions to old positions
+			else if (numverts == collmd->numverts) {
+				/* put positions to old positions */
 				tempVert = collmd->x;
 				collmd->x = collmd->xnew;
 				collmd->xnew = tempVert;
 				collmd->time_x = collmd->time_xnew;
-				
-				memcpy(collmd->xnew, dm->getVertArray(dm), numverts*sizeof(MVert));
-				
-				for ( i = 0; i < numverts; i++ )
-				{
-					// we save global positions
-					mul_m4_v3( ob->obmat, collmd->xnew[i].co );
+
+				memcpy(collmd->xnew, dm->getVertArray(dm), numverts * sizeof(MVert));
+
+				for (i = 0; i < numverts; i++) {
+					/* we save global positions */
+					mul_m4_v3(ob->obmat, collmd->xnew[i].co);
 				}
 				
-				memcpy(collmd->current_xnew, collmd->x, numverts*sizeof(MVert));
-				memcpy(collmd->current_x, collmd->x, numverts*sizeof(MVert));
+				memcpy(collmd->current_xnew, collmd->x, numverts * sizeof(MVert));
+				memcpy(collmd->current_x, collmd->x, numverts * sizeof(MVert));
 				
 				/* check if GUI setting has changed for bvh */
-				if(collmd->bvhtree) 
-				{
-					if(ob->pd->pdef_sboft != BLI_bvhtree_getepsilon(collmd->bvhtree))
-					{
+				if (collmd->bvhtree) {
+					if (ob->pd->pdef_sboft != BLI_bvhtree_getepsilon(collmd->bvhtree)) {
 						BLI_bvhtree_free(collmd->bvhtree);
 						collmd->bvhtree = bvhtree_build_from_mvert(collmd->mfaces, collmd->numfaces, collmd->current_x, numverts, ob->pd->pdef_sboft);
 					}
@@ -207,38 +196,32 @@ static void deformVerts(ModifierData *md, Object *ob,
 				}
 				
 				/* happens on file load (ONLY when i decomment changes in readfile.c) */
-				if(!collmd->bvhtree)
-				{
+				if (!collmd->bvhtree) {
 					collmd->bvhtree = bvhtree_build_from_mvert(collmd->mfaces, collmd->numfaces, collmd->current_x, numverts, ob->pd->pdef_sboft);
 				}
-				else
-				{
-					// recalc static bounding boxes
-					bvhtree_update_from_mvert ( collmd->bvhtree, collmd->mfaces, collmd->numfaces, collmd->current_x, collmd->current_xnew, collmd->numverts, 1 );
+				else {
+					/* recalc static bounding boxes */
+					bvhtree_update_from_mvert(collmd->bvhtree, collmd->mfaces, collmd->numfaces, collmd->current_x, collmd->current_xnew, collmd->numverts, 1);
 				}
 				
 				collmd->time_xnew = current_time;
 			}
-			else if(numverts != collmd->numverts)
-			{
+			else if (numverts != collmd->numverts) {
 				freeData((ModifierData *)collmd);
 			}
 			
 		}
-		else if(current_time < collmd->time_xnew)
-		{	
+		else if (current_time < collmd->time_xnew) {
 			freeData((ModifierData *)collmd);
 		}
-		else
-		{
-			if(numverts != collmd->numverts)
-			{
+		else {
+			if (numverts != collmd->numverts) {
 				freeData((ModifierData *)collmd);
 			}
 		}
 	}
 	
-	if(dm)
+	if (dm)
 		dm->release(dm);
 }
 
@@ -248,8 +231,8 @@ ModifierTypeInfo modifierType_Collision = {
 	/* structName */        "CollisionModifierData",
 	/* structSize */        sizeof(CollisionModifierData),
 	/* type */              eModifierTypeType_OnlyDeform,
-	/* flags */             eModifierTypeFlag_AcceptsMesh
-							| eModifierTypeFlag_Single,
+	/* flags */             eModifierTypeFlag_AcceptsMesh |
+	                        eModifierTypeFlag_Single,
 
 	/* copyData */          NULL,
 	/* deformVerts */       deformVerts,
@@ -267,4 +250,5 @@ ModifierTypeInfo modifierType_Collision = {
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ NULL,
 	/* foreachIDLink */     NULL,
+	/* foreachTexLink */    NULL,
 };

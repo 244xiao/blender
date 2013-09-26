@@ -1,27 +1,33 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Copyright (c) 2007 The Zdeno Ash Miklas
+ *
+ * This source file is part of VideoTexture library
+ *
+ * Contributor(s):
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
 /** \file gameengine/VideoTexture/VideoFFmpeg.cpp
  *  \ingroup bgevideotex
  */
-/* $Id: VideoFFmpeg.cpp 35176 2011-02-25 13:39:34Z jesterking $
------------------------------------------------------------------------------
-This source file is part of VideoTexture library
 
-Copyright (c) 2007 The Zdeno Ash Miklas
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
------------------------------------------------------------------------------
-*/
 
 #ifdef WITH_FFMPEG
 
@@ -37,8 +43,8 @@ http://www.gnu.org/copyleft/lesser.txt.
 
 #include <string>
 
-#include "Exception.h"
 #include "VideoFFmpeg.h"
+#include "Exception.h"
 
 
 // default framerate
@@ -49,8 +55,6 @@ const long timeScale = 1000;
 // macro for exception handling and logging
 #define CATCH_EXCP catch (Exception & exp) \
 { exp.report(); m_status = SourceError; }
-
-extern "C" void do_init_ffmpeg();
 
 // class RenderVideo
 
@@ -160,17 +164,17 @@ void VideoFFmpeg::initParams (short width, short height, float rate, bool image)
 }
 
 
-int VideoFFmpeg::openStream(const char *filename, AVInputFormat *inputFormat, AVFormatParameters *formatParams)
+int VideoFFmpeg::openStream(const char *filename, AVInputFormat *inputFormat, AVDictionary **formatParams)
 {
-	AVFormatContext *formatCtx;
+	AVFormatContext *formatCtx = NULL;
 	int				i, videoStream;
 	AVCodec			*codec;
 	AVCodecContext	*codecCtx;
 
-	if(av_open_input_file(&formatCtx, filename, inputFormat, 0, formatParams)!=0)
+	if (avformat_open_input(&formatCtx, filename, inputFormat, formatParams)!=0)
 		return -1;
 
-	if(av_find_stream_info(formatCtx)<0) 
+	if (avformat_find_stream_info(formatCtx, NULL) < 0)
 	{
 		av_close_input_file(formatCtx);
 		return -1;
@@ -178,18 +182,18 @@ int VideoFFmpeg::openStream(const char *filename, AVInputFormat *inputFormat, AV
 
 	/* Find the first video stream */
 	videoStream=-1;
-	for(i=0; i<formatCtx->nb_streams; i++)
+	for (i=0; i<formatCtx->nb_streams; i++)
 	{
-		if(formatCtx->streams[i] &&
+		if (formatCtx->streams[i] &&
 			get_codec_from_stream(formatCtx->streams[i]) && 
-			(get_codec_from_stream(formatCtx->streams[i])->codec_type==CODEC_TYPE_VIDEO))
+			(get_codec_from_stream(formatCtx->streams[i])->codec_type==AVMEDIA_TYPE_VIDEO))
 		{
 			videoStream=i;
 			break;
 		}
 	}
 
-	if(videoStream==-1) 
+	if (videoStream==-1) 
 	{
 		av_close_input_file(formatCtx);
 		return -1;
@@ -199,20 +203,20 @@ int VideoFFmpeg::openStream(const char *filename, AVInputFormat *inputFormat, AV
 
 	/* Find the decoder for the video stream */
 	codec=avcodec_find_decoder(codecCtx->codec_id);
-	if(codec==NULL) 
+	if (codec==NULL) 
 	{
 		av_close_input_file(formatCtx);
 		return -1;
 	}
 	codecCtx->workaround_bugs = 1;
-	if(avcodec_open(codecCtx, codec)<0) 
+	if (avcodec_open2(codecCtx, codec, NULL) < 0)
 	{
 		av_close_input_file(formatCtx);
 		return -1;
 	}
 
 #ifdef FFMPEG_OLD_FRAME_RATE
-	if(codecCtx->frame_rate>1000 && codecCtx->frame_rate_base==1)
+	if (codecCtx->frame_rate>1000 && codecCtx->frame_rate_base==1)
 		codecCtx->frame_rate_base=1000;
 	m_baseFrameRate = (double)codecCtx->frame_rate / (double)codecCtx->frame_rate_base;
 #else
@@ -292,7 +296,7 @@ int VideoFFmpeg::openStream(const char *filename, AVInputFormat *inputFormat, AV
 /*
  * This thread is used to load video frame asynchronously.
  * It provides a frame caching service. 
- * The main thread is responsible for positionning the frame pointer in the
+ * The main thread is responsible for positioning the frame pointer in the
  * file correctly before calling startCache() which starts this thread.
  * The cache is organized in two layers: 1) a cache of 20-30 undecoded packets to keep
  * memory and CPU low 2) a cache of 5 decoded frames. 
@@ -368,10 +372,10 @@ void *VideoFFmpeg::cacheThread(void *data)
 				BLI_remlink(&video->m_packetCacheBase, cachePacket);
 				// use m_frame because when caching, it is not used in main thread
 				// we can't use currentFrame directly because we need to convert to RGB first
-				avcodec_decode_video(video->m_codecCtx, 
+				avcodec_decode_video2(video->m_codecCtx, 
 					video->m_frame, &frameFinished, 
-					cachePacket->packet.data, cachePacket->packet.size);
-				if(frameFinished) 
+					&cachePacket->packet);
+				if (frameFinished) 
 				{
 					AVFrame * input = video->m_frame;
 
@@ -485,13 +489,13 @@ void VideoFFmpeg::stopCache()
 			av_free(frame->frame);
 			delete frame;
 		}
-		while((packet = (CachePacket *)m_packetCacheBase.first) != NULL)
+		while ((packet = (CachePacket *)m_packetCacheBase.first) != NULL)
 		{
 			BLI_remlink(&m_packetCacheBase, packet);
 			av_free_packet(&packet->packet);
 			delete packet;
 		}
-		while((packet = (CachePacket *)m_packetCacheFree.first) != NULL)
+		while ((packet = (CachePacket *)m_packetCacheFree.first) != NULL)
 		{
 			BLI_remlink(&m_packetCacheFree, packet);
 			delete packet;
@@ -500,7 +504,7 @@ void VideoFFmpeg::stopCache()
 	}
 }
 
-void VideoFFmpeg::releaseFrame(AVFrame* frame)
+void VideoFFmpeg::releaseFrame(AVFrame *frame)
 {
 	if (frame == m_frameRGB)
 	{
@@ -517,16 +521,14 @@ void VideoFFmpeg::releaseFrame(AVFrame* frame)
 }
 
 // open video file
-void VideoFFmpeg::openFile (char * filename)
+void VideoFFmpeg::openFile (char *filename)
 {
-	do_init_ffmpeg();
-
 	if (openStream(filename, NULL, NULL) != 0)
 		return;
 
 	if (m_codecCtx->gop_size)
 		m_preseek = (m_codecCtx->gop_size < 25) ? m_codecCtx->gop_size+1 : 25;
-	else if (m_codecCtx->has_b_frames)		
+	else if (m_codecCtx->has_b_frames)
 		m_preseek = 25;	// should determine gopsize
 	else
 		m_preseek = 0;
@@ -543,12 +545,8 @@ void VideoFFmpeg::openFile (char * filename)
 		// but it is really not desirable to seek on http file, so force streaming.
 		// It would be good to find this information from the context but there are no simple indication
 		!strncmp(filename, "http://", 7) ||
-#ifdef FFMPEG_PB_IS_POINTER
-        (m_formatCtx->pb && m_formatCtx->pb->is_streamed)
-#else
-        m_formatCtx->pb.is_streamed
-#endif
-        )
+		(m_formatCtx->pb && !m_formatCtx->pb->seekable)
+		)
 	{
 		// the file is in fact a streaming source, treat as cam to prevent seeking
 		m_isFile = false;
@@ -580,17 +578,13 @@ void VideoFFmpeg::openFile (char * filename)
 
 
 // open video capture device
-void VideoFFmpeg::openCam (char * file, short camIdx)
+void VideoFFmpeg::openCam (char *file, short camIdx)
 {
 	// open camera source
 	AVInputFormat		*inputFormat;
-	AVFormatParameters	formatParams;
-	AVRational			frameRate;
-	char				*p, filename[28], rateStr[20];
+	AVDictionary		*formatParams = NULL;
+	char				filename[28], rateStr[20];
 
-	do_init_ffmpeg();
-
-	memset(&formatParams, 0, sizeof(formatParams));
 #ifdef WIN32
 	// video capture on windows only through Video For Windows driver
 	inputFormat = av_find_input_format("vfwcap");
@@ -607,12 +601,14 @@ void VideoFFmpeg::openCam (char * file, short camIdx)
 	// The driver name is constructed automatically from the device type:
 	// v4l   : /dev/video<camIdx>
 	// dv1394: /dev/dv1394/<camIdx>
-	// If you have different driver name, you can specify the driver name explicitely 
+	// If you have different driver name, you can specify the driver name explicitly
 	// instead of device type. Examples of valid filename:
 	//    /dev/v4l/video0:pal
 	//    /dev/ieee1394/1:ntsc
 	//    dv1394:secam
 	//    v4l:pal
+	char *p;
+
 	if (file && strstr(file, "1394") != NULL) 
 	{
 		// the user specifies a driver, check if it is v4l or d41394
@@ -620,7 +616,13 @@ void VideoFFmpeg::openCam (char * file, short camIdx)
 		sprintf(filename, "/dev/dv1394/%d", camIdx);
 	} else 
 	{
-		inputFormat = av_find_input_format("video4linux");
+		const char *formats[] = {"video4linux2,v4l2", "video4linux2", "video4linux"};
+		int i, formatsCount = sizeof(formats) / sizeof(char*);
+		for (i = 0; i < formatsCount; i++) {
+			inputFormat = av_find_input_format(formats[i]);
+			if (inputFormat)
+				break;
+		}
 		sprintf(filename, "/dev/video%d", camIdx);
 	}
 	if (!inputFormat)
@@ -634,20 +636,22 @@ void VideoFFmpeg::openCam (char * file, short camIdx)
 		if ((p = strchr(filename, ':')) != 0)
 			*p = 0;
 	}
-	if (file && (p = strchr(file, ':')) != NULL)
-		formatParams.standard = p+1;
+	if (file && (p = strchr(file, ':')) != NULL) {
+		av_dict_set(&formatParams, "standard", p+1, 0);
+	}
 #endif
 	//frame rate
 	if (m_captRate <= 0.f)
 		m_captRate = defFrameRate;
 	sprintf(rateStr, "%f", m_captRate);
-	av_parse_video_frame_rate(&frameRate, rateStr);
-	// populate format parameters
-	// need to specify the time base = inverse of rate
-	formatParams.time_base.num = frameRate.den;
-	formatParams.time_base.den = frameRate.num;
-	formatParams.width = m_captWidth;
-	formatParams.height = m_captHeight;
+
+	av_dict_set(&formatParams, "framerate", rateStr, 0);
+
+	if (m_captWidth > 0 && m_captHeight > 0) {
+		char video_size[64];
+		BLI_snprintf(video_size, sizeof(video_size), "%dx%d", m_captWidth, m_captHeight);
+		av_dict_set(&formatParams, "video_size", video_size, 0);
+	}
 
 	if (openStream(filename, inputFormat, &formatParams) != 0)
 		return;
@@ -662,6 +666,8 @@ void VideoFFmpeg::openCam (char * file, short camIdx)
 		// no need to thread if the system has a single core
 		m_isThreaded =  true;
 	}
+
+	av_dict_free(&formatParams);
 }
 
 // play video
@@ -791,7 +797,7 @@ void VideoFFmpeg::calcImage (unsigned int texId, double ts)
 		{
 			AVFrame* frame;
 			// get image
-			if((frame = grabFrame(actFrame)) != NULL)
+			if ((frame = grabFrame(actFrame)) != NULL)
 			{
 				if (!m_isFile && !m_cacheStarted) 
 				{
@@ -842,7 +848,7 @@ void VideoFFmpeg::setPositions (void)
 		m_startTime -= double(m_lastFrame) / actFrameRate();
 	else {
 		m_startTime -= m_range[0];
-		// start from begining, stop cache just in case
+		// start from beginning, stop cache just in case
 		stopCache();
 	}
 }
@@ -920,14 +926,14 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 			&& m_preseek 
 			&& position - (m_curPosition + 1) < m_preseek) 
 		{
-			while(av_read_frame(m_formatCtx, &packet)>=0) 
+			while (av_read_frame(m_formatCtx, &packet)>=0)
 			{
 				if (packet.stream_index == m_videoStream) 
 				{
-					avcodec_decode_video(
+					avcodec_decode_video2(
 						m_codecCtx, 
 						m_frame, &frameFinished, 
-						packet.data, packet.size);
+						&packet);
 					if (frameFinished)
 					{
 						m_curPosition = (long)((packet.dts-startTs) * (m_baseFrameRate*timeBase) + 0.5);
@@ -957,7 +963,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 				// of the file.
 				if (position <= m_preseek)
 				{
-					// we can safely go the begining of the file
+					// we can safely go the beginning of the file
 					if (av_seek_frame(m_formatCtx, m_videoStream, 0, AVSEEK_FLAG_BYTE) >= 0)
 					{
 						// binary seek does not reset the timestamp, must do it now
@@ -995,13 +1001,13 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 
 	// find the correct frame, in case of streaming and no cache, it means just
 	// return the next frame. This is not quite correct, may need more work
-	while(av_read_frame(m_formatCtx, &packet)>=0) 
+	while (av_read_frame(m_formatCtx, &packet) >= 0)
 	{
-		if(packet.stream_index == m_videoStream) 
+		if (packet.stream_index == m_videoStream) 
 		{
-			avcodec_decode_video(m_codecCtx, 
+			avcodec_decode_video2(m_codecCtx, 
 				m_frame, &frameFinished, 
-				packet.data, packet.size);
+				&packet);
 			// remember dts to compute exact frame number
 			dts = packet.dts;
 			if (frameFinished && !posFound) 
@@ -1017,7 +1023,7 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 				AVFrame * input = m_frame;
 
 				/* This means the data wasnt read properly, 
-				this check stops crashing */
+				 * this check stops crashing */
 				if (   input->data[0]==0 && input->data[1]==0 
 					&& input->data[2]==0 && input->data[3]==0)
 				{
@@ -1075,14 +1081,14 @@ AVFrame *VideoFFmpeg::grabFrame(long position)
 
 
 // cast Image pointer to VideoFFmpeg
-inline VideoFFmpeg * getVideoFFmpeg (PyImage * self)
+inline VideoFFmpeg * getVideoFFmpeg (PyImage *self)
 { return static_cast<VideoFFmpeg*>(self->m_image); }
 
 
 // object initialization
-static int VideoFFmpeg_init (PyObject * pySelf, PyObject * args, PyObject * kwds)
+static int VideoFFmpeg_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 {
-	PyImage * self = reinterpret_cast<PyImage*>(pySelf);
+	PyImage *self = reinterpret_cast<PyImage*>(pySelf);
 	// parameters - video source
 	// file name or format type for capture (only for Linux: video4linux or dv1394)
 	char * file = NULL;
@@ -1122,13 +1128,13 @@ static int VideoFFmpeg_init (PyObject * pySelf, PyObject * args, PyObject * kwds
 	return 0;
 }
 
-PyObject * VideoFFmpeg_getPreseek (PyImage *self, void * closure)
+static PyObject *VideoFFmpeg_getPreseek(PyImage *self, void *closure)
 {
 	return Py_BuildValue("h", getFFmpeg(self)->getPreseek());
 }
 
 // set range
-int VideoFFmpeg_setPreseek (PyImage * self, PyObject * value, void * closure)
+static int VideoFFmpeg_setPreseek(PyImage *self, PyObject *value, void *closure)
 {
 	// check validity of parameter
 	if (value == NULL || !PyLong_Check(value))
@@ -1137,13 +1143,13 @@ int VideoFFmpeg_setPreseek (PyImage * self, PyObject * value, void * closure)
 		return -1;
 	}
 	// set preseek
-	getFFmpeg(self)->setPreseek(PyLong_AsSsize_t(value));
+	getFFmpeg(self)->setPreseek(PyLong_AsLong(value));
 	// success
 	return 0;
 }
 
 // get deinterlace
-PyObject * VideoFFmpeg_getDeinterlace (PyImage * self, void * closure)
+static PyObject *VideoFFmpeg_getDeinterlace(PyImage *self, void *closure)
 {
 	if (getFFmpeg(self)->getDeinterlace())
 		Py_RETURN_TRUE;
@@ -1152,7 +1158,7 @@ PyObject * VideoFFmpeg_getDeinterlace (PyImage * self, void * closure)
 }
 
 // set flip
-int VideoFFmpeg_setDeinterlace (PyImage * self, PyObject * value, void * closure)
+static int VideoFFmpeg_setDeinterlace(PyImage *self, PyObject *value, void *closure)
 {
 	// check parameter, report failure
 	if (value == NULL || !PyBool_Check(value))
@@ -1186,7 +1192,7 @@ static PyGetSetDef videoGetSets[] =
 	{(char*)"valid", (getter)Image_valid, NULL, (char*)"bool to tell if an image is available", NULL},
 	{(char*)"image", (getter)Image_getImage, NULL, (char*)"image data", NULL},
 	{(char*)"size", (getter)Image_getSize, NULL, (char*)"image size", NULL},
-	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbour)", NULL},
+	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", NULL},
 	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", NULL},
 	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", NULL},
 	{(char*)"preseek", (getter)VideoFFmpeg_getPreseek, (setter)VideoFFmpeg_setPreseek, (char*)"nb of frames of preseek", NULL},
@@ -1238,9 +1244,9 @@ PyTypeObject VideoFFmpegType =
 };
 
 // object initialization
-static int ImageFFmpeg_init (PyObject * pySelf, PyObject * args, PyObject * kwds)
+static int ImageFFmpeg_init(PyObject *pySelf, PyObject *args, PyObject *kwds)
 {
-	PyImage * self = reinterpret_cast<PyImage*>(pySelf);
+	PyImage *self = reinterpret_cast<PyImage*>(pySelf);
 	// parameters - video source
 	// file name or format type for capture (only for Linux: video4linux or dv1394)
 	char * file = NULL;
@@ -1268,7 +1274,7 @@ static int ImageFFmpeg_init (PyObject * pySelf, PyObject * args, PyObject * kwds
 	return 0;
 }
 
-PyObject * Image_reload (PyImage * self, PyObject *args)
+static PyObject *Image_reload(PyImage *self, PyObject *args)
 {
 	char * newname = NULL;
 	if (!PyArg_ParseTuple(args, "|s:reload", &newname))
@@ -1307,7 +1313,7 @@ static PyGetSetDef imageGetSets[] =
 	{(char*)"valid", (getter)Image_valid, NULL, (char*)"bool to tell if an image is available", NULL},
 	{(char*)"image", (getter)Image_getImage, NULL, (char*)"image data", NULL},
 	{(char*)"size", (getter)Image_getSize, NULL, (char*)"image size", NULL},
-	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbour)", NULL},
+	{(char*)"scale", (getter)Image_getScale, (setter)Image_setScale, (char*)"fast scale of image (near neighbor)", NULL},
 	{(char*)"flip", (getter)Image_getFlip, (setter)Image_setFlip, (char*)"flip image vertically", NULL},
 	{(char*)"filter", (getter)Image_getFilter, (setter)Image_setFilter, (char*)"pixel filter", NULL},
 	{NULL}

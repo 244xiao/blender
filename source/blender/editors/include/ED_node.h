@@ -1,6 +1,4 @@
 /*
- * $Id: ED_node.h 35016 2011-02-21 07:25:24Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,30 +28,84 @@
  *  \ingroup editors
  */
 
-#ifndef ED_NODE_H
-#define ED_NODE_H
+#ifndef __ED_NODE_H__
+#define __ED_NODE_H__
 
+struct ID;
+struct Main;
 struct Material;
 struct Scene;
 struct Tex;
 struct bContext;
+struct bNodeTree;
 struct bNode;
-struct ID;
+struct bNodeType;
+struct bNodeSocketType;
+struct bNodeTree;
+struct bNodeTreeType;
+struct ScrArea;
+struct Scene;
+struct View2D;
+
+typedef enum {
+	NODE_TOP    = 1,
+	NODE_BOTTOM = 2,
+	NODE_LEFT   = 4,
+	NODE_RIGHT  = 8
+} NodeBorder;
+
+/* space_node.c */
+int ED_node_tree_path_length(struct SpaceNode *snode);
+void ED_node_tree_path_get(struct SpaceNode *snode, char *value);
+void ED_node_tree_path_get_fixedbuf(struct SpaceNode *snode, char *value, int max_length);
+
+void ED_node_tree_start(struct SpaceNode *snode, struct bNodeTree *ntree, struct ID *id, struct ID *from);
+void ED_node_tree_push(struct SpaceNode *snode, struct bNodeTree *ntree, struct bNode *gnode);
+void ED_node_tree_pop(struct SpaceNode *snode);
+int ED_node_tree_depth(struct SpaceNode *snode);
+struct bNodeTree *ED_node_tree_get(struct SpaceNode *snode, int level);
+
+void ED_node_set_active_viewer_key(struct SpaceNode *snode);
 
 /* drawnode.c */
-void ED_init_node_butfuncs(void);
+void ED_node_init_butfuncs(void);
+void ED_init_custom_node_type(struct bNodeType *ntype);
+void ED_init_custom_node_socket_type(struct bNodeSocketType *stype);
+void ED_init_standard_node_socket_type(struct bNodeSocketType *stype);
+void ED_init_node_socket_type_virtual(struct bNodeSocketType *stype);
+void ED_node_sample_set(const float col[4]);
+void ED_node_draw_snap(struct View2D *v2d, const float cent[2], float size, NodeBorder border);
 
 /* node_draw.c */
-void ED_node_changed_update(struct ID *id, struct bNode *node);
-void ED_node_generic_update(struct Main *bmain, struct bNodeTree *ntree, struct bNode *node);
+void ED_node_tree_update(const struct bContext *C);
+void ED_node_tag_update_id(struct ID *id);
+void ED_node_tag_update_nodetree(struct Main *bmain, struct bNodeTree *ntree);
+void ED_node_sort(struct bNodeTree *ntree);
+
+/* node_relationships.c */
+void ED_node_link_intersect_test(struct ScrArea *sa, int test);
+void ED_node_link_insert(struct ScrArea *sa);
 
 /* node_edit.c */
-void ED_node_shader_default(struct Material *ma);
-void ED_node_composit_default(struct Scene *sce);
-void ED_node_texture_default(struct Tex *tex);
+void ED_node_set_tree_type(struct SpaceNode *snode, struct bNodeTreeType *typeinfo);
+int ED_node_is_compositor(struct SpaceNode *snode);
+int ED_node_is_shader(struct SpaceNode *snode);
+int ED_node_is_texture(struct SpaceNode *snode);
 
-/* node ops.c */
+void ED_node_shader_default(const struct bContext *C, struct ID *id);
+void ED_node_composit_default(const struct bContext *C, struct Scene *scene);
+void ED_node_texture_default(const struct bContext *C, struct Tex *tex);
+int  ED_node_select_check(ListBase *lb);
+void ED_node_post_apply_transform(struct bContext *C, struct bNodeTree *ntree);
+void ED_node_set_active(struct Main *bmain, struct bNodeTree *ntree, struct bNode *node);
+
+void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, struct Scene *scene_owner);
+
+/* node_ops.c */
 void ED_operatormacros_node(void);
 
-#endif /* ED_NODE_H */
+/* node_view.c */
+int ED_space_node_color_sample(struct SpaceNode *snode, struct ARegion *ar, int mval[2], float r_col[3]);
+
+#endif /* __ED_NODE_H__ */
 

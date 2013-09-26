@@ -1,6 +1,4 @@
 /*
- * $Id: module.c 35239 2011-02-27 20:23:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,17 +28,19 @@
 #include <stddef.h>
 #include "IMB_imbuf.h"
 #include "IMB_filetype.h"
+#include "IMB_colormanagement_intern.h"
 
 void IMB_init(void)
 {
 	imb_filetypes_init();
 	imb_tile_cache_init();
+	colormanagement_init();
 }
 
 void IMB_exit(void)
 {
-	IMB_free_cache_limiter();
 	imb_tile_cache_exit();
 	imb_filetypes_exit();
+	colormanagement_exit();
 }
 

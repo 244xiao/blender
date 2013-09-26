@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_writeavi.h 34962 2011-02-18 13:05:18Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BKE_WRITEAVI_H
-#define BKE_WRITEAVI_H
+#ifndef __BKE_WRITEAVI_H__
+#define __BKE_WRITEAVI_H__
 
 /** \file BKE_writeavi.h
  *  \ingroup bke
@@ -46,14 +44,15 @@ struct Scene;
 
 typedef struct bMovieHandle {
 	int (*start_movie)(struct Scene *scene, struct RenderData *rd, int rectx, int recty, struct ReportList *reports);
-	int (*append_movie)(struct RenderData *rd, int frame, int *pixels, int rectx, int recty, struct ReportList *reports);
+	int (*append_movie)(struct RenderData *rd, int start_frame, int frame, int *pixels,
+	                    int rectx, int recty, struct ReportList *reports);
 	void (*end_movie)(void);
 	int (*get_next_frame)(struct RenderData *rd, struct ReportList *reports); /* optional */
 	void (*get_movie_path)(char *string, struct RenderData *rd); /* optional */
 } bMovieHandle;
 
-bMovieHandle *BKE_get_movie_handle(int imtype);
-void BKE_makeanimstring(char *string, struct RenderData *rd);
+bMovieHandle *BKE_movie_handle_get(const char imtype);
+void BKE_movie_filepath_get(char *string, struct RenderData *rd);
 
 #ifdef __cplusplus
 }

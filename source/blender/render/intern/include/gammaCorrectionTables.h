@@ -1,8 +1,4 @@
 /*
- * gammacorrectiontables.h
- *
- * $Id: gammaCorrectionTables.h 35233 2011-02-27 19:31:27Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -29,16 +25,15 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#ifndef __GAMMACORRECTIONTABLES_H__
+#define __GAMMACORRECTIONTABLES_H__
+
 /** \file blender/render/intern/include/gammaCorrectionTables.h
  *  \ingroup render
  */
 
-
-#ifndef GAMMACORRECTIONTABLES_H
-#define GAMMACORRECTIONTABLES_H
-
 /**
- * Initialise the gamma lookup tables
+ * Initialize the gamma lookup tables
  */
 void makeGammaTables(float gamma);
 

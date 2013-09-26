@@ -31,7 +31,7 @@ effect: constucts an empty COperator1Expr
 	m_lhs = NULL;
 }
 
-COperator1Expr::COperator1Expr(VALUE_OPERATOR op, CExpression * lhs)
+COperator1Expr::COperator1Expr(VALUE_OPERATOR op, CExpression *lhs)
 /*
 pre:
 effect: constucts a COperator1Expr with op and lhs in it
@@ -98,13 +98,13 @@ bool COperator1Expr::IsInside(float x, float y, float z,bool bBorderInclude)
 }
 
 */
-bool COperator1Expr::NeedsRecalculated() {
-	
+bool COperator1Expr::NeedsRecalculated()
+{
 	return m_lhs->NeedsRecalculated();
-
 }
 
-CExpression* COperator1Expr::CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks) {
+CExpression* COperator1Expr::CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks)
+{
 
 	CExpression* newlhs = m_lhs->CheckLink(brokenlinks);
 

@@ -1,6 +1,4 @@
 /*
- * $Id: KX_BlenderMouseDevice.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup blroutines
  */
 
-#ifndef __KX_BLENDERMOUSEDEVICE
-#define __KX_BLENDERMOUSEDEVICE
+#ifndef __KX_BLENDERMOUSEDEVICE_H__
+#define __KX_BLENDERMOUSEDEVICE_H__
 
 #include "KX_BlenderInputDevice.h"
 
@@ -53,11 +51,8 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_BlenderMouseDevice"); }
-	void operator delete(void *mem) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderMouseDevice")
 #endif
 };
 
-#endif //__KX_BLENDERMOUSEDEVICE
-
+#endif  /* __KX_BLENDERMOUSEDEVICE_H__ */

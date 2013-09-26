@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_RandomActuator.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,15 +30,15 @@
  *  \brief Draw a random number, and put it in a property
  */
 
-#ifndef __KX_RANDOMACTUATOR
-#define __KX_RANDOMACTUATOR
+#ifndef __SCA_RANDOMACTUATOR_H__
+#define __SCA_RANDOMACTUATOR_H__
 
 #include "SCA_IActuator.h"
 #include "SCA_RandomNumberGenerator.h"
 
 class SCA_RandomActuator : public SCA_IActuator
 {
-	Py_Header;
+	Py_Header
 	/** Property to assign to */
 	STR_String m_propname;
 	
@@ -69,10 +67,10 @@ class SCA_RandomActuator : public SCA_IActuator
 		KX_RANDOMACT_NODEF,
 		KX_RANDOMACT_BOOL_CONST,
 		KX_RANDOMACT_BOOL_UNIFORM,
-		KX_RANDOMACT_BOOL_BERNOUILLI,		
+		KX_RANDOMACT_BOOL_BERNOUILLI,
 		KX_RANDOMACT_INT_CONST,
 		KX_RANDOMACT_INT_UNIFORM,
-		KX_RANDOMACT_INT_POISSON,		
+		KX_RANDOMACT_INT_POISSON,
 		KX_RANDOMACT_FLOAT_CONST,
 		KX_RANDOMACT_FLOAT_UNIFORM,
 		KX_RANDOMACT_FLOAT_NORMAL,
@@ -100,7 +98,7 @@ class SCA_RandomActuator : public SCA_IActuator
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 
-	static PyObject* pyattr_get_seed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_seed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_seed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setBoolConst);
@@ -114,7 +112,7 @@ class SCA_RandomActuator : public SCA_IActuator
 	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setFloatNormal);
 	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setFloatNegativeExponential);
 
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
 }; /* end of class KX_EditObjectActuator : public SCA_PropertyActuator */
 

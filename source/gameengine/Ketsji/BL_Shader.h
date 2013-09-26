@@ -16,8 +16,6 @@
 #include "MT_Tuple3.h"
 #include "MT_Tuple4.h"
 
-#define SHADER_ATTRIBMAX 1
-
 /**
  * BL_Sampler
  *  Sampler access 
@@ -32,9 +30,7 @@ public:
 	int				mLoc;		// Sampler location
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:BL_Sampler"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_Sampler")
 #endif
 };
 
@@ -79,9 +75,7 @@ public:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:BL_Uniform"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_Uniform")
 #endif
 };
 
@@ -104,9 +98,7 @@ public:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:BL_DefUniform"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_DefUniform")
 #endif
 };
 
@@ -116,7 +108,7 @@ public:
  */
 class BL_Shader : public PyObjectPlus
 {
-	Py_Header;
+	Py_Header
 private:
 	typedef std::vector<BL_Uniform*>	BL_UniformVec;
 	typedef std::vector<BL_DefUniform*>	BL_UniformVecDef;
@@ -194,7 +186,7 @@ public:
 	bool				Ok()const;
 	unsigned int		GetProg();
 	void				SetProg(bool enable);
-	int					GetAttribute(){return mAttr;};
+	int					GetAttribute() { return mAttr; }
 
 	// -- 
 	// Apply methods : sets colected uniforms
@@ -211,9 +203,9 @@ public:
 	void SetUniformfv(int location,int type, float *param, int size,bool transpose=false);
 	void SetUniformiv(int location,int type, int *param, int size,bool transpose=false);
 
-	int GetAttribLocation(const STR_String& name);
-	void BindAttribute(const STR_String& attr, int loc);
-	int GetUniformLocation(const STR_String& name);
+	int GetAttribLocation(const char *name);
+	void BindAttribute(const char *attr, int loc);
+	int GetUniformLocation(const char *name);
 
 	void SetUniform(int uniform, const MT_Tuple2& vec);
 	void SetUniform(int uniform, const MT_Tuple3& vec);
@@ -228,34 +220,34 @@ public:
 
 	// Python interface
 #ifdef WITH_PYTHON
-	virtual PyObject* py_repr(void) { return PyUnicode_FromFormat("BL_Shader\n\tvertex shader:%s\n\n\tfragment shader%s\n\n", vertProg, fragProg); }
+	virtual PyObject *py_repr(void) { return PyUnicode_FromFormat("BL_Shader\n\tvertex shader:%s\n\n\tfragment shader%s\n\n", vertProg, fragProg); }
 
 	// -----------------------------------
-	KX_PYMETHOD_DOC( BL_Shader, setSource );
-	KX_PYMETHOD_DOC( BL_Shader, delSource );
-	KX_PYMETHOD_DOC( BL_Shader, getVertexProg );
-	KX_PYMETHOD_DOC( BL_Shader, getFragmentProg );
-	KX_PYMETHOD_DOC( BL_Shader, setNumberOfPasses );
-	KX_PYMETHOD_DOC( BL_Shader, isValid);
-	KX_PYMETHOD_DOC( BL_Shader, validate);
+	KX_PYMETHOD_DOC(BL_Shader, setSource);
+	KX_PYMETHOD_DOC(BL_Shader, delSource);
+	KX_PYMETHOD_DOC(BL_Shader, getVertexProg);
+	KX_PYMETHOD_DOC(BL_Shader, getFragmentProg);
+	KX_PYMETHOD_DOC(BL_Shader, setNumberOfPasses);
+	KX_PYMETHOD_DOC(BL_Shader, isValid);
+	KX_PYMETHOD_DOC(BL_Shader, validate);
 
 	// -----------------------------------
-	KX_PYMETHOD_DOC( BL_Shader, setUniform4f );
-	KX_PYMETHOD_DOC( BL_Shader, setUniform3f );
-	KX_PYMETHOD_DOC( BL_Shader, setUniform2f );
-	KX_PYMETHOD_DOC( BL_Shader, setUniform1f );
-	KX_PYMETHOD_DOC( BL_Shader, setUniform4i );
-	KX_PYMETHOD_DOC( BL_Shader, setUniform3i );
-	KX_PYMETHOD_DOC( BL_Shader, setUniform2i );
-	KX_PYMETHOD_DOC( BL_Shader, setUniform1i );
-	KX_PYMETHOD_DOC( BL_Shader, setUniformfv );
-	KX_PYMETHOD_DOC( BL_Shader, setUniformiv );
-	KX_PYMETHOD_DOC( BL_Shader, setUniformMatrix4 );
-	KX_PYMETHOD_DOC( BL_Shader, setUniformMatrix3 );
-	KX_PYMETHOD_DOC( BL_Shader, setUniformDef );
-	KX_PYMETHOD_DOC( BL_Shader, setAttrib );
-	KX_PYMETHOD_DOC( BL_Shader, setSampler);
+	KX_PYMETHOD_DOC(BL_Shader, setUniform4f);
+	KX_PYMETHOD_DOC(BL_Shader, setUniform3f);
+	KX_PYMETHOD_DOC(BL_Shader, setUniform2f);
+	KX_PYMETHOD_DOC(BL_Shader, setUniform1f);
+	KX_PYMETHOD_DOC(BL_Shader, setUniform4i);
+	KX_PYMETHOD_DOC(BL_Shader, setUniform3i);
+	KX_PYMETHOD_DOC(BL_Shader, setUniform2i);
+	KX_PYMETHOD_DOC(BL_Shader, setUniform1i);
+	KX_PYMETHOD_DOC(BL_Shader, setUniformfv);
+	KX_PYMETHOD_DOC(BL_Shader, setUniformiv);
+	KX_PYMETHOD_DOC(BL_Shader, setUniformMatrix4);
+	KX_PYMETHOD_DOC(BL_Shader, setUniformMatrix3);
+	KX_PYMETHOD_DOC(BL_Shader, setUniformDef);
+	KX_PYMETHOD_DOC(BL_Shader, setAttrib);
+	KX_PYMETHOD_DOC(BL_Shader, setSampler);
 #endif
 };
 
-#endif//__BL_SHADER_H__
+#endif /* __BL_SHADER_H__ */

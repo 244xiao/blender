@@ -1,6 +1,4 @@
 /*
- * $Id: ED_markers.h 35537 2011-03-14 10:45:42Z aligorith $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,10 +28,11 @@
  *  \ingroup editors
  */
 
-#ifndef ED_MARKERS_H
-#define ED_MARKERS_H
+#ifndef __ED_MARKERS_H__
+#define __ED_MARKERS_H__
 
 struct wmKeyConfig;
+struct wmKeyMap;
 struct bContext;
 struct bAnimContext;
 struct Scene;
@@ -43,8 +42,8 @@ struct TimeMarker;
 
 /* flags for drawing markers */
 enum {
-	DRAW_MARKERS_LINES	= (1<<0),
-	DRAW_MARKERS_LOCAL	= (1<<1)
+	DRAW_MARKERS_LINES  = (1 << 0),
+	DRAW_MARKERS_LOCAL  = (1 << 1)
 };
 
 void draw_markers_time(const struct bContext *C, int flag);
@@ -72,8 +71,10 @@ void ED_operatortypes_marker(void);
 /* called in screen_ops.c:ED_keymap_screen() */
 void ED_marker_keymap(struct wmKeyConfig *keyconf);
 
+/* called in animation editors - keymap defines */
+void ED_marker_keymap_animedit_conflictfree(struct wmKeyMap *keymap);
+
 /* debugging only */
 void debug_markers_print_list(struct ListBase *markers);
 
-#endif /* ED_MARKERS_H */
-
+#endif /* __ED_MARKERS_H__ */

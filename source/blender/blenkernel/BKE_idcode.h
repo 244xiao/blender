@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_idcode.h 35493 2011-03-12 14:38:00Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,60 +25,24 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BKE_ID_INFO_H
-#define BKE_ID_INFO_H
+#ifndef __BKE_IDCODE_H__
+#define __BKE_IDCODE_H__
 
 /** \file BKE_idcode.h
  *  \ingroup bke
  */
 
-/**
- * Convert an idcode into a name.
- * 
- * @param code The code to convert.
- * @return A static string representing the name of
- * the code.
- */
 const char *BKE_idcode_to_name(int code);
-
-/**
- * Convert an idcode into a name (plural).
- * 
- * @param code The code to convert.
- * @return A static string representing the name of
- * the code.
- */
 const char *BKE_idcode_to_name_plural(int code);
-
-/**
- * Convert a name into an idcode (ie. ID_SCE)
- * 
- * @param name The name to convert.
- * @return The code for the name, or 0 if invalid.
- */
-int BKE_idcode_from_name(const char *name);
-
-/**
- * Return non-zero when an ID type is linkable.
- * 
- * @param code The code to check.
- * @return Boolean, 0 when non linkable.
- */
-int BKE_idcode_is_linkable(int code);
-
-/**
- * Return if the ID code is a valid ID code.
- * 
- * @param code The code to check.
- * @return Boolean, 0 when invalid.
- */
-int BKE_idcode_is_valid(int code);
+int         BKE_idcode_from_name(const char *name);
+bool        BKE_idcode_is_linkable(int code);
+bool        BKE_idcode_is_valid(int code);
 
 /**
  * Return an ID code and steps the index forward 1.
  *
- * @param index, start as 0.
- * @return the code, 0 when all codes have been returned.
+ * \param index start as 0.
+ * \return the code, 0 when all codes have been returned.
  */
 int BKE_idcode_iter_step(int *index);
 

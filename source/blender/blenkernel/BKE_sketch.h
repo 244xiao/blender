@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_sketch.h 34962 2011-02-18 13:05:18Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -21,27 +19,24 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_SKETCH_H
-#define BKE_SKETCH_H
+#ifndef __BKE_SKETCH_H__
+#define __BKE_SKETCH_H__
 
 /** \file BKE_sketch.h
  *  \ingroup bke
  */
 
-typedef enum SK_PType
-{
+typedef enum SK_PType {
 	PT_CONTINUOUS,
 	PT_EXACT,
 } SK_PType;
 
-typedef enum SK_PMode
-{
+typedef enum SK_PMode {
 	PT_SNAP,
 	PT_PROJECT,
 } SK_PMode;
 
-typedef struct SK_Point
-{
+typedef struct SK_Point {
 	float p[3];
 	short p2d[2];
 	float no[3];
@@ -50,8 +45,7 @@ typedef struct SK_Point
 	SK_PMode mode;
 } SK_Point;
 
-typedef struct SK_Stroke
-{
+typedef struct SK_Stroke {
 	struct SK_Stroke *next, *prev;
 
 	SK_Point *points;
@@ -60,68 +54,64 @@ typedef struct SK_Stroke
 	int selected;
 } SK_Stroke;
 
-#define SK_OVERDRAW_LIMIT	5
+#define SK_OVERDRAW_LIMIT   5
 
-typedef struct SK_Overdraw
-{
+typedef struct SK_Overdraw {
 	SK_Stroke *target;
-	int	start, end;
+	int start, end;
 	int count;
 } SK_Overdraw;
 
 #define SK_Stroke_BUFFER_INIT_SIZE 20
 
-typedef struct SK_DrawData
-{
-	short mval[2];
-	short previous_mval[2];
+typedef struct SK_DrawData {
+	int mval[2];
+	int previous_mval[2];
 	SK_PType type;
 } SK_DrawData;
 
-typedef struct SK_Intersection
-{
+typedef struct SK_Intersection {
 	struct SK_Intersection *next, *prev;
 	SK_Stroke *stroke;
-	int			before;
-	int			after;
-	int			gesture_index;
-	float		p[3];
-	float		lambda; /* used for sorting intersection points */
+	int        before;
+	int        after;
+	int        gesture_index;
+	float      p[3];
+	float      lambda;       /* used for sorting intersection points */
 } SK_Intersection;
 
-typedef struct SK_Sketch
-{
-	ListBase	strokes;
-	ListBase	depth_peels;
-	SK_Stroke	*active_stroke;
-	SK_Stroke	*gesture;
-	SK_Point	next_point;
+typedef struct SK_Sketch {
+	ListBase   strokes;
+	ListBase   depth_peels;
+	SK_Stroke *active_stroke;
+	SK_Stroke *gesture;
+	SK_Point   next_point;
 	SK_Overdraw over;
 } SK_Sketch;
 
 
 typedef struct SK_Gesture {
-	SK_Stroke	*stk;
-	SK_Stroke	*segments;
+	SK_Stroke   *stk;
+	SK_Stroke   *segments;
 
-	ListBase	intersections;
-	ListBase	self_intersections;
+	ListBase     intersections;
+	ListBase     self_intersections;
 
-	int			nb_self_intersections;
-	int			nb_intersections;
-	int			nb_segments;
+	int          nb_self_intersections;
+	int          nb_intersections;
+	int          nb_segments;
 } SK_Gesture;
 
 
 /************************************************/
 
 void freeSketch(SK_Sketch *sketch);
-SK_Sketch* createSketch(void);
+SK_Sketch *createSketch(void);
 
 void sk_removeStroke(SK_Sketch *sketch, SK_Stroke *stk);
 
 void sk_freeStroke(SK_Stroke *stk);
-SK_Stroke* sk_createStroke(void);
+SK_Stroke *sk_createStroke(void);
 
 SK_Point *sk_lastStrokePoint(SK_Stroke *stk);
 
@@ -144,7 +134,7 @@ void sk_reverseStroke(SK_Stroke *stk);
 void sk_filterLastContinuousStroke(SK_Stroke *stk);
 void sk_filterStroke(SK_Stroke *stk, int start, int end);
 
-void sk_initPoint(SK_Point *pt, SK_DrawData *dd, float *no);
+void sk_initPoint(SK_Point *pt, SK_DrawData *dd, const float no[3]);
 void sk_copyPoint(SK_Point *dst, SK_Point *src);
 
 int sk_stroke_filtermval(SK_DrawData *dd);
@@ -152,7 +142,7 @@ void sk_endContinuousStroke(SK_Stroke *stk);
 
 void sk_updateNextPoint(SK_Sketch *sketch, SK_Stroke *stk);
 
-void sk_initDrawData(SK_DrawData *dd, short mval[2]);
+void sk_initDrawData(SK_DrawData *dd, const int mval[2]);
 
 void sk_deleteSelectedStrokes(SK_Sketch *sketch);
 void sk_selectAllSketch(SK_Sketch *sketch, int mode);

@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -21,13 +20,18 @@
 
 set(INC
 	../include
+	../../blenfont
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../bmesh
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
+	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -43,6 +47,7 @@ set(SRC
 	../include/BIF_glutil.h
 	../include/ED_anim_api.h
 	../include/ED_armature.h
+	../include/ED_clip.h
 	../include/ED_curve.h
 	../include/ED_datafiles.h
 	../include/ED_fileselect.h
@@ -56,6 +61,7 @@ set(SRC
 	../include/ED_lattice.h
 	../include/ED_logic.h
 	../include/ED_markers.h
+	../include/ED_mask.h
 	../include/ED_mball.h
 	../include/ED_mesh.h
 	../include/ED_node.h
@@ -83,4 +89,10 @@ set(SRC
 	../include/UI_view2d.h
 )
 
-blender_add_lib(bf_editor_util "${SRC}" "${INC}")
+add_definitions(-DGLEW_STATIC)
+
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+blender_add_lib(bf_editor_util "${SRC}" "${INC}" "${INC_SYS}")

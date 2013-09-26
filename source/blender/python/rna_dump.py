@@ -79,7 +79,7 @@ def seek(r, txt, recurs):
     except:
         keys = None
 
-    if keys != None:
+    if keys is not None:
         if PRINT_DATA:
             print(txt + '.keys() - ' + str(r.keys()))
 
@@ -95,7 +95,7 @@ def seek(r, txt, recurs):
         if GEN_PATH:
             newtxt = txt + '.' + item
 
-        if item == 'rna_type' and VERBOSE_TYPE == False:  # just avoid because it spits out loads of data
+        if item == 'rna_type' and VERBOSE_TYPE is False:  # just avoid because it spits out loads of data
             continue
 
         value = getattr(r, item, None)
@@ -114,7 +114,7 @@ def seek(r, txt, recurs):
         except:
             length = 0
 
-        if VERBOSE == False and length >= 4:
+        if VERBOSE is False and length >= 4:
             for i in (0, length - 1):
                 if i > 0:
                     if PRINT_DATA:

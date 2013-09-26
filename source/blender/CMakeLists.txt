@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 35054 2011-02-22 06:23:07Z campbellbarton $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -39,9 +38,12 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_controller_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_curve_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_customdata_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_defs.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_documentation.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_dynamicpaint_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_effect_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_fileglobal_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_freestyle_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_genfile.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_gpencil_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_group_types.h
@@ -50,6 +52,7 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_key_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_lamp_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_lattice_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_linestyle_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_listBase.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_material_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_mesh_types.h
@@ -65,6 +68,7 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_packedFile_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_particle_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_property_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_rigidbody_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_scene_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_screen_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sdna_types.h
@@ -73,6 +77,7 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_smoke_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sound_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_space_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_speaker_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_text_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_texture_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_userdef_types.h
@@ -82,25 +87,31 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_view3d_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_windowmanager_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_world_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_movieclip_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_tracking_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_mask_types.h
 )
 
+add_subdirectory(datatoc)
 add_subdirectory(editors)
 add_subdirectory(windowmanager)
 add_subdirectory(blenkernel)
 add_subdirectory(blenlib)
+add_subdirectory(bmesh)
 add_subdirectory(render)
 add_subdirectory(blenfont)
 add_subdirectory(blenloader)
-add_subdirectory(readblenfile)
-add_subdirectory(blenpluginapi)
 add_subdirectory(ikplugin)
 add_subdirectory(gpu)
 add_subdirectory(imbuf)
-add_subdirectory(avi)
 add_subdirectory(nodes)
 add_subdirectory(modifiers)
 add_subdirectory(makesdna)
 add_subdirectory(makesrna)
+
+if(WITH_COMPOSITOR)
+	add_subdirectory(compositor)
+endif()
 
 if(WITH_IMAGE_OPENEXR)
 	add_subdirectory(imbuf/intern/openexr)
@@ -114,6 +125,10 @@ if(WITH_IMAGE_CINEON)
 	add_subdirectory(imbuf/intern/cineon)
 endif()
 
+if(WITH_CODEC_AVI)
+	add_subdirectory(avi)
+endif()
+
 if(WITH_CODEC_QUICKTIME)
 	add_subdirectory(quicktime)
 endif()
@@ -123,6 +138,10 @@ if(WITH_PYTHON)
 endif()
 
 if(WITH_OPENCOLLADA)
-  add_subdirectory(collada)
+	add_subdirectory(collada)
+endif()
+
+if(WITH_FREESTYLE)
+	add_subdirectory(freestyle)
 endif()
 

@@ -2,7 +2,6 @@
  * Parser.h: interface for the CParser class.
  * Eindhoven University of Technology 1997
  * OOPS team (Serge vd Boom, Erwin Coumans, Tom Geelen, Wynke Stuylemeier)
- * $Id: InputParser.h 35063 2011-02-22 10:33:14Z jesterking $
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -103,7 +102,7 @@ private:
 #if 0	/* not used yet */
 	int MakeInt();
 #endif
-	STR_String Symbol2Str(int s);
+	const char *Symbol2Str(int s);
 	void Term(int s);
 	int Priority(int optor);
 	CExpression *Ex(int i);
@@ -111,9 +110,7 @@ private:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:CParser"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CParser")
 #endif
 };
 

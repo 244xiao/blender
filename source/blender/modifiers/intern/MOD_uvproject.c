@@ -1,34 +1,32 @@
 /*
-* $Id: MOD_uvproject.c 35817 2011-03-27 13:49:53Z campbellbarton $
-*
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software  Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-* The Original Code is Copyright (C) 2005 by the Blender Foundation.
-* All rights reserved.
-*
-* Contributor(s): Daniel Dunbar
-*                 Ton Roosendaal,
-*                 Ben Batt,
-*                 Brecht Van Lommel,
-*                 Campbell Barton
-*
-* ***** END GPL LICENSE BLOCK *****
-*
-*/
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2005 by the Blender Foundation.
+ * All rights reserved.
+ *
+ * Contributor(s): Daniel Dunbar
+ *                 Ton Roosendaal,
+ *                 Ben Batt,
+ *                 Brecht Van Lommel,
+ *                 Campbell Barton
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ *
+ */
 
 /** \file blender/modifiers/intern/MOD_uvproject.c
  *  \ingroup modifiers
@@ -40,12 +38,16 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_math.h"
+#include "BLI_string.h"
 #include "BLI_uvproject.h"
 #include "BLI_utildefines.h"
 
 
+#include "BKE_camera.h"
+#include "BKE_mesh.h"
 #include "BKE_DerivedMesh.h"
 
 #include "MOD_modifiertypes.h"
@@ -56,10 +58,10 @@
 
 static void initData(ModifierData *md)
 {
-	UVProjectModifierData *umd = (UVProjectModifierData*) md;
+	UVProjectModifierData *umd = (UVProjectModifierData *) md;
 	int i;
 
-	for(i = 0; i < MOD_UVPROJECT_MAXPROJECTORS; ++i)
+	for (i = 0; i < MOD_UVPROJECT_MAXPROJECTORS; ++i)
 		umd->projectors[i] = NULL;
 	umd->image = NULL;
 	umd->flags = 0;
@@ -70,11 +72,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
-	UVProjectModifierData *umd = (UVProjectModifierData*) md;
-	UVProjectModifierData *tumd = (UVProjectModifierData*) target;
+	UVProjectModifierData *umd = (UVProjectModifierData *) md;
+	UVProjectModifierData *tumd = (UVProjectModifierData *) target;
 	int i;
 
-	for(i = 0; i < MOD_UVPROJECT_MAXPROJECTORS; ++i)
+	for (i = 0; i < MOD_UVPROJECT_MAXPROJECTORS; ++i)
 		tumd->projectors[i] = umd->projectors[i];
 	tumd->image = umd->image;
 	tumd->flags = umd->flags;
@@ -83,6 +85,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	tumd->aspecty = umd->aspecty;
 	tumd->scalex = umd->scalex;
 	tumd->scaley = umd->scaley;
+	BLI_strncpy(tumd->uvlayer_name, umd->uvlayer_name, sizeof(umd->uvlayer_name));
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *UNUSED(md))
@@ -96,155 +99,131 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *UNUSED(
 }
 
 static void foreachObjectLink(ModifierData *md, Object *ob,
-		ObjectWalkFunc walk, void *userData)
+                              ObjectWalkFunc walk, void *userData)
 {
-	UVProjectModifierData *umd = (UVProjectModifierData*) md;
+	UVProjectModifierData *umd = (UVProjectModifierData *) md;
 	int i;
 
-	for(i = 0; i < MOD_UVPROJECT_MAXPROJECTORS; ++i)
+	for (i = 0; i < MOD_UVPROJECT_MAXPROJECTORS; ++i)
 		walk(userData, ob, &umd->projectors[i]);
 }
 
 static void foreachIDLink(ModifierData *md, Object *ob,
-						IDWalkFunc walk, void *userData)
+                          IDWalkFunc walk, void *userData)
 {
-	UVProjectModifierData *umd = (UVProjectModifierData*) md;
+	UVProjectModifierData *umd = (UVProjectModifierData *) md;
 
 	walk(userData, ob, (ID **)&umd->image);
 
 	foreachObjectLink(md, ob, (ObjectWalkFunc)walk,
-						userData);
+	                  userData);
 }
 
 static void updateDepgraph(ModifierData *md, DagForest *forest,
-						struct Scene *UNUSED(scene),
-						Object *UNUSED(ob),
-						DagNode *obNode)
+                           struct Scene *UNUSED(scene),
+                           Object *UNUSED(ob),
+                           DagNode *obNode)
 {
-	UVProjectModifierData *umd = (UVProjectModifierData*) md;
+	UVProjectModifierData *umd = (UVProjectModifierData *) md;
 	int i;
 
-	for(i = 0; i < umd->num_projectors; ++i) {
-		if(umd->projectors[i]) {
+	for (i = 0; i < umd->num_projectors; ++i) {
+		if (umd->projectors[i]) {
 			DagNode *curNode = dag_get_node(forest, umd->projectors[i]);
 
 			dag_add_relation(forest, curNode, obNode,
-					 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "UV Project Modifier");
+			                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "UV Project Modifier");
 		}
 	}
 }
 
 typedef struct Projector {
-	Object *ob;				/* object this projector is derived from */
-	float projmat[4][4];	/* projection matrix */ 
-	float normal[3];		/* projector normal in world space */
-	void *uci;				/* optional uv-project info (panorama projection) */
+	Object *ob;             /* object this projector is derived from */
+	float projmat[4][4];    /* projection matrix */
+	float normal[3];        /* projector normal in world space */
+	void *uci;              /* optional uv-project info (panorama projection) */
 } Projector;
 
 static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
-					 Object *ob, DerivedMesh *dm)
+                                         Object *ob, DerivedMesh *dm)
 {
 	float (*coords)[3], (*co)[3];
-	MTFace *tface;
-	int i, numVerts, numFaces;
+	MLoopUV *mloop_uv;
+	MTexPoly *mtexpoly, *mt = NULL;
+	int i, numVerts, numPolys, numLoops;
 	Image *image = umd->image;
-	MFace *mface, *mf;
+	MPoly *mpoly, *mp;
+	MLoop *mloop;
 	int override_image = ((umd->flags & MOD_UVPROJECT_OVERRIDEIMAGE) != 0);
 	Projector projectors[MOD_UVPROJECT_MAXPROJECTORS];
 	int num_projectors = 0;
-	float aspect;
-	char uvname[32];
-	float aspx= umd->aspectx ? umd->aspectx : 1.0f;
-	float aspy= umd->aspecty ? umd->aspecty : 1.0f;
-	float scax= umd->scalex ? umd->scalex : 1.0f;
-	float scay= umd->scaley ? umd->scaley : 1.0f;
-	int free_uci= 0;
-	
-	aspect = aspx / aspy;
+	char uvname[MAX_CUSTOMDATA_LAYER_NAME];
+	float aspx = umd->aspectx ? umd->aspectx : 1.0f;
+	float aspy = umd->aspecty ? umd->aspecty : 1.0f;
+	float scax = umd->scalex ? umd->scalex : 1.0f;
+	float scay = umd->scaley ? umd->scaley : 1.0f;
+	int free_uci = 0;
 
-	for(i = 0; i < umd->num_projectors; ++i)
-		if(umd->projectors[i])
+	for (i = 0; i < umd->num_projectors; ++i)
+		if (umd->projectors[i])
 			projectors[num_projectors++].ob = umd->projectors[i];
 
-	if(num_projectors == 0) return dm;
+	if (num_projectors == 0) return dm;
 
-	/* make sure there are UV layers available */
+	/* make sure there are UV Maps available */
 
-	if(!CustomData_has_layer(&dm->faceData, CD_MTFACE)) return dm;
+	if (!CustomData_has_layer(&dm->loopData, CD_MLOOPUV)) return dm;
 
 	/* make sure we're using an existing layer */
-	validate_layer_name(&dm->faceData, CD_MTFACE, umd->uvlayer_name, uvname);
+	CustomData_validate_layer_name(&dm->loopData, CD_MLOOPUV, umd->uvlayer_name, uvname);
 
 	/* calculate a projection matrix and normal for each projector */
-	for(i = 0; i < num_projectors; ++i) {
+	for (i = 0; i < num_projectors; ++i) {
 		float tmpmat[4][4];
 		float offsetmat[4][4];
 		Camera *cam = NULL;
 		/* calculate projection matrix */
 		invert_m4_m4(projectors[i].projmat, projectors[i].ob->obmat);
 
-		projectors[i].uci= NULL;
+		projectors[i].uci = NULL;
 
-		if(projectors[i].ob->type == OB_CAMERA) {
+		if (projectors[i].ob->type == OB_CAMERA) {
 			
 			cam = (Camera *)projectors[i].ob->data;
-			if(cam->flag & CAM_PANORAMA) {
-				projectors[i].uci= project_camera_info(projectors[i].ob, NULL, aspx, aspy);
-				project_camera_info_scale(projectors[i].uci, scax, scay);
-				free_uci= 1;
+			if (cam->type == CAM_PANO) {
+				projectors[i].uci = BLI_uvproject_camera_info(projectors[i].ob, NULL, aspx, aspy);
+				BLI_uvproject_camera_info_scale(projectors[i].uci, scax, scay);
+				free_uci = 1;
 			}
 			else {
-				float scale= (cam->type == CAM_PERSP) ? cam->clipsta * 32.0f / cam->lens : cam->ortho_scale;
-				float xmax, xmin, ymax, ymin;
+				CameraParams params;
 
-				if(aspect > 1.0f) {
-					xmax = 0.5f * scale;
-					ymax = xmax / aspect;
-				} else {
-					ymax = 0.5f * scale;
-					xmax = ymax * aspect;
-				}
-				xmin = -xmax;
-				ymin = -ymax;
+				/* setup parameters */
+				BKE_camera_params_init(&params);
+				BKE_camera_params_from_object(&params, projectors[i].ob);
 
-				/* scale the matrix */
-				xmin *= scax;
-				xmax *= scax;
-				ymin *= scay;
-				ymax *= scay;
+				/* compute matrix, viewplane, .. */
+				BKE_camera_params_compute_viewplane(&params, 1, 1, aspx, aspy);
 
-				if(cam->type == CAM_PERSP) {
-					float perspmat[4][4];
-					perspective_m4( perspmat,xmin, xmax, ymin, ymax, cam->clipsta, cam->clipend);
-					mul_m4_m4m4(tmpmat, projectors[i].projmat, perspmat);
-				} else { /* if(cam->type == CAM_ORTHO) */
-					float orthomat[4][4];
-					orthographic_m4( orthomat,xmin, xmax, ymin, ymax, cam->clipsta, cam->clipend);
-					mul_m4_m4m4(tmpmat, projectors[i].projmat, orthomat);
-				}
+				/* scale the view-plane */
+				params.viewplane.xmin *= scax;
+				params.viewplane.xmax *= scax;
+				params.viewplane.ymin *= scay;
+				params.viewplane.ymax *= scay;
+
+				BKE_camera_params_compute_matrix(&params);
+				mul_m4_m4m4(tmpmat, params.winmat, projectors[i].projmat);
 			}
-		} else {
+		}
+		else {
 			copy_m4_m4(tmpmat, projectors[i].projmat);
 		}
 
 		unit_m4(offsetmat);
 		mul_mat3_m4_fl(offsetmat, 0.5);
 		offsetmat[3][0] = offsetmat[3][1] = offsetmat[3][2] = 0.5;
-		
-		if (cam) {
-			if (aspx == aspy) { 
-				offsetmat[3][0] -= cam->shiftx;
-				offsetmat[3][1] -= cam->shifty;
-			} else if (aspx < aspy)  {
-				offsetmat[3][0] -=(cam->shiftx * aspy/aspx);
-				offsetmat[3][1] -= cam->shifty;
-			} else {
-				offsetmat[3][0] -= cam->shiftx;
-				offsetmat[3][1] -=(cam->shifty * aspx/aspy);
-			}
-		}
-		
-		mul_m4_m4m4(projectors[i].projmat, tmpmat, offsetmat);
+
+		mul_m4_m4m4(projectors[i].projmat, offsetmat, tmpmat);
 
 		/* calculate worldspace projector normal (for best projector test) */
 		projectors[i].normal[0] = 0;
@@ -253,156 +232,133 @@ static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
 		mul_mat3_m4_v3(projectors[i].ob->obmat, projectors[i].normal);
 	}
 
-	/* make sure we are not modifying the original UV layer */
-	tface = CustomData_duplicate_referenced_layer_named(&dm->faceData,
-			CD_MTFACE, uvname);
+	numPolys = dm->getNumPolys(dm);
+	numLoops = dm->getNumLoops(dm);
 
-	
+	/* make sure we are not modifying the original UV map */
+	mloop_uv = CustomData_duplicate_referenced_layer_named(&dm->loopData,
+	                                                       CD_MLOOPUV, uvname, numLoops);
+
+	/* can be NULL */
+	mt = mtexpoly = CustomData_duplicate_referenced_layer_named(&dm->polyData,
+	                                                            CD_MTEXPOLY, uvname, numPolys);
+
 	numVerts = dm->getNumVerts(dm);
 
 	coords = MEM_callocN(sizeof(*coords) * numVerts,
-				 "uvprojectModifier_do coords");
+	                     "uvprojectModifier_do coords");
 	dm->getVertCos(dm, coords);
 
 	/* convert coords to world space */
-	for(i = 0, co = coords; i < numVerts; ++i, ++co)
+	for (i = 0, co = coords; i < numVerts; ++i, ++co)
 		mul_m4_v3(ob->obmat, *co);
 	
 	/* if only one projector, project coords to UVs */
-	if(num_projectors == 1 && projectors[0].uci==NULL)
-		for(i = 0, co = coords; i < numVerts; ++i, ++co)
-			mul_project_m4_v4(projectors[0].projmat, *co);
+	if (num_projectors == 1 && projectors[0].uci == NULL)
+		for (i = 0, co = coords; i < numVerts; ++i, ++co)
+			mul_project_m4_v3(projectors[0].projmat, *co);
 
-	mface = dm->getFaceArray(dm);
-	numFaces = dm->getNumFaces(dm);
+	mpoly = dm->getPolyArray(dm);
+	mloop = dm->getLoopArray(dm);
 
 	/* apply coords as UVs, and apply image if tfaces are new */
-	for(i = 0, mf = mface; i < numFaces; ++i, ++mf, ++tface) {
-		if(override_image || !image || tface->tpage == image) {
-			if(num_projectors == 1) {
-				if(projectors[0].uci) {
-					project_from_camera(tface->uv[0], coords[mf->v1], projectors[0].uci);
-					project_from_camera(tface->uv[1], coords[mf->v2], projectors[0].uci);
-					project_from_camera(tface->uv[2], coords[mf->v3], projectors[0].uci);
-					if(mf->v3)
-						project_from_camera(tface->uv[3], coords[mf->v4], projectors[0].uci);
+	for (i = 0, mp = mpoly; i < numPolys; ++i, ++mp, ++mt) {
+		if (override_image || !image || (mtexpoly == NULL || mt->tpage == image)) {
+			if (num_projectors == 1) {
+				if (projectors[0].uci) {
+					unsigned int fidx = mp->totloop - 1;
+					do {
+						unsigned int lidx = mp->loopstart + fidx;
+						unsigned int vidx = mloop[lidx].v;
+						BLI_uvproject_from_camera(mloop_uv[lidx].uv, coords[vidx], projectors[0].uci);
+					} while (fidx--);
 				}
 				else {
 					/* apply transformed coords as UVs */
-					tface->uv[0][0] = coords[mf->v1][0];
-					tface->uv[0][1] = coords[mf->v1][1];
-					tface->uv[1][0] = coords[mf->v2][0];
-					tface->uv[1][1] = coords[mf->v2][1];
-					tface->uv[2][0] = coords[mf->v3][0];
-					tface->uv[2][1] = coords[mf->v3][1];
-					if(mf->v4) {
-						tface->uv[3][0] = coords[mf->v4][0];
-						tface->uv[3][1] = coords[mf->v4][1];
-					}
+					unsigned int fidx = mp->totloop - 1;
+					do {
+						unsigned int lidx = mp->loopstart + fidx;
+						unsigned int vidx = mloop[lidx].v;
+						copy_v2_v2(mloop_uv[lidx].uv, coords[vidx]);
+					} while (fidx--);
 				}
-			} else {
-				/* multiple projectors, select the closest to face normal
-				* direction
-				*/
-				float co1[3], co2[3], co3[3], co4[3];
+			}
+			else {
+				/* multiple projectors, select the closest to face normal direction */
 				float face_no[3];
 				int j;
 				Projector *best_projector;
 				float best_dot;
 
-				copy_v3_v3(co1, coords[mf->v1]);
-				copy_v3_v3(co2, coords[mf->v2]);
-				copy_v3_v3(co3, coords[mf->v3]);
-
 				/* get the untransformed face normal */
-				if(mf->v4) {
-					copy_v3_v3(co4, coords[mf->v4]);
-					normal_quad_v3(face_no, co1, co2, co3, co4);
-				} else { 
-					normal_tri_v3(face_no, co1, co2, co3);
-				}
+				BKE_mesh_calc_poly_normal_coords(mp, mloop + mp->loopstart, (const float (*)[3])coords, face_no);
 
 				/* find the projector which the face points at most directly
-				* (projector normal with largest dot product is best)
-				*/
+				 * (projector normal with largest dot product is best)
+				 */
 				best_dot = dot_v3v3(projectors[0].normal, face_no);
 				best_projector = &projectors[0];
 
-				for(j = 1; j < num_projectors; ++j) {
+				for (j = 1; j < num_projectors; ++j) {
 					float tmp_dot = dot_v3v3(projectors[j].normal,
-							face_no);
-					if(tmp_dot > best_dot) {
+					                         face_no);
+					if (tmp_dot > best_dot) {
 						best_dot = tmp_dot;
 						best_projector = &projectors[j];
 					}
 				}
 
-				if(best_projector->uci) {
-					project_from_camera(tface->uv[0], coords[mf->v1], best_projector->uci);
-					project_from_camera(tface->uv[1], coords[mf->v2], best_projector->uci);
-					project_from_camera(tface->uv[2], coords[mf->v3], best_projector->uci);
-					if(mf->v3)
-						project_from_camera(tface->uv[3], coords[mf->v4], best_projector->uci);
+				if (best_projector->uci) {
+					unsigned int fidx = mp->totloop - 1;
+					do {
+						unsigned int lidx = mp->loopstart + fidx;
+						unsigned int vidx = mloop[lidx].v;
+						BLI_uvproject_from_camera(mloop_uv[lidx].uv, coords[vidx], best_projector->uci);
+					} while (fidx--);
 				}
 				else {
-					mul_project_m4_v4(best_projector->projmat, co1);
-					mul_project_m4_v4(best_projector->projmat, co2);
-					mul_project_m4_v4(best_projector->projmat, co3);
-					if(mf->v4)
-						mul_project_m4_v4(best_projector->projmat, co4);
-
-					/* apply transformed coords as UVs */
-					tface->uv[0][0] = co1[0];
-					tface->uv[0][1] = co1[1];
-					tface->uv[1][0] = co2[0];
-					tface->uv[1][1] = co2[1];
-					tface->uv[2][0] = co3[0];
-					tface->uv[2][1] = co3[1];
-					if(mf->v4) {
-						tface->uv[3][0] = co4[0];
-						tface->uv[3][1] = co4[1];
-					}
+					unsigned int fidx = mp->totloop - 1;
+					do {
+						unsigned int lidx = mp->loopstart + fidx;
+						unsigned int vidx = mloop[lidx].v;
+						mul_v2_project_m4_v3(mloop_uv[lidx].uv, best_projector->projmat, coords[vidx]);
+					} while (fidx--);
 				}
 			}
 		}
 
-		if(override_image) {
-			tface->mode = TF_TEX;
-			tface->tpage = image;
+		if (override_image && mtexpoly) {
+			mt->tpage = image;
 		}
 	}
 
 	MEM_freeN(coords);
 	
-	if(free_uci) {
+	if (free_uci) {
 		int j;
-		for(j = 0; j < num_projectors; ++j) {
-			if(projectors[j].uci) {
+		for (j = 0; j < num_projectors; ++j) {
+			if (projectors[j].uci) {
 				MEM_freeN(projectors[j].uci);
 			}
 		}
 	}
+
+	/* Mark tessellated CD layers as dirty. */
+	dm->dirty |= DM_DIRTY_TESS_CDLAYERS;
+
 	return dm;
 }
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
-						DerivedMesh *derivedData,
-						int UNUSED(useRenderParams),
-						int UNUSED(isFinalCalc))
+                                  DerivedMesh *derivedData,
+                                  ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *result;
-	UVProjectModifierData *umd = (UVProjectModifierData*) md;
+	UVProjectModifierData *umd = (UVProjectModifierData *) md;
 
 	result = uvprojectModifier_do(umd, ob, derivedData);
 
 	return result;
-}
-
-static DerivedMesh *applyModifierEM(ModifierData *md, Object *ob,
-						struct EditMesh *UNUSED(editData),
-						DerivedMesh *derivedData)
-{
-	return applyModifier(md, ob, derivedData, 0, 1);
 }
 
 
@@ -410,11 +366,11 @@ ModifierTypeInfo modifierType_UVProject = {
 	/* name */              "UVProject",
 	/* structName */        "UVProjectModifierData",
 	/* structSize */        sizeof(UVProjectModifierData),
-	/* type */              eModifierTypeType_Nonconstructive,
-	/* flags */             eModifierTypeFlag_AcceptsMesh
-							| eModifierTypeFlag_SupportsMapping
-							| eModifierTypeFlag_SupportsEditmode
-							| eModifierTypeFlag_EnableInEditmode,
+	/* type */              eModifierTypeType_NonGeometrical,
+	/* flags */             eModifierTypeFlag_AcceptsMesh |
+	                        eModifierTypeFlag_SupportsMapping |
+	                        eModifierTypeFlag_SupportsEditmode |
+	                        eModifierTypeFlag_EnableInEditmode,
 
 	/* copyData */          copyData,
 	/* deformVerts */       NULL,
@@ -422,7 +378,7 @@ ModifierTypeInfo modifierType_UVProject = {
 	/* deformVertsEM */     NULL,
 	/* deformMatricesEM */  NULL,
 	/* applyModifier */     applyModifier,
-	/* applyModifierEM */   applyModifierEM,
+	/* applyModifierEM */   NULL,
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          NULL,
@@ -432,4 +388,5 @@ ModifierTypeInfo modifierType_UVProject = {
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,
 	/* foreachIDLink */     foreachIDLink,
+	/* foreachTexLink */    NULL,
 };

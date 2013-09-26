@@ -1,5 +1,4 @@
 /*
- * $Id: GPC_RawLoadDotBlendArray.cpp 35170 2011-02-25 13:35:11Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -39,7 +38,8 @@ void GetRawLoadingAnimation(unsigned char **data, int *dataSize)
 {
 	// create an array that will automatically be deleted when)
 	// we're outta this scope
-	static unsigned char load_blend[]= { 66,  76,  69,  78,  68,  70, 
+	static unsigned char load_blend[] = {
+		 66,  76,  69,  78,  68,  70,
 		 73,  10,   0,   2,  21,   0,   0,   2,  22,   0,   0,   0,   0,   0,   0, 
 		  2,  30,  49,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
 		 65,  25, 242,   2,   0,   2,  29, 253,   0,   0,   0,   4, 160, 249, 227, 
@@ -9300,7 +9300,7 @@ void GetRawLoadingAnimation(unsigned char **data, int *dataSize)
 	*data = new unsigned char[138801];
 	// and copy it. Now we are certain that the calling function
 	// can control the memory location
-	for(int i = 0; i < 138801 /* tmp array size */; i++)
+	for (int i = 0; i < 138801 /* tmp array size */; i++)
 	{
 		(*data)[i] = load_blend[i];
 	}

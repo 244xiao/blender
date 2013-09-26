@@ -1,7 +1,6 @@
 /*
  * SCA_2DFilterActuator.h
  *
- * $Id: SCA_2DFilterActuator.h 35063 2011-02-22 10:33:14Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -29,8 +28,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_2DFILETRACTUATOR_H__
-#define __SCA_2DFILETRACTUATOR_H__
+#ifndef __SCA_2DFILTERACTUATOR_H__
+#define __SCA_2DFILTERACTUATOR_H__
 
 #include "RAS_IRasterizer.h"
 #include "SCA_IActuator.h"
@@ -38,11 +37,10 @@
 
 class SCA_2DFilterActuator : public SCA_IActuator
 {
-    Py_Header;
+	Py_Header
 
 private:
 	vector<STR_String> m_propNames;
-	void * m_gameObj;
 	RAS_2DFilterManager::RAS_2DFILTER_MODE m_type;
 	short m_disableMotionBlur;
 	float m_float_arg;
@@ -53,19 +51,21 @@ private:
 
 public:
 
-    SCA_2DFilterActuator(
-        class SCA_IObject* gameobj,
-        RAS_2DFilterManager::RAS_2DFILTER_MODE type,
-		short flag,
-		float float_arg,
-		int int_arg,
-		RAS_IRasterizer* rasterizer,
-		SCA_IScene* scene);
+	SCA_2DFilterActuator(
+	        class SCA_IObject* gameobj,
+	        RAS_2DFilterManager::RAS_2DFILTER_MODE type,
+	        short flag,
+	        float float_arg,
+	        int int_arg,
+	        RAS_IRasterizer* rasterizer,
+	        SCA_IScene* scene);
 
 	void	SetShaderText(const char *text);
-    virtual ~SCA_2DFilterActuator();
-    virtual bool Update();
+	virtual ~SCA_2DFilterActuator();
+	virtual bool Update();
 
-    virtual CValue* GetReplica();
+	void	SetScene(SCA_IScene *scene);
+
+	virtual CValue* GetReplica();
 };
 #endif

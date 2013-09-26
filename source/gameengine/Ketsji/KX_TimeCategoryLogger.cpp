@@ -1,6 +1,4 @@
 /*
- * $Id: KX_TimeCategoryLogger.cpp 35171 2011-02-25 13:35:59Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -122,7 +120,7 @@ double KX_TimeCategoryLogger::GetAverage(TimeCategory tc)
 
 double KX_TimeCategoryLogger::GetAverage(void)
 {
-	double time = 0.;
+	double time = 0.0;
 
 	KX_TimeLoggerMap::iterator it;
 	for (it = m_loggers.begin(); it != m_loggers.end(); it++) {

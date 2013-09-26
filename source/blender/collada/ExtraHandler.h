@@ -1,6 +1,4 @@
 /*
- * $Id: ExtraHandler.h 35777 2011-03-25 11:07:57Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,17 +30,20 @@
 #include <algorithm> // sort()
 
 #include "COLLADASaxFWLIExtraDataCallbackHandler.h"
+#include "COLLADASaxFWLFilePartLoader.h"
+#include "COLLADASWInstanceController.h"
 
 #include "DocumentImporter.h"
+#include "AnimationImporter.h"
 
-/** \brief Handler class for <extra> data, through which different
+/** \brief Handler class for \<extra\> data, through which different
  * profiles can be handled
  */
 class ExtraHandler : public COLLADASaxFWL::IExtraDataCallbackHandler
 {
 public:
 	/** Constructor. */
-	ExtraHandler(DocumentImporter *dimp);
+	ExtraHandler(DocumentImporter *dimp, AnimationImporter *aimp);
 
 	/** Destructor. */
 	virtual ~ExtraHandler();
@@ -60,15 +61,23 @@ public:
 	bool parseElement ( 
 		const char* profileName, 
 		const unsigned long& elementHash, 
-		const COLLADAFW::UniqueId& uniqueId );
+		const COLLADAFW::UniqueId& uniqueId,
+		COLLADAFW::Object* object);
+
+	/** For backwards compatibility with older OpenCollada, new version added object parameter */
+	bool parseElement ( 
+		const char* profileName, 
+		const unsigned long& elementHash, 
+		const COLLADAFW::UniqueId& uniqueId);
 private:
 	/** Disable default copy constructor. */
-	ExtraHandler( const ExtraHandler& pre );
+	ExtraHandler(const ExtraHandler& pre);
 	/** Disable default assignment operator. */
 	const ExtraHandler& operator= ( const ExtraHandler& pre );
 	
 	/** Handle to DocumentImporter for interface to extra element data saving. */
 	DocumentImporter* dimp;
+	AnimationImporter* aimp;
 	/** Holds Id of element for which <extra> XML elements are handled. */
 	COLLADAFW::UniqueId currentUid;
 	ExtraTags* currentExtraTags;

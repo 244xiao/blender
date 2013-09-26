@@ -1,6 +1,4 @@
 /*
- * $Id: KX_MouseFocusSensor.cpp 35171 2011-02-25 13:35:59Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,11 +30,10 @@
  *  \ingroup ketsji
  */
 
-
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-// This warning tells us about truncation of __long__ stl-generated names.
-// It can occasionally cause DevStudio to have internal compiler warnings.
-#pragma warning( disable : 4786 )     
+#ifdef _MSC_VER
+  /* This warning tells us about truncation of __long__ stl-generated names.
+   * It can occasionally cause DevStudio to have internal compiler warnings. */
+#  pragma warning(disable:4786)
 #endif
 
 #include "MT_Point3.h"
@@ -62,14 +59,14 @@
 /* ------------------------------------------------------------------------- */
 
 KX_MouseFocusSensor::KX_MouseFocusSensor(SCA_MouseManager* eventmgr, 
-										 int startx,
-										 int starty,
-										 short int mousemode,
-										 int focusmode,
-										 bool bTouchPulse,
-										 KX_Scene* kxscene,
-										 KX_KetsjiEngine *kxengine,
-										 SCA_IObject* gameobj)
+                                         int startx,
+                                         int starty,
+                                         short int mousemode,
+                                         int focusmode,
+                                         bool bTouchPulse,
+                                         KX_Scene* kxscene,
+                                         KX_KetsjiEngine *kxengine,
+                                         SCA_IObject* gameobj)
 	: SCA_MouseSensor(eventmgr, startx, starty, mousemode, gameobj),
 	  m_focusmode(focusmode),
 	  m_bTouchPulse(bTouchPulse),
@@ -102,7 +99,7 @@ bool KX_MouseFocusSensor::Evaluate()
 //  	cout << "evaluate focus mouse sensor "<<endl;
 	m_reset = false;
 	if (m_focusmode) {
-		/* Focus behaviour required. Test mouse-on. The rest is
+		/* Focus behavior required. Test mouse-on. The rest is
 		 * equivalent to handling a key. */
 		obHasFocus = ParentObjectHasFocus();
 		
@@ -116,19 +113,19 @@ bool KX_MouseFocusSensor::Evaluate()
 			if (!m_mouse_over_in_previous_frame) {
 				result = true;
 			}
-			else if(m_bTouchPulse && (m_hitObject != m_hitObject_Last)) {
+			else if (m_bTouchPulse && (m_hitObject != m_hitObject_Last)) {
 				result = true;
 			}
 		} 
 		if (reset) {
-			// force an event 
+			// force an event
 			result = true;
 		}
 	} else {
-		/* No focus behaviour required: revert to the basic mode. This
-         * mode is never used, because the converter never makes this
-         * sensor for a mouse-key event. It is here for
-         * completeness. */
+		/* No focus behavior required: revert to the basic mode. This
+		 * mode is never used, because the converter never makes this
+		 * sensor for a mouse-key event. It is here for
+		 * completeness. */
 		result = SCA_MouseSensor::Evaluate();
 		m_positive_event = (m_val!=0);
 	}
@@ -139,16 +136,16 @@ bool KX_MouseFocusSensor::Evaluate()
 	return result;
 }
 
-bool KX_MouseFocusSensor::RayHit(KX_ClientObjectInfo* client_info, KX_RayCast* result, void * const data)
+bool KX_MouseFocusSensor::RayHit(KX_ClientObjectInfo *client_info, KX_RayCast *result, void * const data)
 {
 	KX_GameObject* hitKXObj = client_info->m_gameobject;
 	
 	/* Is this me? In the ray test, there are a lot of extra checks
-	* for aliasing artefacts from self-hits. That doesn't happen
-	* here, so a simple test suffices. Or does the camera also get
-	* self-hits? (No, and the raysensor shouldn't do it either, since
-	* self-hits are excluded by setting the correct ignore-object.)
-	* Hitspots now become valid. */
+	 * for aliasing artifacts from self-hits. That doesn't happen
+	 * here, so a simple test suffices. Or does the camera also get
+	 * self-hits? (No, and the raysensor shouldn't do it either, since
+	 * self-hits are excluded by setting the correct ignore-object.)
+	 * Hitspots now become valid. */
 	KX_GameObject* thisObj = (KX_GameObject*) GetParent();
 	if ((m_focusmode == 2) || hitKXObj == thisObj)
 	{
@@ -240,29 +237,23 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 	
 	
 	/*	build the from and to point in normalized device coordinates 
-	 *	Looks like normailized device coordinates are [-1,1] in x [-1,1] in y
-	 *	[0,-1] in z 
-	 *	
+	 *	Normalized device coordinates are [-1,1] in x, y, z
+	 *
 	 *	The actual z coordinates used don't have to be exact just infront and 
 	 *	behind of the near and far clip planes.
 	 */ 
 	frompoint.setValue(	(2 * (m_x-x_lb) / width) - 1.0,
 						1.0 - (2 * (m_y_inv - y_lb) / height),
-						/*cam->GetCameraData()->m_perspective ? 0.0:cdata->m_clipstart,*/ /* real clipstart is scaled in ortho for some reason, zero is ok */
-						0.0, /* nearclip, see above comments */
+						-1.0,
 						1.0 );
 	
 	topoint.setValue(	(2 * (m_x-x_lb) / width) - 1.0,
 						1.0 - (2 * (m_y_inv-y_lb) / height),
-						cam->GetCameraData()->m_perspective ? 1.0:cam->GetCameraData()->m_clipend, /* farclip, see above comments */
+						1.0,
 						1.0 );
-
-	/* camera to world  */
-	MT_Transform wcs_camcs_tranform = cam->GetWorldToCamera();
-	MT_Transform cams_wcs_transform;
-	cams_wcs_transform.invert(wcs_camcs_tranform);
 	
-	MT_Matrix4x4 camcs_wcs_matrix = MT_Matrix4x4(cams_wcs_transform);
+	/* camera to world  */
+	MT_Matrix4x4 camcs_wcs_matrix = MT_Matrix4x4(cam->GetCameraToWorld());
 
 	/* badly defined, the first time round.... I wonder why... I might
 	 * want to guard against floating point errors here.*/
@@ -272,6 +263,8 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 	/* shoot-points: clip to cam to wcs . win to clip was already done.*/
 	frompoint = clip_camcs_matrix * frompoint;
 	topoint   = clip_camcs_matrix * topoint;
+	/* clipstart = - (frompoint[2] / frompoint[3])
+	 * clipend = - (topoint[2] / topoint[3]) */
 	frompoint = camcs_wcs_matrix * frompoint;
 	topoint   = camcs_wcs_matrix * topoint;
 	
@@ -309,15 +302,14 @@ bool KX_MouseFocusSensor::ParentObjectHasFocus()
 	
 	KX_Camera *cam= m_kxscene->GetActiveCamera();
 	
-	if(ParentObjectHasFocusCamera(cam))
+	if (ParentObjectHasFocusCamera(cam))
 		return true;
 
 	list<class KX_Camera*>* cameras = m_kxscene->GetCameras();
 	list<KX_Camera*>::iterator it = cameras->begin();
 	
-	while(it != cameras->end())
-	{
-		if(((*it) != cam) && (*it)->GetViewport())
+	while (it != cameras->end()) {
+		if (((*it) != cam) && (*it)->GetViewport())
 			if (ParentObjectHasFocusCamera(*it))
 				return true;
 		
@@ -398,52 +390,52 @@ PyAttributeDef KX_MouseFocusSensor::Attributes[] = {
 };
 
 /* Attributes */
-PyObject* KX_MouseFocusSensor::pyattr_get_ray_source(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MouseFocusSensor::pyattr_get_ray_source(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_MouseFocusSensor* self= static_cast<KX_MouseFocusSensor*>(self_v);
+	KX_MouseFocusSensor* self = static_cast<KX_MouseFocusSensor*>(self_v);
 	return PyObjectFrom(self->RaySource());
 }
 
-PyObject* KX_MouseFocusSensor::pyattr_get_ray_target(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MouseFocusSensor::pyattr_get_ray_target(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_MouseFocusSensor* self= static_cast<KX_MouseFocusSensor*>(self_v);
+	KX_MouseFocusSensor* self = static_cast<KX_MouseFocusSensor*>(self_v);
 	return PyObjectFrom(self->RayTarget());
 }
 
-PyObject* KX_MouseFocusSensor::pyattr_get_ray_direction(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MouseFocusSensor::pyattr_get_ray_direction(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_MouseFocusSensor* self= static_cast<KX_MouseFocusSensor*>(self_v);
+	KX_MouseFocusSensor* self = static_cast<KX_MouseFocusSensor*>(self_v);
 	MT_Vector3 dir = self->RayTarget() - self->RaySource();
-	if(MT_fuzzyZero(dir))	dir.setValue(0,0,0);
+	if (MT_fuzzyZero(dir))	dir.setValue(0,0,0);
 	else					dir.normalize();
 	return PyObjectFrom(dir);
 }
 
-PyObject* KX_MouseFocusSensor::pyattr_get_hit_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MouseFocusSensor::pyattr_get_hit_object(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_MouseFocusSensor* self= static_cast<KX_MouseFocusSensor*>(self_v);
+	KX_MouseFocusSensor* self = static_cast<KX_MouseFocusSensor*>(self_v);
 	
-	if(self->m_hitObject)
+	if (self->m_hitObject)
 		return self->m_hitObject->GetProxy();
 	
 	Py_RETURN_NONE;
 }
 
-PyObject* KX_MouseFocusSensor::pyattr_get_hit_position(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MouseFocusSensor::pyattr_get_hit_position(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_MouseFocusSensor* self= static_cast<KX_MouseFocusSensor*>(self_v);
+	KX_MouseFocusSensor* self = static_cast<KX_MouseFocusSensor*>(self_v);
 	return PyObjectFrom(self->HitPosition());
 }
 
-PyObject* KX_MouseFocusSensor::pyattr_get_hit_normal(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MouseFocusSensor::pyattr_get_hit_normal(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_MouseFocusSensor* self= static_cast<KX_MouseFocusSensor*>(self_v);
+	KX_MouseFocusSensor* self = static_cast<KX_MouseFocusSensor*>(self_v);
 	return PyObjectFrom(self->HitNormal());
 }
 
-PyObject* KX_MouseFocusSensor::pyattr_get_hit_uv(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_MouseFocusSensor::pyattr_get_hit_uv(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_MouseFocusSensor* self= static_cast<KX_MouseFocusSensor*>(self_v);
+	KX_MouseFocusSensor* self = static_cast<KX_MouseFocusSensor*>(self_v);
 	return PyObjectFrom(self->HitUV());
 }
 

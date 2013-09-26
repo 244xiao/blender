@@ -1,7 +1,6 @@
 /*
  * Abstract class for sensor logic bricks
  *
- * $Id: SCA_ISensor.cpp 35169 2011-02-25 13:32:11Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -87,7 +86,8 @@ void SCA_ISensor::ProcessReplica()
 	m_linkedcontrollers.clear();
 }
 
-bool SCA_ISensor::IsPositiveTrigger() { 
+bool SCA_ISensor::IsPositiveTrigger()
+{
 	bool result = false;
 	
 	if (m_eventval) {
@@ -101,47 +101,57 @@ bool SCA_ISensor::IsPositiveTrigger() {
 }
 
 void SCA_ISensor::SetPulseMode(bool posmode, 
-							   bool negmode,
-							   int freq) {
+                               bool negmode,
+                               int freq)
+{
 	m_pos_pulsemode = posmode;
 	m_neg_pulsemode = negmode;
 	m_pulse_frequency = freq;
 }
 
-void SCA_ISensor::SetInvert(bool inv) {
+void SCA_ISensor::SetInvert(bool inv)
+{
 	m_invert = inv;
 }
 
-void SCA_ISensor::SetLevel(bool lvl) {
+void SCA_ISensor::SetLevel(bool lvl)
+{
 	m_level = lvl;
 }
 
-void SCA_ISensor::SetTap(bool tap) {
+void SCA_ISensor::SetTap(bool tap)
+{
 	m_tap = tap;
 }
 
 
-double SCA_ISensor::GetNumber() {
+double SCA_ISensor::GetNumber()
+{
 	return GetState();
 }
 
-void SCA_ISensor::Suspend() {
+void SCA_ISensor::Suspend()
+{
 	m_suspended = true;
 }
 
-bool SCA_ISensor::IsSuspended() {
+bool SCA_ISensor::IsSuspended()
+{
 	return m_suspended;
 }
 
-void SCA_ISensor::Resume() {
+void SCA_ISensor::Resume()
+{
 	m_suspended = false;
 }
 
-void SCA_ISensor::Init() {
+void SCA_ISensor::Init()
+{
 	printf("Sensor %s has no init function, please report this bug to Blender.org\n", m_name.Ptr());
 }
 
-void SCA_ISensor::DecLink() {
+void SCA_ISensor::DecLink()
+{
 	m_links--;
 	if (m_links < 0) 
 	{
@@ -165,7 +175,7 @@ void SCA_ISensor::RegisterToManager()
 
 void SCA_ISensor::Replace_EventManager(class SCA_LogicManager* logicmgr)
 {
-	if(m_links) { /* true if we're used currently */
+	if (m_links) { /* true if we're used currently */
 
 		m_eventmgr->RemoveSensor(this);
 		m_eventmgr= logicmgr->FindEventManager(m_eventmgr->GetType());
@@ -216,8 +226,8 @@ void SCA_ISensor::UnregisterToManager()
 
 void SCA_ISensor::ActivateControllers(class SCA_LogicManager* logicmgr)
 {
-    for(vector<SCA_IController*>::const_iterator c= m_linkedcontrollers.begin();
-		c!=m_linkedcontrollers.end();++c)
+	for (vector<SCA_IController*>::const_iterator c= m_linkedcontrollers.begin();
+	    c!=m_linkedcontrollers.end();++c)
 	{
 		SCA_IController* contr = *c;
 		if (contr->IsActive())
@@ -238,7 +248,7 @@ void SCA_ISensor::Activate(class SCA_LogicManager* logicmgr)
 		if (result) {
 			// the sensor triggered this frame
 			if (m_state || !m_tap) {
-				ActivateControllers(logicmgr);	
+				ActivateControllers(logicmgr);
 				// reset these counters so that pulse are synchronized with transition
 				m_pos_ticks = 0;
 				m_neg_ticks = 0;
@@ -248,7 +258,7 @@ void SCA_ISensor::Activate(class SCA_LogicManager* logicmgr)
 			}
 		} else
 		{
-			/* First, the pulsing behaviour, if pulse mode is
+			/* First, the pulsing behavior, if pulse mode is
 			 * active. It seems something goes wrong if pulse mode is
 			 * not set :( */
 			if (m_pos_pulsemode) {
@@ -296,7 +306,7 @@ void SCA_ISensor::Activate(class SCA_LogicManager* logicmgr)
 		{
 			// This level sensor is connected to at least one controller that was just made 
 			// active but it did not generate an event yet, do it now to those controllers only 
-			for(vector<SCA_IController*>::const_iterator c= m_linkedcontrollers.begin();
+			for (vector<SCA_IController*>::const_iterator c= m_linkedcontrollers.begin();
 				c!=m_linkedcontrollers.end();++c)
 			{
 				SCA_IController* contr = *c;
@@ -370,24 +380,24 @@ PyAttributeDef SCA_ISensor::Attributes[] = {
 };
 
 
-PyObject* SCA_ISensor::pyattr_get_triggered(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ISensor::pyattr_get_triggered(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_ISensor* self= static_cast<SCA_ISensor*>(self_v);
-	int retval = 0;
+	SCA_ISensor* self = static_cast<SCA_ISensor*>(self_v);
+	bool retval = false;
 	if (SCA_PythonController::m_sCurrentController)
 		retval = SCA_PythonController::m_sCurrentController->IsTriggered(self);
-	return PyLong_FromSsize_t(retval);
+	return PyBool_FromLong(retval);
 }
 
-PyObject* SCA_ISensor::pyattr_get_positive(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ISensor::pyattr_get_positive(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_ISensor* self= static_cast<SCA_ISensor*>(self_v);
-	return PyLong_FromSsize_t(self->GetState());
+	SCA_ISensor* self = static_cast<SCA_ISensor*>(self_v);
+	return PyBool_FromLong(self->GetState());
 }
 
-PyObject* SCA_ISensor::pyattr_get_status(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ISensor::pyattr_get_status(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_ISensor* self= static_cast<SCA_ISensor*>(self_v);
+	SCA_ISensor* self = static_cast<SCA_ISensor*>(self_v);
 	int status = 0;
 	if (self->GetState()) 
 	{
@@ -404,24 +414,24 @@ PyObject* SCA_ISensor::pyattr_get_status(void *self_v, const KX_PYATTRIBUTE_DEF 
 	{
 		status = 3;
 	}
-	return PyLong_FromSsize_t(status);
+	return PyLong_FromLong(status);
 }
 
-PyObject* SCA_ISensor::pyattr_get_posTicks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ISensor::pyattr_get_posTicks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_ISensor* self= static_cast<SCA_ISensor*>(self_v);
+	SCA_ISensor* self = static_cast<SCA_ISensor*>(self_v);
 	return PyLong_FromLong(self->GetPosTicks());
 }
 
-PyObject* SCA_ISensor::pyattr_get_negTicks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ISensor::pyattr_get_negTicks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_ISensor* self= static_cast<SCA_ISensor*>(self_v);
+	SCA_ISensor* self = static_cast<SCA_ISensor*>(self_v);
 	return PyLong_FromLong(self->GetNegTicks());
 }
 
 int SCA_ISensor::pyattr_check_level(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_ISensor* self= static_cast<SCA_ISensor*>(self_v);
+	SCA_ISensor* self = static_cast<SCA_ISensor*>(self_v);
 	if (self->m_level)
 		self->m_tap = false;
 	return 0;
@@ -429,7 +439,7 @@ int SCA_ISensor::pyattr_check_level(void *self_v, const KX_PYATTRIBUTE_DEF *attr
 
 int SCA_ISensor::pyattr_check_tap(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_ISensor* self= static_cast<SCA_ISensor*>(self_v);
+	SCA_ISensor* self = static_cast<SCA_ISensor*>(self_v);
 	if (self->m_tap)
 		self->m_level = false;
 	return 0;

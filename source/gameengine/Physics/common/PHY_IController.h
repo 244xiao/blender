@@ -1,6 +1,4 @@
 /*
- * $Id: PHY_IController.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup phys
  */
 
-#ifndef PHY_ICONTROLLER_H
-#define PHY_ICONTROLLER_H
+#ifndef __PHY_ICONTROLLER_H__
+#define __PHY_ICONTROLLER_H__
 
 #include "PHY_DynamicTypes.h"
 
@@ -43,14 +41,14 @@ class PHY_IPhysicsEnvironment;
 #endif
 
 /**
-	PHY_IController is the abstract simplified Interface to objects 
-	controlled by the physics engine. This includes the physics objects
-	and the graphics object for view frustrum and occlusion culling.
-*/
-class PHY_IController	
+ * PHY_IController is the abstract simplified Interface to objects
+ * controlled by the physics engine. This includes the physics objects
+ * and the graphics object for view frustrum and occlusion culling.
+ */
+class PHY_IController
 {
 	public:
-		virtual ~PHY_IController();
+		virtual ~PHY_IController(){};
 		// clientinfo for raycasts for example
 		virtual	void*	getNewClientInfo()=0;
 		virtual	void	setNewClientInfo(void* clientinfo)=0;
@@ -58,11 +56,8 @@ class PHY_IController
 
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:PHY_IController"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PHY_IController")
 #endif
 };
 
-#endif //PHY_ICONTROLLER_H
-
+#endif  /* __PHY_ICONTROLLER_H__ */

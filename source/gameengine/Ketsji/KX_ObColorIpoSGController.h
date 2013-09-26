@@ -1,6 +1,4 @@
 /*
- * $Id: KX_ObColorIpoSGController.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef KX_OBCOLORIPOSGCONTROLLER_H
-#define KX_OBCOLORIPOSGCONTROLLER_H
+#ifndef __KX_OBCOLORIPOSGCONTROLLER_H__
+#define __KX_OBCOLORIPOSGCONTROLLER_H__
 
 #include "SG_Controller.h"
 #include "SG_Spatial.h"
@@ -66,7 +64,7 @@ public:
 	SetOption(
 		int option,
 		int value
-	){
+	) {
 		// intentionally empty
 	};
 
@@ -75,11 +73,8 @@ public:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_ObColorIpoSGController"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_ObColorIpoSGController")
 #endif
 };
 
-#endif // KX_OBCOLORIPOSGCONTROLLER_H
-
+#endif  /* __KX_OBCOLORIPOSGCONTROLLER_H__ */

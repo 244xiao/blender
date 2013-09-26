@@ -1,6 +1,4 @@
 /*
- * $Id: rna_packedfile.c 35238 2011-02-27 20:20:01Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,21 +24,23 @@
  *  \ingroup RNA
  */
 
-
 #include <stdlib.h>
+
+#include "BLI_utildefines.h"
+
+#include "DNA_packedFile_types.h"
 
 #include "RNA_define.h"
 
 #include "rna_internal.h"
-
-#include "DNA_packedFile_types.h"
 
 EnumPropertyItem unpack_method_items[] = {
 	{PF_USE_LOCAL, "USE_LOCAL", 0, "Use Local File", ""},
 	{PF_WRITE_LOCAL, "WRITE_LOCAL", 0, "Write Local File (overwrite existing)", ""},
 	{PF_USE_ORIGINAL, "USE_ORIGINAL", 0, "Use Original File", ""},
 	{PF_WRITE_ORIGINAL, "WRITE_ORIGINAL", 0, "Write Original File (overwrite existing)", ""},
-	{0, NULL, 0, NULL, NULL}};
+	{0, NULL, 0, NULL, NULL}
+};
 
 #ifdef RNA_RUNTIME
 #else
@@ -50,10 +50,10 @@ void RNA_def_packedfile(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	srna= RNA_def_struct(brna, "PackedFile", NULL);
+	srna = RNA_def_struct(brna, "PackedFile", NULL);
 	RNA_def_struct_ui_text(srna, "Packed File", "External file packed into the .blend file");
 
-	prop= RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Size", "Size of packed file in bytes");
 

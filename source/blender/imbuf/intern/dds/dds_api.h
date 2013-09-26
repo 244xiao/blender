@@ -1,6 +1,4 @@
 /*
- * $Id: dds_api.h 35239 2011-02-27 20:23:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributors: Amorilia (amorilia@gamebox.net)
+ * Contributors: Amorilia (amorilia@users.sourceforge.net)
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -27,16 +25,18 @@
  */
 
 
-#ifndef _DDS_API_H
-#define _DDS_API_H
+#ifndef __DDS_API_H__
+#define __DDS_API_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include "../../IMB_imbuf.h"
+
 int  	      imb_save_dds(struct ImBuf *ibuf, const char *name, int flags);
 int           imb_is_a_dds(unsigned char *mem); /* use only first 32 bytes of mem */
-struct ImBuf *imb_load_dds(unsigned char *mem, size_t size, int flags);
+struct ImBuf *imb_load_dds(unsigned char *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE]);
 
 #ifdef __cplusplus
 }

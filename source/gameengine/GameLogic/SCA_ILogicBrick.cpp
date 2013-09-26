@@ -1,5 +1,4 @@
 /*
- * $Id: SCA_ILogicBrick.cpp 35169 2011-02-25 13:32:11Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -78,7 +77,7 @@ void SCA_ILogicBrick::ReParent(SCA_IObject* parent)
 	m_gameobj = parent;
 }
 
-void SCA_ILogicBrick::Relink(GEN_Map<GEN_HashedPtr, void*> *obj_map)
+void SCA_ILogicBrick::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
 {
 	// nothing to do
 }
@@ -203,7 +202,7 @@ PyTypeObject SCA_ILogicBrick::Type = {
 };
 
 PyMethodDef SCA_ILogicBrick::Methods[] = {
-  {NULL,NULL} //Sentinel
+	{NULL,NULL} //Sentinel
 };
 
 PyAttributeDef SCA_ILogicBrick::Attributes[] = {
@@ -232,9 +231,9 @@ int SCA_ILogicBrick::CheckProperty(void *self, const PyAttributeDef *attrdef)
 }
 
 /*Attribute functions */
-PyObject* SCA_ILogicBrick::pyattr_get_owner(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_ILogicBrick::pyattr_get_owner(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	SCA_ILogicBrick* self= static_cast<SCA_ILogicBrick*>(self_v);
+	SCA_ILogicBrick* self = static_cast<SCA_ILogicBrick*>(self_v);
 	CValue* parent = self->GetParent();
 	
 	if (parent)
@@ -255,9 +254,9 @@ bool SCA_ILogicBrick::PyArgToBool(int boolArg)
 	}
 }
 
-PyObject* SCA_ILogicBrick::BoolToPyArg(bool boolarg)
+PyObject *SCA_ILogicBrick::BoolToPyArg(bool boolarg)
 {
-	return PyLong_FromSsize_t(boolarg? KX_TRUE: KX_FALSE);	
+	return PyLong_FromLong(boolarg ? KX_TRUE: KX_FALSE);
 }
 
 #endif // WITH_PYTHON

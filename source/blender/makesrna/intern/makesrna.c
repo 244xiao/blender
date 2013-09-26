@@ -1,6 +1,4 @@
 /*
- * $Id: makesrna.c 36058 2011-04-08 13:32:56Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +24,6 @@
  *  \ingroup RNA
  */
 
-
 #include <float.h>
 #include <limits.h>
 #include <stdio.h>
@@ -36,65 +33,85 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_utildefines.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_types.h"
 
 #include "rna_internal.h"
 
-#define RNA_VERSION_DATE "$Id: makesrna.c 36058 2011-04-08 13:32:56Z campbellbarton $"
-
 #ifdef _WIN32
-#ifndef snprintf
-#define snprintf _snprintf
-#endif
+#  ifndef snprintf
+#    define snprintf _snprintf
+#  endif
 #endif
 
 /* Replace if different */
 #define TMP_EXT ".tmp"
-
 
 /* copied from BLI_file_older */
 #include <sys/stat.h>
 static int file_older(const char *file1, const char *file2)
 {
 	struct stat st1, st2;
-	// printf("compare: %s %s\n", file1, file2);
+	/* printf("compare: %s %s\n", file1, file2); */
 
-	if(stat(file1, &st1)) return 0;
-	if(stat(file2, &st2)) return 0;
+	if (stat(file1, &st1)) return 0;
+	if (stat(file2, &st2)) return 0;
 
 	return (st1.st_mtime < st2.st_mtime);
 }
-const char *makesrna_path= NULL;
+static const char *makesrna_path = NULL;
+
+/* forward declarations */
+static void rna_generate_static_parameter_prototypes(FILE *f, StructRNA *srna, FunctionDefRNA *dfunc,
+                                                     const char *name_override, int close_prototype);
+
+/* helpers */
+#define WRITE_COMMA \
+	{ \
+		if (!first) \
+			fprintf(f, ", "); \
+		first = 0; \
+	} (void)0
+
+#define WRITE_PARAM(param) \
+	{ \
+		WRITE_COMMA; \
+		fprintf(f, param); \
+	} (void)0
 
 static int replace_if_different(char *tmpfile, const char *dep_files[])
 {
-	// return 0; // use for testing had edited rna
+	/* return 0;  *//* use for testing had edited rna */
 
-#define REN_IF_DIFF \
-	{ \
-		FILE *file_test= fopen(orgfile, "rb"); \
-		if(file_test) { \
-			fclose(file_test); \
-			if(fp_org) fclose(fp_org); \
-			if(fp_new) fclose(fp_new); \
-			if(remove(orgfile) != 0) { \
-				fprintf(stderr, "%s:%d, Remove Error (%s): \"%s\"\n", __FILE__, __LINE__, strerror(errno), orgfile); \
-				return -1; \
-			} \
-		} \
-	} \
-	if(rename(tmpfile, orgfile) != 0) { \
-		fprintf(stderr, "%s:%d, Rename Error (%s): \"%s\" -> \"%s\"\n", __FILE__, __LINE__, strerror(errno), tmpfile, orgfile); \
-		return -1; \
-	} \
-	remove(tmpfile); \
-	return 1; \
+#define REN_IF_DIFF                                                           \
+	{                                                                         \
+		FILE *file_test = fopen(orgfile, "rb");                               \
+		if (file_test) {                                                      \
+			fclose(file_test);                                                \
+			if (fp_org) fclose(fp_org);                                       \
+			if (fp_new) fclose(fp_new);                                       \
+			if (remove(orgfile) != 0) {                                       \
+				fprintf(stderr, "%s:%d, Remove Error (%s): \"%s\"\n",         \
+				        __FILE__, __LINE__, strerror(errno), orgfile);        \
+				return -1;                                                    \
+			}                                                                 \
+		}                                                                     \
+	}                                                                         \
+	if (rename(tmpfile, orgfile) != 0) {                                      \
+		fprintf(stderr, "%s:%d, Rename Error (%s): \"%s\" -> \"%s\"\n",       \
+		        __FILE__, __LINE__, strerror(errno), tmpfile, orgfile);       \
+		return -1;                                                            \
+	}                                                                         \
+	remove(tmpfile);                                                          \
+	return 1                                                                  \
+
 /* end REN_IF_DIFF */
 
 
-	FILE *fp_new= NULL, *fp_org= NULL;
+	FILE *fp_new = NULL, *fp_org = NULL;
 	int len_new, len_org;
 	char *arr_new, *arr_org;
 	int cmp;
@@ -104,40 +121,40 @@ static int replace_if_different(char *tmpfile, const char *dep_files[])
 	strcpy(orgfile, tmpfile);
 	orgfile[strlen(orgfile) - strlen(TMP_EXT)] = '\0'; /* strip '.tmp' */
 
-	fp_org= fopen(orgfile, "rb");
+	fp_org = fopen(orgfile, "rb");
 
-	if(fp_org==NULL) {
+	if (fp_org == NULL) {
 		REN_IF_DIFF;
 	}
 
 
-	/* XXX, trick to work around dependancy problem
+	/* XXX, trick to work around dependency problem
 	 * assumes dep_files is in the same dir as makesrna.c, which is true for now. */
 
-	if(1) {
+	if (1) {
 		/* first check if makesrna.c is newer then generated files
 		 * for development on makesrna.c you may want to disable this */
-		if(file_older(orgfile, __FILE__)) {
+		if (file_older(orgfile, __FILE__)) {
 			REN_IF_DIFF;
 		}
 
-		if(file_older(orgfile, makesrna_path)) {
+		if (file_older(orgfile, makesrna_path)) {
 			REN_IF_DIFF;
 		}
 
 		/* now check if any files we depend on are newer then any generated files */
-		if(dep_files) {
+		if (dep_files) {
 			int pass;
-			for(pass=0; dep_files[pass]; pass++) {
-				char from_path[4096]= __FILE__;
+			for (pass = 0; dep_files[pass]; pass++) {
+				char from_path[4096] = __FILE__;
 				char *p1, *p2;
 
 				/* dir only */
-				p1= strrchr(from_path, '/');
-				p2= strrchr(from_path, '\\');
-				strcpy((p1 > p2 ? p1 : p2)+1, dep_files[pass]);
+				p1 = strrchr(from_path, '/');
+				p2 = strrchr(from_path, '\\');
+				strcpy((p1 > p2 ? p1 : p2) + 1, dep_files[pass]);
 				/* account for build deps, if makesrna.c (this file) is newer */
-				if(file_older(orgfile, from_path)) {
+				if (file_older(orgfile, from_path)) {
 					REN_IF_DIFF;
 				}
 			}
@@ -146,9 +163,9 @@ static int replace_if_different(char *tmpfile, const char *dep_files[])
 	/* XXX end dep trick */
 
 
-	fp_new= fopen(tmpfile, "rb");
+	fp_new = fopen(tmpfile, "rb");
 
-	if(fp_new==NULL) {
+	if (fp_new == NULL) {
 		/* shouldn't happen, just to be safe */
 		fprintf(stderr, "%s:%d, open error: \"%s\"\n", __FILE__, __LINE__, tmpfile);
 		fclose(fp_org);
@@ -159,30 +176,30 @@ static int replace_if_different(char *tmpfile, const char *dep_files[])
 	fseek(fp_org, 0L, SEEK_END); len_org = ftell(fp_org); fseek(fp_org, 0L, SEEK_SET);
 
 
-	if(len_new != len_org) {
+	if (len_new != len_org) {
 		fclose(fp_new);
 		fclose(fp_org);
 		REN_IF_DIFF;
 	}
 
 	/* now compare the files... */
-	arr_new= MEM_mallocN(sizeof(char)*len_new, "rna_cmp_file_new");
-	arr_org= MEM_mallocN(sizeof(char)*len_org, "rna_cmp_file_org");
+	arr_new = MEM_mallocN(sizeof(char) * len_new, "rna_cmp_file_new");
+	arr_org = MEM_mallocN(sizeof(char) * len_org, "rna_cmp_file_org");
 
-	if(fread(arr_new, sizeof(char), len_new, fp_new) != len_new)
+	if (fread(arr_new, sizeof(char), len_new, fp_new) != len_new)
 		fprintf(stderr, "%s:%d, error reading file %s for comparison.\n", __FILE__, __LINE__, tmpfile);
-	if(fread(arr_org, sizeof(char), len_org, fp_org) != len_org)
+	if (fread(arr_org, sizeof(char), len_org, fp_org) != len_org)
 		fprintf(stderr, "%s:%d, error reading file %s for comparison.\n", __FILE__, __LINE__, orgfile);
 
 	fclose(fp_new);
 	fclose(fp_org);
 
-	cmp= memcmp(arr_new, arr_org, len_new);
+	cmp = memcmp(arr_new, arr_org, len_new);
 
 	MEM_freeN(arr_new);
 	MEM_freeN(arr_org);
 
-	if(cmp) {
+	if (cmp) {
 		REN_IF_DIFF;
 	}
 	else {
@@ -193,70 +210,82 @@ static int replace_if_different(char *tmpfile, const char *dep_files[])
 #undef REN_IF_DIFF
 }
 
+/* Helper to solve keyword problems with C/C++ */
 
+static const char *rna_safe_id(const char *id)
+{
+	if (strcmp(id, "default") == 0)
+		return "default_value";
+	else if (strcmp(id, "operator") == 0)
+		return "operator_value";
+	else if (strcmp(id, "new") == 0)
+		return "create";
+
+	return id;
+}
 
 /* Sorting */
 
 static int cmp_struct(const void *a, const void *b)
 {
-	const StructRNA *structa= *(const StructRNA**)a;
-	const StructRNA *structb= *(const StructRNA**)b;
+	const StructRNA *structa = *(const StructRNA **)a;
+	const StructRNA *structb = *(const StructRNA **)b;
 
 	return strcmp(structa->identifier, structb->identifier);
 }
 
 static int cmp_property(const void *a, const void *b)
 {
-	const PropertyRNA *propa= *(const PropertyRNA**)a;
-	const PropertyRNA *propb= *(const PropertyRNA**)b;
+	const PropertyRNA *propa = *(const PropertyRNA **)a;
+	const PropertyRNA *propb = *(const PropertyRNA **)b;
 
-	if(strcmp(propa->identifier, "rna_type") == 0) return -1;
-	else if(strcmp(propb->identifier, "rna_type") == 0) return 1;
+	if (strcmp(propa->identifier, "rna_type") == 0) return -1;
+	else if (strcmp(propb->identifier, "rna_type") == 0) return 1;
 
-	if(strcmp(propa->identifier, "name") == 0) return -1;
-	else if(strcmp(propb->identifier, "name") == 0) return 1;
+	if (strcmp(propa->identifier, "name") == 0) return -1;
+	else if (strcmp(propb->identifier, "name") == 0) return 1;
 
 	return strcmp(propa->name, propb->name);
 }
 
 static int cmp_def_struct(const void *a, const void *b)
 {
-	const StructDefRNA *dsa= *(const StructDefRNA**)a;
-	const StructDefRNA *dsb= *(const StructDefRNA**)b;
+	const StructDefRNA *dsa = *(const StructDefRNA **)a;
+	const StructDefRNA *dsb = *(const StructDefRNA **)b;
 
 	return cmp_struct(&dsa->srna, &dsb->srna);
 }
 
 static int cmp_def_property(const void *a, const void *b)
 {
-	const PropertyDefRNA *dpa= *(const PropertyDefRNA**)a;
-	const PropertyDefRNA *dpb= *(const PropertyDefRNA**)b;
+	const PropertyDefRNA *dpa = *(const PropertyDefRNA **)a;
+	const PropertyDefRNA *dpb = *(const PropertyDefRNA **)b;
 
 	return cmp_property(&dpa->prop, &dpb->prop);
 }
 
-static void rna_sortlist(ListBase *listbase, int(*cmp)(const void*, const void*))
+static void rna_sortlist(ListBase *listbase, int (*cmp)(const void *, const void *))
 {
 	Link *link;
 	void **array;
 	int a, size;
 	
-	if(listbase->first == listbase->last)
+	if (listbase->first == listbase->last)
 		return;
 
-	for(size=0, link=listbase->first; link; link=link->next)
+	for (size = 0, link = listbase->first; link; link = link->next)
 		size++;
 
-	array= MEM_mallocN(sizeof(void*)*size, "rna_sortlist");
-	for(a=0, link=listbase->first; link; link=link->next, a++)
-		array[a]= link;
+	array = MEM_mallocN(sizeof(void *) * size, "rna_sortlist");
+	for (a = 0, link = listbase->first; link; link = link->next, a++)
+		array[a] = link;
 
-	qsort(array, size, sizeof(void*), cmp);
+	qsort(array, size, sizeof(void *), cmp);
 
-	listbase->first= listbase->last= NULL;
-	for(a=0; a<size; a++) {
-		link= array[a];
-		link->next= link->prev= NULL;
+	listbase->first = listbase->last = NULL;
+	for (a = 0; a < size; a++) {
+		link = array[a];
+		link->next = link->prev = NULL;
 		rna_addtail(listbase, link);
 	}
 
@@ -267,21 +296,21 @@ static void rna_sortlist(ListBase *listbase, int(*cmp)(const void*, const void*)
 
 static void rna_print_c_string(FILE *f, const char *str)
 {
-	static const char *escape[] = {"\''", "\"\"", "\??", "\\\\","\aa", "\bb", "\ff", "\nn", "\rr", "\tt", "\vv", NULL};
+	static const char *escape[] = {"\''", "\"\"", "\??", "\\\\", "\aa", "\bb", "\ff", "\nn", "\rr", "\tt", "\vv", NULL};
 	int i, j;
 
-	if(!str) {
+	if (!str) {
 		fprintf(f, "NULL");
 		return;
 	}
 
 	fprintf(f, "\"");
-	for(i=0; str[i]; i++) {
-		for(j=0; escape[j]; j++)
-			if(str[i] == escape[j][0])
+	for (i = 0; str[i]; i++) {
+		for (j = 0; escape[j]; j++)
+			if (str[i] == escape[j][0])
 				break;
 
-		if(escape[j]) fprintf(f, "\\%c", escape[j][1]);
+		if (escape[j]) fprintf(f, "\\%c", escape[j][1]);
 		else fprintf(f, "%c", str[i]);
 	}
 	fprintf(f, "\"");
@@ -289,15 +318,29 @@ static void rna_print_c_string(FILE *f, const char *str)
 
 static void rna_print_data_get(FILE *f, PropertyDefRNA *dp)
 {
-	if(dp->dnastructfromname && dp->dnastructfromprop)
-		fprintf(f, "	%s *data= (%s*)(((%s*)ptr->data)->%s);\n", dp->dnastructname, dp->dnastructname, dp->dnastructfromname, dp->dnastructfromprop);
+	if (dp->dnastructfromname && dp->dnastructfromprop)
+		fprintf(f, "	%s *data= (%s*)(((%s*)ptr->data)->%s);\n", dp->dnastructname, dp->dnastructname,
+		        dp->dnastructfromname, dp->dnastructfromprop);
 	else
 		fprintf(f, "	%s *data= (%s*)(ptr->data);\n", dp->dnastructname, dp->dnastructname);
 }
 
-static void rna_print_id_get(FILE *f, PropertyDefRNA *dp)
+static void rna_print_id_get(FILE *f, PropertyDefRNA *UNUSED(dp))
 {
 	fprintf(f, "	ID *id= ptr->id.data;\n");
+}
+
+static void rna_construct_function_name(char *buffer, int size, const char *structname, const char *propname, const char *type)
+{
+	snprintf(buffer, size, "%s_%s_%s", structname, propname, type);
+}
+
+static void rna_construct_wrapper_function_name(char *buffer, int size, const char *structname, const char *propname, const char *type)
+{
+	if (type == NULL || type[0] == '\0')
+		snprintf(buffer, size, "%s_%s", structname, propname);
+	else
+		snprintf(buffer, size, "%s_%s_%s", structname, propname, type);
 }
 
 static char *rna_alloc_function_name(const char *structname, const char *propname, const char *type)
@@ -306,12 +349,12 @@ static char *rna_alloc_function_name(const char *structname, const char *propnam
 	char buffer[2048];
 	char *result;
 
-	snprintf(buffer, sizeof(buffer), "%s_%s_%s", structname, propname, type);
-	result= MEM_callocN(sizeof(char)*strlen(buffer)+1, "rna_alloc_function_name");
+	rna_construct_function_name(buffer, sizeof(buffer), structname, propname, type);
+	result = MEM_callocN(sizeof(char) * strlen(buffer) + 1, "rna_alloc_function_name");
 	strcpy(result, buffer);
 
-	alloc= MEM_callocN(sizeof(AllocDefRNA), "AllocDefRNA");
-	alloc->mem= result;
+	alloc = MEM_callocN(sizeof(AllocDefRNA), "AllocDefRNA");
+	alloc->mem = result;
 	rna_addtail(&DefRNA.allocs, alloc);
 
 	return result;
@@ -321,8 +364,8 @@ static StructRNA *rna_find_struct(const char *identifier)
 {
 	StructDefRNA *ds;
 
-	for(ds=DefRNA.structs.first; ds; ds=ds->cont.next)
-		if(strcmp(ds->srna->identifier, identifier)==0)
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next)
+		if (strcmp(ds->srna->identifier, identifier) == 0)
 			return ds->srna;
 
 	return NULL;
@@ -332,8 +375,8 @@ static const char *rna_find_type(const char *type)
 {
 	StructDefRNA *ds;
 
-	for(ds=DefRNA.structs.first; ds; ds=ds->cont.next)
-		if(ds->dnaname && strcmp(ds->dnaname, type)==0)
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next)
+		if (ds->dnaname && strcmp(ds->dnaname, type) == 0)
 			return ds->srna->identifier;
 
 	return NULL;
@@ -343,8 +386,8 @@ static const char *rna_find_dna_type(const char *type)
 {
 	StructDefRNA *ds;
 
-	for(ds=DefRNA.structs.first; ds; ds=ds->cont.next)
-		if(strcmp(ds->srna->identifier, type)==0)
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next)
+		if (strcmp(ds->srna->identifier, type) == 0)
 			return ds->dnaname;
 
 	return NULL;
@@ -352,7 +395,7 @@ static const char *rna_find_dna_type(const char *type)
 
 static const char *rna_type_type_name(PropertyRNA *prop)
 {
-	switch(prop->type) {
+	switch (prop->type) {
 		case PROP_BOOLEAN:
 		case PROP_INT:
 		case PROP_ENUM:
@@ -360,11 +403,11 @@ static const char *rna_type_type_name(PropertyRNA *prop)
 		case PROP_FLOAT:
 			return "float";
 		case PROP_STRING:
-			if(prop->flag & PROP_THICK_WRAP) {
-				return "char*";
+			if (prop->flag & PROP_THICK_WRAP) {
+				return "char *";
 			}
 			else {
-				return "const char*";
+				return "const char *";
 			}
 		default:
 			return NULL;
@@ -375,9 +418,9 @@ static const char *rna_type_type(PropertyRNA *prop)
 {
 	const char *type;
 
-	type= rna_type_type_name(prop);
+	type = rna_type_type_name(prop);
 
-	if(type)
+	if (type)
 		return type;
 
 	return "PointerRNA";
@@ -387,9 +430,9 @@ static const char *rna_type_struct(PropertyRNA *prop)
 {
 	const char *type;
 
-	type= rna_type_type_name(prop);
+	type = rna_type_type_name(prop);
 
-	if(type)
+	if (type)
 		return "";
 
 	return "struct ";
@@ -399,21 +442,23 @@ static const char *rna_parameter_type_name(PropertyRNA *parm)
 {
 	const char *type;
 
-	type= rna_type_type_name(parm);
+	type = rna_type_type_name(parm);
 
-	if(type)
+	if (type)
 		return type;
 
-	switch(parm->type) {
-		case PROP_POINTER:  {
-			PointerPropertyRNA *pparm= (PointerPropertyRNA*)parm;
+	switch (parm->type) {
+		case PROP_POINTER:
+		{
+			PointerPropertyRNA *pparm = (PointerPropertyRNA *)parm;
 
-			if(parm->flag & PROP_RNAPTR)
+			if (parm->flag & PROP_RNAPTR)
 				return "PointerRNA";
 			else
 				return rna_find_dna_type((const char *)pparm->type);
 		}
-		case PROP_COLLECTION: {
+		case PROP_COLLECTION:
+		{
 			return "ListBase";
 		}
 		default:
@@ -423,12 +468,12 @@ static const char *rna_parameter_type_name(PropertyRNA *parm)
 
 static int rna_enum_bitmask(PropertyRNA *prop)
 {
-	EnumPropertyRNA *eprop= (EnumPropertyRNA*)prop;
-	int a, mask= 0;
+	EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
+	int a, mask = 0;
 
-	if(eprop->item) {
-		for(a=0; a<eprop->totitem; a++)
-			if(eprop->item[a].identifier[0])
+	if (eprop->item) {
+		for (a = 0; a < eprop->totitem; a++)
+			if (eprop->item[a].identifier[0])
 				mask |= eprop->item[a].value;
 	}
 	
@@ -437,63 +482,67 @@ static int rna_enum_bitmask(PropertyRNA *prop)
 
 static int rna_color_quantize(PropertyRNA *prop, PropertyDefRNA *dp)
 {
-	if(prop->type == PROP_FLOAT && (prop->subtype==PROP_COLOR || prop->subtype==PROP_COLOR_GAMMA))
-		if(strcmp(dp->dnatype, "float") != 0 && strcmp(dp->dnatype, "double") != 0)
-			return 1;
-	
-	return 0;
+	return ( (prop->type == PROP_FLOAT) &&
+	         (prop->subtype == PROP_COLOR || prop->subtype == PROP_COLOR_GAMMA) &&
+	         (IS_DNATYPE_FLOAT_COMPAT(dp->dnatype) == 0) );
 }
 
 static const char *rna_function_string(void *func)
 {
-	return (func)? (const char*)func: "NULL";
+	return (func) ? (const char *)func : "NULL";
 }
 
 static void rna_float_print(FILE *f, float num)
 {
-	if(num == -FLT_MAX) fprintf(f, "-FLT_MAX");
-	else if(num == FLT_MAX) fprintf(f, "FLT_MAX");
-	else if((int)num == num) fprintf(f, "%.1ff", num);
+	if (num == -FLT_MAX) fprintf(f, "-FLT_MAX");
+	else if (num == FLT_MAX) fprintf(f, "FLT_MAX");
+	else if ((int)num == num) fprintf(f, "%.1ff", num);
 	else fprintf(f, "%.10ff", num);
 }
 
 static void rna_int_print(FILE *f, int num)
 {
-	if(num == INT_MIN) fprintf(f, "INT_MIN");
-	else if(num == INT_MAX) fprintf(f, "INT_MAX");
+	if (num == INT_MIN) fprintf(f, "INT_MIN");
+	else if (num == INT_MAX) fprintf(f, "INT_MAX");
 	else fprintf(f, "%d", num);
 }
 
-static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp, const char *manualfunc)
+static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp,
+                                       const char *manualfunc)
 {
 	char *func;
 
-	if(prop->flag & PROP_IDPROPERTY && manualfunc==NULL)
+	if (prop->flag & PROP_IDPROPERTY && manualfunc == NULL)
 		return NULL;
 
-	if(!manualfunc) {
-		if(!dp->dnastructname || !dp->dnaname) {
-			fprintf(stderr, "rna_def_property_get_func: %s.%s has no valid dna info.\n", srna->identifier, prop->identifier);
-			DefRNA.error= 1;
+	if (!manualfunc) {
+		if (!dp->dnastructname || !dp->dnaname) {
+			fprintf(stderr, "%s (0): %s.%s has no valid dna info.\n",
+			        __func__, srna->identifier, prop->identifier);
+			DefRNA.error = 1;
 			return NULL;
 		}
 
 		/* typecheck,  */
-		if(dp->dnatype && *dp->dnatype) {
+		if (dp->dnatype && *dp->dnatype) {
 
-			if(prop->type == PROP_FLOAT) {
-				if(IS_DNATYPE_FLOAT_COMPAT(dp->dnatype) == 0) {
-					if(prop->subtype != PROP_COLOR_GAMMA) { /* colors are an exception. these get translated */
-						fprintf(stderr, "rna_def_property_get_func1: %s.%s is a '%s' but wrapped as type '%s'.\n", srna->identifier, prop->identifier, dp->dnatype, RNA_property_typename(prop->type));
-						DefRNA.error= 1;
+			if (prop->type == PROP_FLOAT) {
+				if (IS_DNATYPE_FLOAT_COMPAT(dp->dnatype) == 0) {
+					if (prop->subtype != PROP_COLOR_GAMMA) { /* colors are an exception. these get translated */
+						fprintf(stderr, "%s (1): %s.%s is a '%s' but wrapped as type '%s'.\n",
+						        __func__, srna->identifier, prop->identifier, dp->dnatype,
+						        RNA_property_typename(prop->type));
+						DefRNA.error = 1;
 						return NULL;
 					}
 				}
 			}
-			else if(prop->type == PROP_INT || prop->type == PROP_BOOLEAN || prop->type == PROP_ENUM) {
-				if(IS_DNATYPE_INT_COMPAT(dp->dnatype) == 0) {
-					fprintf(stderr, "rna_def_property_get_func2: %s.%s is a '%s' but wrapped as type '%s'.\n", srna->identifier, prop->identifier, dp->dnatype, RNA_property_typename(prop->type));
-					DefRNA.error= 1;
+			else if (prop->type == PROP_INT || prop->type == PROP_BOOLEAN || prop->type == PROP_ENUM) {
+				if (IS_DNATYPE_INT_COMPAT(dp->dnatype) == 0) {
+					fprintf(stderr, "%s (2): %s.%s is a '%s' but wrapped as type '%s'.\n",
+					        __func__, srna->identifier, prop->identifier, dp->dnatype,
+					        RNA_property_typename(prop->type));
+					DefRNA.error = 1;
 					return NULL;
 				}
 			}
@@ -501,103 +550,141 @@ static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 
 	}
 
-	func= rna_alloc_function_name(srna->identifier, prop->identifier, "get");
+	func = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "get");
 
-	switch(prop->type) {
-		case PROP_STRING: {
-			StringPropertyRNA *sprop= (StringPropertyRNA*)prop;
+	switch (prop->type) {
+		case PROP_STRING:
+		{
+			StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
 			fprintf(f, "void %s(PointerRNA *ptr, char *value)\n", func);
 			fprintf(f, "{\n");
-			if(manualfunc) {
+			if (manualfunc) {
 				fprintf(f, "	%s(ptr, value);\n", manualfunc);
 			}
 			else {
+				const PropertySubType subtype = prop->subtype;
+				const char *string_copy_func = (subtype == PROP_FILEPATH ||
+				                                subtype == PROP_DIRPATH  ||
+				                                subtype == PROP_FILENAME ||
+				                                subtype == PROP_BYTESTRING) ?
+				                               "BLI_strncpy" : "BLI_strncpy_utf8";
+
 				rna_print_data_get(f, dp);
-				if(sprop->maxlength)
-					fprintf(f, "	BLI_strncpy(value, data->%s, %d);\n", dp->dnaname, sprop->maxlength);
+
+				if (!(prop->flag & PROP_NEVER_NULL)) {
+					fprintf(f, "	if (data->%s == NULL) {\n", dp->dnaname);
+					fprintf(f, "		*value = '\\0';\n");
+					fprintf(f, "		return;\n");
+					fprintf(f, "	}\n");
+				}
+
+				if (sprop->maxlength)
+					fprintf(f, "	%s(value, data->%s, %d);\n", string_copy_func, dp->dnaname, sprop->maxlength);
 				else
-					fprintf(f, "	BLI_strncpy(value, data->%s, sizeof(data->%s));\n", dp->dnaname, dp->dnaname);
+					fprintf(f, "	%s(value, data->%s, sizeof(data->%s));\n", string_copy_func,
+					        dp->dnaname, dp->dnaname);
 			}
 			fprintf(f, "}\n\n");
 			break;
 		}
-		case PROP_POINTER: {
+		case PROP_POINTER:
+		{
 			fprintf(f, "PointerRNA %s(PointerRNA *ptr)\n", func);
 			fprintf(f, "{\n");
-			if(manualfunc) {
+			if (manualfunc) {
 				fprintf(f, "	return %s(ptr);\n", manualfunc);
 			}
 			else {
-				PointerPropertyRNA *pprop= (PointerPropertyRNA*)prop;
+				PointerPropertyRNA *pprop = (PointerPropertyRNA *)prop;
 				rna_print_data_get(f, dp);
-				if(dp->dnapointerlevel == 0)
-					fprintf(f, "	return rna_pointer_inherit_refine(ptr, &RNA_%s, &data->%s);\n", (char*)pprop->type, dp->dnaname);
+				if (dp->dnapointerlevel == 0)
+					fprintf(f, "	return rna_pointer_inherit_refine(ptr, &RNA_%s, &data->%s);\n",
+					        (const char *)pprop->type, dp->dnaname);
 				else
-					fprintf(f, "	return rna_pointer_inherit_refine(ptr, &RNA_%s, data->%s);\n", (char*)pprop->type, dp->dnaname);
+					fprintf(f, "	return rna_pointer_inherit_refine(ptr, &RNA_%s, data->%s);\n",
+					        (const char *)pprop->type, dp->dnaname);
 			}
 			fprintf(f, "}\n\n");
 			break;
 		}
-		case PROP_COLLECTION: {
-			CollectionPropertyRNA *cprop= (CollectionPropertyRNA*)prop;
+		case PROP_COLLECTION:
+		{
+			CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)prop;
 
 			fprintf(f, "static PointerRNA %s(CollectionPropertyIterator *iter)\n", func);
 			fprintf(f, "{\n");
-			if(manualfunc) {
-				if(strcmp(manualfunc, "rna_iterator_listbase_get") == 0 ||
-				   strcmp(manualfunc, "rna_iterator_array_get") == 0 ||
-				   strcmp(manualfunc, "rna_iterator_array_dereference_get") == 0)
-					fprintf(f, "	return rna_pointer_inherit_refine(&iter->parent, &RNA_%s, %s(iter));\n", (cprop->item_type)? (char*)cprop->item_type: "UnknownType", manualfunc);
-				else
+			if (manualfunc) {
+				if (strcmp(manualfunc, "rna_iterator_listbase_get") == 0 ||
+				    strcmp(manualfunc, "rna_iterator_array_get") == 0 ||
+				    strcmp(manualfunc, "rna_iterator_array_dereference_get") == 0)
+				{
+					fprintf(f, "	return rna_pointer_inherit_refine(&iter->parent, &RNA_%s, %s(iter));\n",
+					        (cprop->item_type) ? (const char *)cprop->item_type : "UnknownType", manualfunc);
+				}
+				else {
 					fprintf(f, "	return %s(iter);\n", manualfunc);
+				}
 			}
 			fprintf(f, "}\n\n");
 			break;
 		}
 		default:
-			if(prop->arraydimension) {
-				if(prop->flag & PROP_DYNAMIC)
+			if (prop->arraydimension) {
+				if (prop->flag & PROP_DYNAMIC)
 					fprintf(f, "void %s(PointerRNA *ptr, %s values[])\n", func, rna_type_type(prop));
 				else
-					fprintf(f, "void %s(PointerRNA *ptr, %s values[%d])\n", func, rna_type_type(prop), prop->totarraylength);
+					fprintf(f, "void %s(PointerRNA *ptr, %s values[%u])\n", func, rna_type_type(prop),
+					        prop->totarraylength);
 				fprintf(f, "{\n");
 
-				if(manualfunc) {
+				if (manualfunc) {
 					fprintf(f, "	%s(ptr, values);\n", manualfunc);
 				}
 				else {
 					rna_print_data_get(f, dp);
 
-					if(prop->flag & PROP_DYNAMIC) {
-						char *lenfunc= rna_alloc_function_name(srna->identifier, prop->identifier, "get_length");
+					if (prop->flag & PROP_DYNAMIC) {
+						char *lenfunc = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier),
+						                                        "get_length");
 						fprintf(f, "	int i, arraylen[RNA_MAX_ARRAY_DIMENSION];\n");
 						fprintf(f, "	int len= %s(ptr, arraylen);\n\n", lenfunc);
-						fprintf(f, "	for(i=0; i<len; i++) {\n");
+						fprintf(f, "	for (i=0; i < len; i++) {\n");
 						MEM_freeN(lenfunc);
 					}
 					else {
 						fprintf(f, "	int i;\n\n");
-						fprintf(f, "	for(i=0; i<%d; i++) {\n", prop->totarraylength);
+						fprintf(f, "	for (i=0; i < %u; i++) {\n", prop->totarraylength);
 					}
 
-					if(dp->dnaarraylength == 1) {
-						if(prop->type == PROP_BOOLEAN && dp->booleanbit)
-							fprintf(f, "		values[i]= %s((data->%s & (%d<<i)) != 0);\n", (dp->booleannegative)? "!": "", dp->dnaname, dp->booleanbit);
-						else
-							fprintf(f, "		values[i]= (%s)%s((&data->%s)[i]);\n", rna_type_type(prop), (dp->booleannegative)? "!": "", dp->dnaname);
+					if (dp->dnaarraylength == 1) {
+						if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
+							fprintf(f, "		values[i] = %s((data->%s & (%d << i)) != 0);\n",
+							        (dp->booleannegative) ? "!" : "", dp->dnaname, dp->booleanbit);
+						}
+						else {
+							fprintf(f, "		values[i] = (%s)%s((&data->%s)[i]);\n",
+							        rna_type_type(prop), (dp->booleannegative) ? "!" : "", dp->dnaname);
+						}
 					}
 					else {
-						if(prop->type == PROP_BOOLEAN && dp->booleanbit) {
-							fprintf(f, "		values[i]= %s((data->%s[i] & ", (dp->booleannegative)? "!": "", dp->dnaname);
+						if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
+							fprintf(f, "		values[i] = %s((data->%s[i] & ", (dp->booleannegative) ? "!" : "",
+							        dp->dnaname);
 							rna_int_print(f, dp->booleanbit);
 							fprintf(f, ") != 0);\n");
 						}
-						else if(rna_color_quantize(prop, dp))
-							fprintf(f, "		values[i]= (%s)(data->%s[i]*(1.0f/255.0f));\n", rna_type_type(prop), dp->dnaname);
-						else if(dp->dnatype)
-							fprintf(f, "		values[i]= (%s)%s(((%s*)data->%s)[i]);\n", rna_type_type(prop), (dp->booleannegative)? "!": "", dp->dnatype, dp->dnaname);
-						else
-							fprintf(f, "		values[i]= (%s)%s((data->%s)[i]);\n", rna_type_type(prop), (dp->booleannegative)? "!": "", dp->dnaname);
+						else if (rna_color_quantize(prop, dp)) {
+							fprintf(f, "		values[i] = (%s)(data->%s[i]*(1.0f / 255.0f));\n",
+							        rna_type_type(prop), dp->dnaname);
+						}
+						else if (dp->dnatype) {
+							fprintf(f, "		values[i] = (%s)%s(((%s*)data->%s)[i]);\n",
+							        rna_type_type(prop), (dp->booleannegative) ? "!" : "", dp->dnatype, dp->dnaname);
+						}
+						else {
+							fprintf(f, "		values[i] = (%s)%s((data->%s)[i]);\n",
+							        rna_type_type(prop), (dp->booleannegative) ? "!" : "", dp->dnaname);
+						}
 					}
 					fprintf(f, "	}\n");
 				}
@@ -607,23 +694,24 @@ static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 				fprintf(f, "%s %s(PointerRNA *ptr)\n", rna_type_type(prop), func);
 				fprintf(f, "{\n");
 
-				if(manualfunc) {
+				if (manualfunc) {
 					fprintf(f, "	return %s(ptr);\n", manualfunc);
 				}
 				else {
 					rna_print_data_get(f, dp);
-					if(prop->type == PROP_BOOLEAN && dp->booleanbit) {
-						fprintf(f, "	return %s(((data->%s) & ", (dp->booleannegative)? "!": "", dp->dnaname);
+					if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
+						fprintf(f, "	return %s(((data->%s) & ", (dp->booleannegative) ? "!" : "", dp->dnaname);
 						rna_int_print(f, dp->booleanbit);
 						fprintf(f, ") != 0);\n");
 					}
-					else if(prop->type == PROP_ENUM && dp->enumbitflags) {
+					else if (prop->type == PROP_ENUM && dp->enumbitflags) {
 						fprintf(f, "	return ((data->%s) & ", dp->dnaname);
 						rna_int_print(f, rna_enum_bitmask(prop));
 						fprintf(f, ");\n");
 					}
 					else
-						fprintf(f, "	return (%s)%s(data->%s);\n", rna_type_type(prop), (dp->booleannegative)? "!": "", dp->dnaname);
+						fprintf(f, "	return (%s)%s(data->%s);\n", rna_type_type(prop),
+						        (dp->booleannegative) ? "!" : "", dp->dnaname);
 				}
 
 				fprintf(f, "}\n\n");
@@ -634,164 +722,222 @@ static char *rna_def_property_get_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 	return func;
 }
 
+/* defined min/max variables to be used by rna_clamp_value() */
+static void rna_clamp_value_range(FILE *f, PropertyRNA *prop)
+{
+	if (prop->type == PROP_FLOAT) {
+		FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
+		if (fprop->range) {
+			fprintf(f,
+			        "	float prop_clamp_min = -FLT_MAX, prop_clamp_max = FLT_MAX, prop_soft_min, prop_soft_max;\n");
+			fprintf(f, "	%s(ptr, &prop_clamp_min, &prop_clamp_max, &prop_soft_min, &prop_soft_max);\n",
+			        rna_function_string(fprop->range));
+		}
+	}
+	else if (prop->type == PROP_INT) {
+		IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
+		if (iprop->range) {
+			fprintf(f, "	int prop_clamp_min = INT_MIN, prop_clamp_max = INT_MAX, prop_soft_min, prop_soft_max;\n");
+			fprintf(f, "	%s(ptr, &prop_clamp_min, &prop_clamp_max, &prop_soft_min, &prop_soft_max);\n",
+			        rna_function_string(iprop->range));
+		}
+	}
+}
+
 static void rna_clamp_value(FILE *f, PropertyRNA *prop, int array)
 {
-	if(prop->type == PROP_INT) {
-		IntPropertyRNA *iprop= (IntPropertyRNA*)prop;
+	if (prop->type == PROP_INT) {
+		IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
 
-		if(iprop->hardmin != INT_MIN || iprop->hardmax != INT_MAX) {
-			if(array) fprintf(f, "CLAMPIS(values[i], ");
+		if (iprop->hardmin != INT_MIN || iprop->hardmax != INT_MAX || iprop->range) {
+			if (array) fprintf(f, "CLAMPIS(values[i], ");
 			else fprintf(f, "CLAMPIS(value, ");
-			rna_int_print(f, iprop->hardmin); fprintf(f, ", ");
-			rna_int_print(f, iprop->hardmax); fprintf(f, ");\n");
+			if (iprop->range) {
+				fprintf(f, "prop_clamp_min, prop_clamp_max);");
+			}
+			else {
+				rna_int_print(f, iprop->hardmin); fprintf(f, ", ");
+				rna_int_print(f, iprop->hardmax); fprintf(f, ");\n");
+			}
 			return;
 		}
 	}
-	else if(prop->type == PROP_FLOAT) {
-		FloatPropertyRNA *fprop= (FloatPropertyRNA*)prop;
+	else if (prop->type == PROP_FLOAT) {
+		FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
 
-		if(fprop->hardmin != -FLT_MAX || fprop->hardmax != FLT_MAX) {
-			if(array) fprintf(f, "CLAMPIS(values[i], ");
+		if (fprop->hardmin != -FLT_MAX || fprop->hardmax != FLT_MAX || fprop->range) {
+			if (array) fprintf(f, "CLAMPIS(values[i], ");
 			else fprintf(f, "CLAMPIS(value, ");
-			rna_float_print(f, fprop->hardmin); fprintf(f, ", ");
-			rna_float_print(f, fprop->hardmax); fprintf(f, ");\n");
+			if (fprop->range) {
+				fprintf(f, "prop_clamp_min, prop_clamp_max);");
+			}
+			else {
+				rna_float_print(f, fprop->hardmin); fprintf(f, ", ");
+				rna_float_print(f, fprop->hardmax); fprintf(f, ");\n");
+			}
 			return;
 		}
 	}
 
-	if(array)
+	if (array)
 		fprintf(f, "values[i];\n");
 	else
 		fprintf(f, "value;\n");
 }
 
-static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp, char *manualfunc)
+static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp,
+                                       const char *manualfunc)
 {
 	char *func;
 
-	if(!(prop->flag & PROP_EDITABLE))
+	if (!(prop->flag & PROP_EDITABLE))
 		return NULL;
-	if(prop->flag & PROP_IDPROPERTY && manualfunc==NULL)
+	if (prop->flag & PROP_IDPROPERTY && manualfunc == NULL)
 		return NULL;
 
-	if(!manualfunc) {
-		if(!dp->dnastructname || !dp->dnaname) {
-			if(prop->flag & PROP_EDITABLE) {
-				fprintf(stderr, "rna_def_property_set_func: %s.%s has no valid dna info.\n", srna->identifier, prop->identifier);
-				DefRNA.error= 1;
+	if (!manualfunc) {
+		if (!dp->dnastructname || !dp->dnaname) {
+			if (prop->flag & PROP_EDITABLE) {
+				fprintf(stderr, "%s: %s.%s has no valid dna info.\n",
+				        __func__, srna->identifier, prop->identifier);
+				DefRNA.error = 1;
 			}
 			return NULL;
 		}
 	}
 
-	func= rna_alloc_function_name(srna->identifier, prop->identifier, "set");
+	func = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "set");
 
-	switch(prop->type) {
-		case PROP_STRING: {
-			StringPropertyRNA *sprop= (StringPropertyRNA*)prop;
+	switch (prop->type) {
+		case PROP_STRING:
+		{
+			StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
 			fprintf(f, "void %s(PointerRNA *ptr, const char *value)\n", func);
 			fprintf(f, "{\n");
-			if(manualfunc) {
+			if (manualfunc) {
 				fprintf(f, "	%s(ptr, value);\n", manualfunc);
 			}
 			else {
+				const PropertySubType subtype = prop->subtype;
+				const char *string_copy_func = (subtype == PROP_FILEPATH ||
+				                                subtype == PROP_DIRPATH  ||
+				                                subtype == PROP_FILENAME ||
+				                                subtype == PROP_BYTESTRING) ?
+				                               "BLI_strncpy" : "BLI_strncpy_utf8";
+
 				rna_print_data_get(f, dp);
-				if(sprop->maxlength)
-					fprintf(f, "	BLI_strncpy(data->%s, value, %d);\n", dp->dnaname, sprop->maxlength);
+
+				if (!(prop->flag & PROP_NEVER_NULL)) {
+					fprintf(f, "	if (data->%s == NULL) {\n", dp->dnaname);
+					fprintf(f, "		return;\n");
+					fprintf(f, "	}\n");
+				}
+
+				if (sprop->maxlength)
+					fprintf(f, "	%s(data->%s, value, %d);\n", string_copy_func, dp->dnaname, sprop->maxlength);
 				else
-					fprintf(f, "	BLI_strncpy(data->%s, value, sizeof(data->%s));\n", dp->dnaname, dp->dnaname);
+					fprintf(f, "	%s(data->%s, value, sizeof(data->%s));\n", string_copy_func,
+					        dp->dnaname, dp->dnaname);
 			}
 			fprintf(f, "}\n\n");
 			break;
 		}
-		case PROP_POINTER: {
+		case PROP_POINTER:
+		{
 			fprintf(f, "void %s(PointerRNA *ptr, PointerRNA value)\n", func);
 			fprintf(f, "{\n");
-			if(manualfunc) {
+			if (manualfunc) {
 				fprintf(f, "	%s(ptr, value);\n", manualfunc);
 			}
 			else {
 				rna_print_data_get(f, dp);
 
-				if(prop->flag & PROP_ID_SELF_CHECK) {
+				if (prop->flag & PROP_ID_SELF_CHECK) {
 					rna_print_id_get(f, dp);
-					fprintf(f, "	if(id==value.data) return;\n\n");
+					fprintf(f, "	if (id == value.data) return;\n\n");
 				}
 
-				if(prop->flag & PROP_ID_REFCOUNT) {
-					fprintf(f, "\n	if(data->%s)\n", dp->dnaname);
-					fprintf(f, "		id_us_min((ID*)data->%s);\n", dp->dnaname);
-					fprintf(f, "	if(value.data)\n");
-					fprintf(f, "		id_us_plus((ID*)value.data);\n\n");
+				if (prop->flag & PROP_ID_REFCOUNT) {
+					fprintf(f, "\n	if (data->%s)\n", dp->dnaname);
+					fprintf(f, "		id_us_min((ID *)data->%s);\n", dp->dnaname);
+					fprintf(f, "	if (value.data)\n");
+					fprintf(f, "		id_us_plus((ID *)value.data);\n\n");
 				}
 				else {
-					PointerPropertyRNA *pprop= (PointerPropertyRNA*)dp->prop;
-					StructRNA *type= rna_find_struct((char*)pprop->type);
-					if(type && (type->flag & STRUCT_ID)) {
-						fprintf(f, "	if(value.data)\n");
-						fprintf(f, "		id_lib_extern((ID*)value.data);\n\n");
+					PointerPropertyRNA *pprop = (PointerPropertyRNA *)dp->prop;
+					StructRNA *type = rna_find_struct((const char *)pprop->type);
+					if (type && (type->flag & STRUCT_ID)) {
+						fprintf(f, "	if (value.data)\n");
+						fprintf(f, "		id_lib_extern((ID *)value.data);\n\n");
 					}
 				}
 
-				fprintf(f, "	data->%s= value.data;\n", dp->dnaname);
+				fprintf(f, "	data->%s = value.data;\n", dp->dnaname);
 
 			}
 			fprintf(f, "}\n\n");
 			break;
 		}
 		default:
-			if(prop->arraydimension) {
-				if(prop->flag & PROP_DYNAMIC)
+			if (prop->arraydimension) {
+				if (prop->flag & PROP_DYNAMIC)
 					fprintf(f, "void %s(PointerRNA *ptr, const %s values[])\n", func, rna_type_type(prop));
 				else
-					fprintf(f, "void %s(PointerRNA *ptr, const %s values[%d])\n", func, rna_type_type(prop), prop->totarraylength);
+					fprintf(f, "void %s(PointerRNA *ptr, const %s values[%u])\n", func,
+					        rna_type_type(prop), prop->totarraylength);
 				fprintf(f, "{\n");
 
-				if(manualfunc) {
+				if (manualfunc) {
 					fprintf(f, "	%s(ptr, values);\n", manualfunc);
 				}
 				else {
 					rna_print_data_get(f, dp);
 
-					if(prop->flag & PROP_DYNAMIC) {
-						char *lenfunc= rna_alloc_function_name(srna->identifier, prop->identifier, "set_length");
+					if (prop->flag & PROP_DYNAMIC) {
+						char *lenfunc = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier),
+						                                        "set_length");
 						fprintf(f, "	int i, arraylen[RNA_MAX_ARRAY_DIMENSION];\n");
 						fprintf(f, "	int len= %s(ptr, arraylen);\n\n", lenfunc);
-						fprintf(f, "	for(i=0; i<len; i++) {\n");
+						rna_clamp_value_range(f, prop);
+						fprintf(f, "	for (i=0; i < len; i++) {\n");
 						MEM_freeN(lenfunc);
 					}
 					else {
 						fprintf(f, "	int i;\n\n");
-						fprintf(f, "	for(i=0; i<%d; i++) {\n", prop->totarraylength);
+						rna_clamp_value_range(f, prop);
+						fprintf(f, "	for (i=0; i < %u; i++) {\n", prop->totarraylength);
 					}
 
-					if(dp->dnaarraylength == 1) {
-						if(prop->type == PROP_BOOLEAN && dp->booleanbit) {
-							fprintf(f, "		if(%svalues[i]) data->%s |= (%d<<i);\n", (dp->booleannegative)? "!": "", dp->dnaname, dp->booleanbit);
-							fprintf(f, "		else data->%s &= ~(%d<<i);\n", dp->dnaname, dp->booleanbit);
+					if (dp->dnaarraylength == 1) {
+						if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
+							fprintf(f, "		if (%svalues[i]) data->%s |= (%d<<i);\n",
+							        (dp->booleannegative) ? "!" : "", dp->dnaname, dp->booleanbit);
+							fprintf(f, "		else data->%s &= ~(%d << i);\n", dp->dnaname, dp->booleanbit);
 						}
 						else {
-							fprintf(f, "		(&data->%s)[i]= %s", dp->dnaname, (dp->booleannegative)? "!": "");
+							fprintf(f, "		(&data->%s)[i] = %s", dp->dnaname, (dp->booleannegative) ? "!" : "");
 							rna_clamp_value(f, prop, 1);
 						}
 					}
 					else {
-						if(prop->type == PROP_BOOLEAN && dp->booleanbit) {
-							fprintf(f, "		if(%svalues[i]) data->%s[i] |= ", (dp->booleannegative)? "!": "", dp->dnaname);
+						if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
+							fprintf(f, "		if (%svalues[i]) data->%s[i] |= ", (dp->booleannegative) ? "!" : "",
+							        dp->dnaname);
 							rna_int_print(f, dp->booleanbit);
 							fprintf(f, ";\n");
 							fprintf(f, "		else data->%s[i] &= ~", dp->dnaname);
 							rna_int_print(f, dp->booleanbit);
 							fprintf(f, ";\n");
 						}
-						else if(rna_color_quantize(prop, dp)) {
-							fprintf(f, "		data->%s[i]= FTOCHAR(values[i]);\n", dp->dnaname);
+						else if (rna_color_quantize(prop, dp)) {
+							fprintf(f, "		data->%s[i] = FTOCHAR(values[i]);\n", dp->dnaname);
 						}
 						else {
-							if(dp->dnatype)
-								fprintf(f, "		((%s*)data->%s)[i]= %s", dp->dnatype, dp->dnaname, (dp->booleannegative)? "!": "");
+							if (dp->dnatype)
+								fprintf(f, "		((%s*)data->%s)[i] = %s", dp->dnatype, dp->dnaname,
+								        (dp->booleannegative) ? "!" : "");
 							else
-								fprintf(f, "		(data->%s)[i]= %s", dp->dnaname, (dp->booleannegative)? "!": "");
+								fprintf(f, "		(data->%s)[i] = %s", dp->dnaname, (dp->booleannegative) ? "!" : "");
 							rna_clamp_value(f, prop, 1);
 						}
 					}
@@ -803,27 +949,28 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 				fprintf(f, "void %s(PointerRNA *ptr, %s value)\n", func, rna_type_type(prop));
 				fprintf(f, "{\n");
 
-				if(manualfunc) {
+				if (manualfunc) {
 					fprintf(f, "	%s(ptr, value);\n", manualfunc);
 				}
 				else {
 					rna_print_data_get(f, dp);
-					if(prop->type == PROP_BOOLEAN && dp->booleanbit) {
-						fprintf(f, "	if(%svalue) data->%s |= ", (dp->booleannegative)? "!": "", dp->dnaname);
+					if (prop->type == PROP_BOOLEAN && dp->booleanbit) {
+						fprintf(f, "	if (%svalue) data->%s |= ", (dp->booleannegative) ? "!" : "", dp->dnaname);
 						rna_int_print(f, dp->booleanbit);
 						fprintf(f, ";\n");
 						fprintf(f, "	else data->%s &= ~", dp->dnaname);
 						rna_int_print(f, dp->booleanbit);
 						fprintf(f, ";\n");
 					}
-					else if(prop->type == PROP_ENUM && dp->enumbitflags) {
+					else if (prop->type == PROP_ENUM && dp->enumbitflags) {
 						fprintf(f, "	data->%s &= ~", dp->dnaname);
 						rna_int_print(f, rna_enum_bitmask(prop));
 						fprintf(f, ";\n");
 						fprintf(f, "	data->%s |= value;\n", dp->dnaname);
 					}
 					else {
-						fprintf(f, "	data->%s= %s", dp->dnaname, (dp->booleannegative)? "!": "");
+						rna_clamp_value_range(f, prop);
+						fprintf(f, "	data->%s = %s", dp->dnaname, (dp->booleannegative) ? "!" : "");
 						rna_clamp_value(f, prop, 0);
 					}
 				}
@@ -835,57 +982,63 @@ static char *rna_def_property_set_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 	return func;
 }
 
-static char *rna_def_property_length_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp, char *manualfunc)
+static char *rna_def_property_length_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp,
+                                          const char *manualfunc)
 {
-	char *func= NULL;
+	char *func = NULL;
 
-	if(prop->flag & PROP_IDPROPERTY && manualfunc==NULL)
+	if (prop->flag & PROP_IDPROPERTY && manualfunc == NULL)
 		return NULL;
 
-	if(prop->type == PROP_STRING) {
-		if(!manualfunc) {
-			if(!dp->dnastructname || !dp->dnaname) {
-				fprintf(stderr, "rna_def_property_length_func: %s.%s has no valid dna info.\n", srna->identifier, prop->identifier);
-				DefRNA.error= 1;
+	if (prop->type == PROP_STRING) {
+		if (!manualfunc) {
+			if (!dp->dnastructname || !dp->dnaname) {
+				fprintf(stderr, "%s: %s.%s has no valid dna info.\n",
+				        __func__, srna->identifier, prop->identifier);
+				DefRNA.error = 1;
 				return NULL;
 			}
 		}
 
-		func= rna_alloc_function_name(srna->identifier, prop->identifier, "length");
+		func = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "length");
 
 		fprintf(f, "int %s(PointerRNA *ptr)\n", func);
 		fprintf(f, "{\n");
-		if(manualfunc) {
+		if (manualfunc) {
 			fprintf(f, "	return %s(ptr);\n", manualfunc);
 		}
 		else {
 			rna_print_data_get(f, dp);
+			if (!(prop->flag & PROP_NEVER_NULL)) {
+				fprintf(f, "	if (data->%s == NULL) return 0;\n", dp->dnaname);
+			}
 			fprintf(f, "	return strlen(data->%s);\n", dp->dnaname);
 		}
 		fprintf(f, "}\n\n");
 	}
-	else if(prop->type == PROP_COLLECTION) {
-		if(!manualfunc) {
-			if(prop->type == PROP_COLLECTION && (!(dp->dnalengthname || dp->dnalengthfixed)|| !dp->dnaname)) {
-				fprintf(stderr, "rna_def_property_length_func: %s.%s has no valid dna info.\n", srna->identifier, prop->identifier);
-				DefRNA.error= 1;
+	else if (prop->type == PROP_COLLECTION) {
+		if (!manualfunc) {
+			if (prop->type == PROP_COLLECTION && (!(dp->dnalengthname || dp->dnalengthfixed) || !dp->dnaname)) {
+				fprintf(stderr, "%s: %s.%s has no valid dna info.\n",
+				        __func__, srna->identifier, prop->identifier);
+				DefRNA.error = 1;
 				return NULL;
 			}
 		}
 
-		func= rna_alloc_function_name(srna->identifier, prop->identifier, "length");
+		func = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "length");
 
 		fprintf(f, "int %s(PointerRNA *ptr)\n", func);
 		fprintf(f, "{\n");
-		if(manualfunc) {
+		if (manualfunc) {
 			fprintf(f, "	return %s(ptr);\n", manualfunc);
 		}
 		else {
 			rna_print_data_get(f, dp);
-			if(dp->dnalengthname)
-				fprintf(f, "	return (data->%s == NULL)? 0: data->%s;\n", dp->dnaname, dp->dnalengthname);
+			if (dp->dnalengthname)
+				fprintf(f, "	return (data->%s == NULL) ? 0 : data->%s;\n", dp->dnaname, dp->dnalengthname);
 			else
-				fprintf(f, "	return (data->%s == NULL)? 0: %d;\n", dp->dnaname, dp->dnalengthfixed);
+				fprintf(f, "	return (data->%s == NULL) ? 0 : %d;\n", dp->dnaname, dp->dnalengthfixed);
 		}
 		fprintf(f, "}\n\n");
 	}
@@ -893,56 +1046,60 @@ static char *rna_def_property_length_func(FILE *f, StructRNA *srna, PropertyRNA 
 	return func;
 }
 
-static char *rna_def_property_begin_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp, char *manualfunc)
+static char *rna_def_property_begin_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp,
+                                         const char *manualfunc)
 {
 	char *func, *getfunc;
 
-	if(prop->flag & PROP_IDPROPERTY && manualfunc==NULL)
+	if (prop->flag & PROP_IDPROPERTY && manualfunc == NULL)
 		return NULL;
 
-	if(!manualfunc) {
-		if(!dp->dnastructname || !dp->dnaname) {
-			fprintf(stderr, "rna_def_property_begin_func: %s.%s has no valid dna info.\n", srna->identifier, prop->identifier);
-			DefRNA.error= 1;
+	if (!manualfunc) {
+		if (!dp->dnastructname || !dp->dnaname) {
+			fprintf(stderr, "%s: %s.%s has no valid dna info.\n",
+			        __func__, srna->identifier, prop->identifier);
+			DefRNA.error = 1;
 			return NULL;
 		}
 	}
 
-	func= rna_alloc_function_name(srna->identifier, prop->identifier, "begin");
+	func = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "begin");
 
 	fprintf(f, "void %s(CollectionPropertyIterator *iter, PointerRNA *ptr)\n", func);
 	fprintf(f, "{\n");
 
-	if(!manualfunc)
+	if (!manualfunc)
 		rna_print_data_get(f, dp);
 
 	fprintf(f, "\n	memset(iter, 0, sizeof(*iter));\n");
 	fprintf(f, "	iter->parent= *ptr;\n");
-	fprintf(f, "	iter->prop= (PropertyRNA*)&rna_%s_%s;\n", srna->identifier, prop->identifier);
+	fprintf(f, "	iter->prop= (PropertyRNA *)&rna_%s_%s;\n", srna->identifier, prop->identifier);
 
-	if(dp->dnalengthname || dp->dnalengthfixed) {
-		if(manualfunc) {
+	if (dp->dnalengthname || dp->dnalengthfixed) {
+		if (manualfunc) {
 			fprintf(f, "\n	%s(iter, ptr);\n", manualfunc);
 		}
 		else {
-			if(dp->dnalengthname)
-				fprintf(f, "\n	rna_iterator_array_begin(iter, data->%s, sizeof(data->%s[0]), data->%s, 0, NULL);\n", dp->dnaname, dp->dnaname, dp->dnalengthname);
+			if (dp->dnalengthname)
+				fprintf(f, "\n	rna_iterator_array_begin(iter, data->%s, sizeof(data->%s[0]), data->%s, 0, NULL);\n",
+				        dp->dnaname, dp->dnaname, dp->dnalengthname);
 			else
-				fprintf(f, "\n	rna_iterator_array_begin(iter, data->%s, sizeof(data->%s[0]), %d, 0, NULL);\n", dp->dnaname, dp->dnaname, dp->dnalengthfixed);
+				fprintf(f, "\n	rna_iterator_array_begin(iter, data->%s, sizeof(data->%s[0]), %d, 0, NULL);\n",
+				        dp->dnaname, dp->dnaname, dp->dnalengthfixed);
 		}
 	}
 	else {
-		if(manualfunc)
+		if (manualfunc)
 			fprintf(f, "\n	%s(iter, ptr);\n", manualfunc);
-		else if(dp->dnapointerlevel == 0)
+		else if (dp->dnapointerlevel == 0)
 			fprintf(f, "\n	rna_iterator_listbase_begin(iter, &data->%s, NULL);\n", dp->dnaname);
 		else
 			fprintf(f, "\n	rna_iterator_listbase_begin(iter, data->%s, NULL);\n", dp->dnaname);
 	}
 
-	getfunc= rna_alloc_function_name(srna->identifier, prop->identifier, "get");
+	getfunc = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "get");
 
-	fprintf(f, "\n	if(iter->valid)\n");
+	fprintf(f, "\n	if (iter->valid)\n");
 	fprintf(f, "		iter->ptr= %s(iter);\n", getfunc);
 
 	fprintf(f, "}\n\n");
@@ -951,31 +1108,32 @@ static char *rna_def_property_begin_func(FILE *f, StructRNA *srna, PropertyRNA *
 	return func;
 }
 
-static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp, char *manualfunc, char *nextfunc)
+static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp,
+                                              const char *manualfunc, const char *nextfunc)
 {
 	/* note on indices, this is for external functions and ignores skipped values.
-	 * so the the index can only be checked against the length when there is no 'skip' funcion. */
+	 * so the the index can only be checked against the length when there is no 'skip' function. */
 	char *func;
 
-	if(prop->flag & PROP_IDPROPERTY && manualfunc==NULL)
+	if (prop->flag & PROP_IDPROPERTY && manualfunc == NULL)
 		return NULL;
 
-	if(!manualfunc) {
-		if(!dp->dnastructname || !dp->dnaname)
+	if (!manualfunc) {
+		if (!dp->dnastructname || !dp->dnaname)
 			return NULL;
 
 		/* only supported in case of standard next functions */
-		if(strcmp(nextfunc, "rna_iterator_array_next") == 0);
-		else if(strcmp(nextfunc, "rna_iterator_listbase_next") == 0);
+		if (strcmp(nextfunc, "rna_iterator_array_next") == 0) {}
+		else if (strcmp(nextfunc, "rna_iterator_listbase_next") == 0) {}
 		else return NULL;
 	}
 
-	func= rna_alloc_function_name(srna->identifier, prop->identifier, "lookup_int");
+	func = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "lookup_int");
 
 	fprintf(f, "int %s(PointerRNA *ptr, int index, PointerRNA *r_ptr)\n", func);
 	fprintf(f, "{\n");
 
-	if(manualfunc) {
+	if (manualfunc) {
 		fprintf(f, "\n	return %s(ptr, index, r_ptr);\n", manualfunc);
 		fprintf(f, "}\n\n");
 		return func;
@@ -984,20 +1142,20 @@ static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, Property
 	fprintf(f, "	int found= 0;\n");
 	fprintf(f, "	CollectionPropertyIterator iter;\n\n");
 
-	fprintf(f, "	%s_%s_begin(&iter, ptr);\n\n", srna->identifier, prop->identifier);
-	fprintf(f, "	if(iter.valid){\n");
+	fprintf(f, "	%s_%s_begin(&iter, ptr);\n\n", srna->identifier, rna_safe_id(prop->identifier));
+	fprintf(f, "	if (iter.valid) {\n");
 
-	if(strcmp(nextfunc, "rna_iterator_array_next") == 0) {
+	if (strcmp(nextfunc, "rna_iterator_array_next") == 0) {
 		fprintf(f, "		ArrayIterator *internal= iter.internal;\n");
-		fprintf(f, "		if(index < 0 || index >= internal->length) {\n");
+		fprintf(f, "		if (index < 0 || index >= internal->length) {\n");
 		fprintf(f, "#ifdef __GNUC__\n");
 		fprintf(f, "			printf(\"Array iterator out of range: %%s (index %%d)\\n\", __func__, index);\n");
 		fprintf(f, "#else\n");
 		fprintf(f, "			printf(\"Array iterator out of range: (index %%d)\\n\", index);\n");
 		fprintf(f, "#endif\n");
 		fprintf(f, "		}\n");
-		fprintf(f, "		else if(internal->skip) {\n");
-		fprintf(f, "			while(index-- > 0 && iter.valid) {\n");
+		fprintf(f, "		else if (internal->skip) {\n");
+		fprintf(f, "			while (index-- > 0 && iter.valid) {\n");
 		fprintf(f, "				rna_iterator_array_next(&iter);\n");
 		fprintf(f, "			}\n");
 		fprintf(f, "			found= (index == -1 && iter.valid);\n");
@@ -1007,40 +1165,43 @@ static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, Property
 		fprintf(f, "			found= 1;\n");
 		fprintf(f, "		}\n");
 	}
-	else if(strcmp(nextfunc, "rna_iterator_listbase_next") == 0) {
+	else if (strcmp(nextfunc, "rna_iterator_listbase_next") == 0) {
 		fprintf(f, "		ListBaseIterator *internal= iter.internal;\n");
-		fprintf(f, "		if(internal->skip) {\n");
-		fprintf(f, "			while(index-- > 0 && iter.valid) {\n");
+		fprintf(f, "		if (internal->skip) {\n");
+		fprintf(f, "			while (index-- > 0 && iter.valid) {\n");
 		fprintf(f, "				rna_iterator_listbase_next(&iter);\n");
 		fprintf(f, "			}\n");
 		fprintf(f, "			found= (index == -1 && iter.valid);\n");
 		fprintf(f, "		}\n");
 		fprintf(f, "		else {\n");
-		fprintf(f, "			while(index-- > 0 && internal->link)\n");
+		fprintf(f, "			while (index-- > 0 && internal->link)\n");
 		fprintf(f, "				internal->link= internal->link->next;\n");
 		fprintf(f, "			found= (index == -1 && internal->link);\n");
 		fprintf(f, "		}\n");
 	}
 
-	fprintf(f, "		if(found) *r_ptr = %s_%s_get(&iter);\n", srna->identifier, prop->identifier);
+	fprintf(f, "		if (found) *r_ptr = %s_%s_get(&iter);\n", srna->identifier, rna_safe_id(prop->identifier));
 	fprintf(f, "	}\n\n");
-	fprintf(f, "	%s_%s_end(&iter);\n\n", srna->identifier, prop->identifier);
+	fprintf(f, "	%s_%s_end(&iter);\n\n", srna->identifier, rna_safe_id(prop->identifier));
 
 	fprintf(f, "	return found;\n");
 
 #if 0
 	rna_print_data_get(f, dp);
-	item_type= (cprop->item_type)? (char*)cprop->item_type: "UnknownType";
+	item_type = (cprop->item_type) ? (const char *)cprop->item_type : "UnknownType";
 
-	if(dp->dnalengthname || dp->dnalengthfixed) {
-		if(dp->dnalengthname)
-			fprintf(f, "\n	rna_array_lookup_int(ptr, &RNA_%s, data->%s, sizeof(data->%s[0]), data->%s, index);\n", item_type, dp->dnaname, dp->dnaname, dp->dnalengthname);
+	if (dp->dnalengthname || dp->dnalengthfixed) {
+		if (dp->dnalengthname)
+			fprintf(f, "\n	rna_array_lookup_int(ptr, &RNA_%s, data->%s, sizeof(data->%s[0]), data->%s, index);\n",
+			        item_type, dp->dnaname, dp->dnaname, dp->dnalengthname);
 		else
-			fprintf(f, "\n	rna_array_lookup_int(ptr, &RNA_%s, data->%s, sizeof(data->%s[0]), %d, index);\n", item_type, dp->dnaname, dp->dnaname, dp->dnalengthfixed);
+			fprintf(f, "\n	rna_array_lookup_int(ptr, &RNA_%s, data->%s, sizeof(data->%s[0]), %d, index);\n",
+			        item_type, dp->dnaname, dp->dnaname, dp->dnalengthfixed);
 	}
 	else {
-		if(dp->dnapointerlevel == 0)
-			fprintf(f, "\n	return rna_listbase_lookup_int(ptr, &RNA_%s, &data->%s, index);\n", item_type, dp->dnaname);
+		if (dp->dnapointerlevel == 0)
+			fprintf(f, "\n	return rna_listbase_lookup_int(ptr, &RNA_%s, &data->%s, index);\n",
+			        item_type, dp->dnaname);
 		else
 			fprintf(f, "\n	return rna_listbase_lookup_int(ptr, &RNA_%s, data->%s, index);\n", item_type, dp->dnaname);
 	}
@@ -1051,25 +1212,112 @@ static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, Property
 	return func;
 }
 
-static char *rna_def_property_next_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp, char *manualfunc)
+static char *rna_def_property_lookup_string_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp,
+                                                 const char *manualfunc, const char *item_type)
+{
+	char *func;
+	StructRNA *item_srna, *item_name_base;
+	PropertyRNA *item_name_prop;
+	const int namebuflen = 1024;
+
+	if (prop->flag & PROP_IDPROPERTY && manualfunc == NULL)
+		return NULL;
+
+	if (!manualfunc) {
+		if (!dp->dnastructname || !dp->dnaname)
+			return NULL;
+
+		/* only supported for collection items with name properties */
+		item_srna = rna_find_struct(item_type);
+		if (item_srna && item_srna->nameproperty) {
+			item_name_prop = item_srna->nameproperty;
+			item_name_base = item_srna;
+			while (item_name_base->base && item_name_base->base->nameproperty == item_name_prop)
+				item_name_base = item_name_base->base;
+		}
+		else
+			return NULL;
+	}
+
+	func = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "lookup_string");
+
+	fprintf(f, "int %s(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)\n", func);
+	fprintf(f, "{\n");
+
+	if (manualfunc) {
+		fprintf(f, "	return %s(ptr, key, r_ptr);\n", manualfunc);
+		fprintf(f, "}\n\n");
+		return func;
+	}
+
+	/* XXX extern declaration could be avoid by including RNA_blender.h, but this has lots of unknown
+	 * DNA types in functions, leading to conflicting function signatures.
+	 */
+	fprintf(f, "	extern int %s_%s_length(PointerRNA *);\n", item_name_base->identifier, rna_safe_id(item_name_prop->identifier));
+	fprintf(f, "	extern void %s_%s_get(PointerRNA *, char *);\n\n", item_name_base->identifier, rna_safe_id(item_name_prop->identifier));
+
+	fprintf(f, "	bool found = false;\n");
+	fprintf(f, "	CollectionPropertyIterator iter;\n");
+	fprintf(f, "	char namebuf[%d];\n", namebuflen);
+	fprintf(f, "	char *name;\n\n");
+
+	fprintf(f, "	%s_%s_begin(&iter, ptr);\n\n", srna->identifier, rna_safe_id(prop->identifier));
+
+	fprintf(f, "	while (iter.valid) {\n");
+	fprintf(f, "		if (iter.ptr.data) {\n");
+	fprintf(f, "			int namelen = %s_%s_length(&iter.ptr);\n", item_name_base->identifier, rna_safe_id(item_name_prop->identifier));
+	fprintf(f, "			if (namelen < %d) {\n", namebuflen);
+	fprintf(f, "				%s_%s_get(&iter.ptr, namebuf);\n", item_name_base->identifier, rna_safe_id(item_name_prop->identifier));
+	fprintf(f, "				if (strcmp(namebuf, key) == 0) {\n");
+	fprintf(f, "					found = true;\n");
+	fprintf(f, "					*r_ptr = iter.ptr;\n");
+	fprintf(f, "					break;\n");
+	fprintf(f, "				}\n");
+	fprintf(f, "			}\n");
+	fprintf(f, "			else {\n");
+	fprintf(f, "				name = MEM_mallocN(namelen+1, \"name string\");\n");
+	fprintf(f, "				%s_%s_get(&iter.ptr, name);\n", item_name_base->identifier, rna_safe_id(item_name_prop->identifier));
+	fprintf(f, "				if (strcmp(name, key) == 0) {\n");
+	fprintf(f, "					MEM_freeN(name);\n\n");
+	fprintf(f, "					found = true;\n");
+	fprintf(f, "					*r_ptr = iter.ptr;\n");
+	fprintf(f, "					break;\n");
+	fprintf(f, "				}\n");
+	fprintf(f, "				else {\n");
+	fprintf(f, "					MEM_freeN(name);\n");
+	fprintf(f, "				}\n");
+	fprintf(f, "			}\n");
+	fprintf(f, "		}\n");
+	fprintf(f, "		%s_%s_next(&iter);\n", srna->identifier, rna_safe_id(prop->identifier));
+	fprintf(f, "	}\n");
+	fprintf(f, "	%s_%s_end(&iter);\n\n", srna->identifier, rna_safe_id(prop->identifier));
+
+	fprintf(f, "	return found;\n");
+	fprintf(f, "}\n\n");
+
+	return func;
+}
+
+static char *rna_def_property_next_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *UNUSED(dp),
+                                        const char *manualfunc)
 {
 	char *func, *getfunc;
 
-	if(prop->flag & PROP_IDPROPERTY && manualfunc==NULL)
+	if (prop->flag & PROP_IDPROPERTY && manualfunc == NULL)
 		return NULL;
 
-	if(!manualfunc)
+	if (!manualfunc)
 		return NULL;
 
-	func= rna_alloc_function_name(srna->identifier, prop->identifier, "next");
+	func = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "next");
 
 	fprintf(f, "void %s(CollectionPropertyIterator *iter)\n", func);
 	fprintf(f, "{\n");
 	fprintf(f, "	%s(iter);\n", manualfunc);
 
-	getfunc= rna_alloc_function_name(srna->identifier, prop->identifier, "get");
+	getfunc = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "get");
 
-	fprintf(f, "\n	if(iter->valid)\n");
+	fprintf(f, "\n	if (iter->valid)\n");
 	fprintf(f, "		iter->ptr= %s(iter);\n", getfunc);
 
 	fprintf(f, "}\n\n");
@@ -1077,18 +1325,19 @@ static char *rna_def_property_next_func(FILE *f, StructRNA *srna, PropertyRNA *p
 	return func;
 }
 
-static char *rna_def_property_end_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp, char *manualfunc)
+static char *rna_def_property_end_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *UNUSED(dp),
+                                       const char *manualfunc)
 {
 	char *func;
 
-	if(prop->flag & PROP_IDPROPERTY && manualfunc==NULL)
+	if (prop->flag & PROP_IDPROPERTY && manualfunc == NULL)
 		return NULL;
 
-	func= rna_alloc_function_name(srna->identifier, prop->identifier, "end");
+	func = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "end");
 
 	fprintf(f, "void %s(CollectionPropertyIterator *iter)\n", func);
 	fprintf(f, "{\n");
-	if(manualfunc)
+	if (manualfunc)
 		fprintf(f, "	%s(iter);\n", manualfunc);
 	fprintf(f, "}\n\n");
 
@@ -1097,36 +1346,36 @@ static char *rna_def_property_end_func(FILE *f, StructRNA *srna, PropertyRNA *pr
 
 static void rna_set_raw_property(PropertyDefRNA *dp, PropertyRNA *prop)
 {
-	if(dp->dnapointerlevel != 0)
+	if (dp->dnapointerlevel != 0)
 		return;
-	if(!dp->dnatype || !dp->dnaname || !dp->dnastructname)
+	if (!dp->dnatype || !dp->dnaname || !dp->dnastructname)
 		return;
 	
-	if(strcmp(dp->dnatype, "char") == 0) {
-		prop->rawtype= PROP_RAW_CHAR;
+	if (strcmp(dp->dnatype, "char") == 0) {
+		prop->rawtype = PROP_RAW_CHAR;
 		prop->flag |= PROP_RAW_ACCESS;
 	}
-	else if(strcmp(dp->dnatype, "short") == 0) {
-		prop->rawtype= PROP_RAW_SHORT;
+	else if (strcmp(dp->dnatype, "short") == 0) {
+		prop->rawtype = PROP_RAW_SHORT;
 		prop->flag |= PROP_RAW_ACCESS;
 	}
-	else if(strcmp(dp->dnatype, "int") == 0) {
-		prop->rawtype= PROP_RAW_INT;
+	else if (strcmp(dp->dnatype, "int") == 0) {
+		prop->rawtype = PROP_RAW_INT;
 		prop->flag |= PROP_RAW_ACCESS;
 	}
-	else if(strcmp(dp->dnatype, "float") == 0) {
-		prop->rawtype= PROP_RAW_FLOAT;
+	else if (strcmp(dp->dnatype, "float") == 0) {
+		prop->rawtype = PROP_RAW_FLOAT;
 		prop->flag |= PROP_RAW_ACCESS;
 	}
-	else if(strcmp(dp->dnatype, "double") == 0) {
-		prop->rawtype= PROP_RAW_DOUBLE;
+	else if (strcmp(dp->dnatype, "double") == 0) {
+		prop->rawtype = PROP_RAW_DOUBLE;
 		prop->flag |= PROP_RAW_ACCESS;
 	}
 }
 
 static void rna_set_raw_offset(FILE *f, StructRNA *srna, PropertyRNA *prop)
 {
-	PropertyDefRNA *dp= rna_find_struct_property_def(srna, prop);
+	PropertyDefRNA *dp = rna_find_struct_property_def(srna, prop);
 
 	fprintf(f, "\toffsetof(%s, %s), %d", dp->dnastructname, dp->dnaname, prop->rawtype);
 }
@@ -1135,127 +1384,148 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 {
 	PropertyRNA *prop;
 
-	prop= dp->prop;
+	prop = dp->prop;
 
-	switch(prop->type) {
-		case PROP_BOOLEAN: {
-			BooleanPropertyRNA *bprop= (BooleanPropertyRNA*)prop;
+	switch (prop->type) {
+		case PROP_BOOLEAN:
+		{
+			BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
 
-			if(!prop->arraydimension) {
-				if(!bprop->get && !bprop->set && !dp->booleanbit)
+			if (!prop->arraydimension) {
+				if (!bprop->get && !bprop->set && !dp->booleanbit)
 					rna_set_raw_property(dp, prop);
 
-				bprop->get= (void*)rna_def_property_get_func(f, srna, prop, dp, (char*)bprop->get);
-				bprop->set= (void*)rna_def_property_set_func(f, srna, prop, dp, (char*)bprop->set);
+				bprop->get = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)bprop->get);
+				bprop->set = (void *)rna_def_property_set_func(f, srna, prop, dp, (const char *)bprop->set);
 			}
 			else {
-				bprop->getarray= (void*)rna_def_property_get_func(f, srna, prop, dp, (char*)bprop->getarray);
-				bprop->setarray= (void*)rna_def_property_set_func(f, srna, prop, dp, (char*)bprop->setarray);
+				bprop->getarray = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)bprop->getarray);
+				bprop->setarray = (void *)rna_def_property_set_func(f, srna, prop, dp, (const char *)bprop->setarray);
 			}
 			break;
 		}
-		case PROP_INT: {
-			IntPropertyRNA *iprop= (IntPropertyRNA*)prop;
+		case PROP_INT:
+		{
+			IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
 
-			if(!prop->arraydimension) {
-				if(!iprop->get && !iprop->set)
+			if (!prop->arraydimension) {
+				if (!iprop->get && !iprop->set)
 					rna_set_raw_property(dp, prop);
 
-				iprop->get= (void*)rna_def_property_get_func(f, srna, prop, dp, (char*)iprop->get);
-				iprop->set= (void*)rna_def_property_set_func(f, srna, prop, dp, (char*)iprop->set);
+				iprop->get = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)iprop->get);
+				iprop->set = (void *)rna_def_property_set_func(f, srna, prop, dp, (const char *)iprop->set);
 			}
 			else {
-				if(!iprop->getarray && !iprop->setarray)
+				if (!iprop->getarray && !iprop->setarray)
 					rna_set_raw_property(dp, prop);
 
-				iprop->getarray= (void*)rna_def_property_get_func(f, srna, prop, dp, (char*)iprop->getarray);
-				iprop->setarray= (void*)rna_def_property_set_func(f, srna, prop, dp, (char*)iprop->setarray);
+				iprop->getarray = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)iprop->getarray);
+				iprop->setarray = (void *)rna_def_property_set_func(f, srna, prop, dp, (const char *)iprop->setarray);
 			}
 			break;
 		}
-		case PROP_FLOAT: {
-			FloatPropertyRNA *fprop= (FloatPropertyRNA*)prop;
+		case PROP_FLOAT:
+		{
+			FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
 
-			if(!prop->arraydimension) {
-				if(!fprop->get && !fprop->set)
+			if (!prop->arraydimension) {
+				if (!fprop->get && !fprop->set)
 					rna_set_raw_property(dp, prop);
 
-				fprop->get= (void*)rna_def_property_get_func(f, srna, prop, dp, (char*)fprop->get);
-				fprop->set= (void*)rna_def_property_set_func(f, srna, prop, dp, (char*)fprop->set);
+				fprop->get = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)fprop->get);
+				fprop->set = (void *)rna_def_property_set_func(f, srna, prop, dp, (const char *)fprop->set);
 			}
 			else {
-				if(!fprop->getarray && !fprop->setarray)
+				if (!fprop->getarray && !fprop->setarray)
 					rna_set_raw_property(dp, prop);
 
-				fprop->getarray= (void*)rna_def_property_get_func(f, srna, prop, dp, (char*)fprop->getarray);
-				fprop->setarray= (void*)rna_def_property_set_func(f, srna, prop, dp, (char*)fprop->setarray);
+				fprop->getarray = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)fprop->getarray);
+				fprop->setarray = (void *)rna_def_property_set_func(f, srna, prop, dp, (const char *)fprop->setarray);
 			}
 			break;
 		}
-		case PROP_ENUM: {
-			EnumPropertyRNA *eprop= (EnumPropertyRNA*)prop;
+		case PROP_ENUM:
+		{
+			EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
 
-			eprop->get= (void*)rna_def_property_get_func(f, srna, prop, dp, (char*)eprop->get);
-			eprop->set= (void*)rna_def_property_set_func(f, srna, prop, dp, (char*)eprop->set);
+			eprop->get = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)eprop->get);
+			eprop->set = (void *)rna_def_property_set_func(f, srna, prop, dp, (const char *)eprop->set);
 			break;
 		}
-		case PROP_STRING: {
-			StringPropertyRNA *sprop= (StringPropertyRNA*)prop;
+		case PROP_STRING:
+		{
+			StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
 
-			sprop->get= (void*)rna_def_property_get_func(f, srna, prop, dp, (char*)sprop->get);
-			sprop->length= (void*)rna_def_property_length_func(f, srna, prop, dp, (char*)sprop->length);
-			sprop->set= (void*)rna_def_property_set_func(f, srna, prop, dp, (char*)sprop->set);
+			sprop->get = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)sprop->get);
+			sprop->length = (void *)rna_def_property_length_func(f, srna, prop, dp, (const char *)sprop->length);
+			sprop->set = (void *)rna_def_property_set_func(f, srna, prop, dp, (const char *)sprop->set);
 			break;
 		}
-		case PROP_POINTER: {
-			PointerPropertyRNA *pprop= (PointerPropertyRNA*)prop;
+		case PROP_POINTER:
+		{
+			PointerPropertyRNA *pprop = (PointerPropertyRNA *)prop;
 
-			pprop->get= (void*)rna_def_property_get_func(f, srna, prop, dp, (char*)pprop->get);
-			pprop->set= (void*)rna_def_property_set_func(f, srna, prop, dp, (char*)pprop->set);
-			if(!pprop->type) {
-				fprintf(stderr, "rna_def_property_funcs: %s.%s, pointer must have a struct type.\n", srna->identifier, prop->identifier);
-				DefRNA.error= 1;
+			pprop->get = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)pprop->get);
+			pprop->set = (void *)rna_def_property_set_func(f, srna, prop, dp, (const char *)pprop->set);
+			if (!pprop->type) {
+				fprintf(stderr, "%s: %s.%s, pointer must have a struct type.\n",
+				        __func__, srna->identifier, prop->identifier);
+				DefRNA.error = 1;
 			}
 			break;
 		}
-		case PROP_COLLECTION: {
-			CollectionPropertyRNA *cprop= (CollectionPropertyRNA*)prop;
-			char *nextfunc= (char*)cprop->next;
+		case PROP_COLLECTION:
+		{
+			CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)prop;
+			const char *nextfunc = (const char *)cprop->next;
+			const char *item_type = (const char *)cprop->item_type;
 
-			if(dp->dnatype && strcmp(dp->dnatype, "ListBase")==0);
-			else if(dp->dnalengthname || dp->dnalengthfixed)
-				cprop->length= (void*)rna_def_property_length_func(f, srna, prop, dp, (char*)cprop->length);
+			if (dp->dnatype && strcmp(dp->dnatype, "ListBase") == 0) {
+				/* pass */
+			}
+			else if (dp->dnalengthname || dp->dnalengthfixed) {
+				cprop->length = (void *)rna_def_property_length_func(f, srna, prop, dp, (const char *)cprop->length);
+			}
 
 			/* test if we can allow raw array access, if it is using our standard
 			 * array get/next function, we can be sure it is an actual array */
-			if(cprop->next && cprop->get)
-				if(strcmp((char*)cprop->next, "rna_iterator_array_next") == 0 &&
-				   strcmp((char*)cprop->get, "rna_iterator_array_get") == 0)
+			if (cprop->next && cprop->get)
+				if (strcmp((const char *)cprop->next, "rna_iterator_array_next") == 0 &&
+				    strcmp((const char *)cprop->get, "rna_iterator_array_get") == 0)
+				{
 					prop->flag |= PROP_RAW_ARRAY;
-
-			cprop->get= (void*)rna_def_property_get_func(f, srna, prop, dp, (char*)cprop->get);
-			cprop->begin= (void*)rna_def_property_begin_func(f, srna, prop, dp, (char*)cprop->begin);
-			cprop->next= (void*)rna_def_property_next_func(f, srna, prop, dp, (char*)cprop->next);
-			cprop->end= (void*)rna_def_property_end_func(f, srna, prop, dp, (char*)cprop->end);
-			cprop->lookupint= (void*)rna_def_property_lookup_int_func(f, srna, prop, dp, (char*)cprop->lookupint, nextfunc);
-
-			if(!(prop->flag & PROP_IDPROPERTY)) {
-				if(!cprop->begin) {
-					fprintf(stderr, "rna_def_property_funcs: %s.%s, collection must have a begin function.\n", srna->identifier, prop->identifier);
-					DefRNA.error= 1;
 				}
-				if(!cprop->next) {
-					fprintf(stderr, "rna_def_property_funcs: %s.%s, collection must have a next function.\n", srna->identifier, prop->identifier);
-					DefRNA.error= 1;
+
+			cprop->get = (void *)rna_def_property_get_func(f, srna, prop, dp, (const char *)cprop->get);
+			cprop->begin = (void *)rna_def_property_begin_func(f, srna, prop, dp, (const char *)cprop->begin);
+			cprop->next = (void *)rna_def_property_next_func(f, srna, prop, dp, (const char *)cprop->next);
+			cprop->end = (void *)rna_def_property_end_func(f, srna, prop, dp, (const char *)cprop->end);
+			cprop->lookupint = (void *)rna_def_property_lookup_int_func(f, srna, prop, dp,
+			                                                            (const char *)cprop->lookupint, nextfunc);
+			cprop->lookupstring = (void *)rna_def_property_lookup_string_func(f, srna, prop, dp,
+			                                                                  (const char *)cprop->lookupstring, item_type);
+
+			if (!(prop->flag & PROP_IDPROPERTY)) {
+				if (!cprop->begin) {
+					fprintf(stderr, "%s: %s.%s, collection must have a begin function.\n",
+					        __func__, srna->identifier, prop->identifier);
+					DefRNA.error = 1;
 				}
-				if(!cprop->get) {
-					fprintf(stderr, "rna_def_property_funcs: %s.%s, collection must have a get function.\n", srna->identifier, prop->identifier);
-					DefRNA.error= 1;
+				if (!cprop->next) {
+					fprintf(stderr, "%s: %s.%s, collection must have a next function.\n",
+					        __func__, srna->identifier, prop->identifier);
+					DefRNA.error = 1;
+				}
+				if (!cprop->get) {
+					fprintf(stderr, "%s: %s.%s, collection must have a get function.\n",
+					        __func__, srna->identifier, prop->identifier);
+					DefRNA.error = 1;
 				}
 			}
-			if(!cprop->item_type) {
-				fprintf(stderr, "rna_def_property_funcs: %s.%s, collection must have a struct type.\n", srna->identifier, prop->identifier);
-				DefRNA.error= 1;
+			if (!cprop->item_type) {
+				fprintf(stderr, "%s: %s.%s, collection must have a struct type.\n",
+				        __func__, srna->identifier, prop->identifier);
+				DefRNA.error = 1;
 			}
 			break;
 		}
@@ -1267,163 +1537,242 @@ static void rna_def_property_funcs_header(FILE *f, StructRNA *srna, PropertyDefR
 	PropertyRNA *prop;
 	char *func;
 
-	prop= dp->prop;
+	prop = dp->prop;
 
-	if(prop->flag & (PROP_IDPROPERTY|PROP_BUILTIN))
+	if (prop->flag & (PROP_IDPROPERTY | PROP_BUILTIN))
 		return;
 
-	func= rna_alloc_function_name(srna->identifier, prop->identifier, "");
+	func = rna_alloc_function_name(srna->identifier, rna_safe_id(prop->identifier), "");
 
-	switch(prop->type) {
+	switch (prop->type) {
 		case PROP_BOOLEAN:
-		case PROP_INT: {
-			if(!prop->arraydimension) {
+		case PROP_INT:
+		{
+			if (!prop->arraydimension) {
 				fprintf(f, "int %sget(PointerRNA *ptr);\n", func);
-				//fprintf(f, "void %sset(PointerRNA *ptr, int value);\n", func);
+				fprintf(f, "void %sset(PointerRNA *ptr, int value);\n", func);
+			}
+			else if (prop->arraydimension && prop->totarraylength) {
+				fprintf(f, "void %sget(PointerRNA *ptr, int values[%u]);\n", func, prop->totarraylength);
+				fprintf(f, "void %sset(PointerRNA *ptr, const int values[%d]);\n", func, prop->totarraylength);
 			}
 			else {
-				fprintf(f, "void %sget(PointerRNA *ptr, int values[%d]);\n", func, prop->totarraylength);
-				//fprintf(f, "void %sset(PointerRNA *ptr, const int values[%d]);\n", func, prop->arraylength);
+				fprintf(f, "void %sget(PointerRNA *ptr, int values[]);\n", func);
+				fprintf(f, "void %sset(PointerRNA *ptr, const int values[]);\n", func);
 			}
 			break;
 		}
-		case PROP_FLOAT: {
-			if(!prop->arraydimension) {
+		case PROP_FLOAT:
+		{
+			if (!prop->arraydimension) {
 				fprintf(f, "float %sget(PointerRNA *ptr);\n", func);
-				//fprintf(f, "void %sset(PointerRNA *ptr, float value);\n", func);
+				fprintf(f, "void %sset(PointerRNA *ptr, float value);\n", func);
+			}
+			else if (prop->arraydimension && prop->totarraylength) {
+				fprintf(f, "void %sget(PointerRNA *ptr, float values[%u]);\n", func, prop->totarraylength);
+				fprintf(f, "void %sset(PointerRNA *ptr, const float values[%d]);\n", func, prop->totarraylength);
 			}
 			else {
-				fprintf(f, "void %sget(PointerRNA *ptr, float values[%d]);\n", func, prop->totarraylength);
-				//fprintf(f, "void %sset(PointerRNA *ptr, const float values[%d]);\n", func, prop->arraylength);
+				fprintf(f, "void %sget(PointerRNA *ptr, float values[]);\n", func);
+				fprintf(f, "void %sset(PointerRNA *ptr, const float values[]);", func);
 			}
 			break;
 		}
-		case PROP_ENUM: {
-			EnumPropertyRNA *eprop= (EnumPropertyRNA*)prop;
+		case PROP_ENUM:
+		{
+			EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
 			int i;
 
-			if(eprop->item) {
+			if (eprop->item) {
 				fprintf(f, "enum {\n");
 
-				for(i=0; i<eprop->totitem; i++)
-					if(eprop->item[i].identifier[0])
-						fprintf(f, "\t%s_%s_%s = %d,\n", srna->identifier, prop->identifier, eprop->item[i].identifier, eprop->item[i].value);
+				for (i = 0; i < eprop->totitem; i++)
+					if (eprop->item[i].identifier[0])
+						fprintf(f, "\t%s_%s_%s = %d,\n", srna->identifier, prop->identifier,
+						        eprop->item[i].identifier, eprop->item[i].value);
 
 				fprintf(f, "};\n\n");
 			}
 
 			fprintf(f, "int %sget(PointerRNA *ptr);\n", func);
-			//fprintf(f, "void %sset(PointerRNA *ptr, int value);\n", func);
+			fprintf(f, "void %sset(PointerRNA *ptr, int value);\n", func);
 
 			break;
 		}
-		case PROP_STRING: {
-			StringPropertyRNA *sprop= (StringPropertyRNA*)prop;
+		case PROP_STRING:
+		{
+			StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
 
-			if(sprop->maxlength) {
+			if (sprop->maxlength) {
 				fprintf(f, "#define %s_%s_MAX %d\n\n", srna->identifier, prop->identifier, sprop->maxlength);
 			}
 			
 			fprintf(f, "void %sget(PointerRNA *ptr, char *value);\n", func);
 			fprintf(f, "int %slength(PointerRNA *ptr);\n", func);
-			//fprintf(f, "void %sset(PointerRNA *ptr, const char *value);\n", func);
+			fprintf(f, "void %sset(PointerRNA *ptr, const char *value);\n", func);
 
 			break;
 		}
-		case PROP_POINTER: {
+		case PROP_POINTER:
+		{
 			fprintf(f, "PointerRNA %sget(PointerRNA *ptr);\n", func);
-			//fprintf(f, "void %sset(PointerRNA *ptr, PointerRNA value);\n", func);
+			/*fprintf(f, "void %sset(PointerRNA *ptr, PointerRNA value);\n", func); */
 			break;
 		}
-		case PROP_COLLECTION: {
+		case PROP_COLLECTION:
+		{
+			CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)prop;
 			fprintf(f, "void %sbegin(CollectionPropertyIterator *iter, PointerRNA *ptr);\n", func);
 			fprintf(f, "void %snext(CollectionPropertyIterator *iter);\n", func);
 			fprintf(f, "void %send(CollectionPropertyIterator *iter);\n", func);
-			//fprintf(f, "int %slength(PointerRNA *ptr);\n", func);
-			//fprintf(f, "void %slookup_int(PointerRNA *ptr, int key, StructRNA **type);\n", func);
-			//fprintf(f, "void %slookup_string(PointerRNA *ptr, const char *key, StructRNA **type);\n", func);
+			if (cprop->length)
+				fprintf(f, "int %slength(PointerRNA *ptr);\n", func);
+			if (cprop->lookupint)
+				fprintf(f, "int %slookup_int(PointerRNA *ptr, int key, PointerRNA *r_ptr);\n", func);
+			if (cprop->lookupstring)
+				fprintf(f, "int %slookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr);\n", func);
 			break;
 		}
 	}
 
+	if (prop->getlength) {
+		char funcname[2048];
+		rna_construct_wrapper_function_name(funcname, sizeof(funcname), srna->identifier, prop->identifier, "get_length");
+		fprintf(f, "int %s(PointerRNA *ptr, int *arraylen);\n", funcname);
+	}
+
 	fprintf(f, "\n");
+}
+
+static void rna_def_function_funcs_header(FILE *f, StructRNA *srna, FunctionDefRNA *dfunc)
+{
+	FunctionRNA *func = dfunc->func;
+	char funcname[2048];
+
+	rna_construct_wrapper_function_name(funcname, sizeof(funcname), srna->identifier, func->identifier, NULL);
+	rna_generate_static_parameter_prototypes(f, srna, dfunc, funcname, 1);
 }
 
 static void rna_def_property_funcs_header_cpp(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 {
 	PropertyRNA *prop;
 
-	prop= dp->prop;
+	prop = dp->prop;
 
-	if(prop->flag & (PROP_IDPROPERTY|PROP_BUILTIN))
+	if (prop->flag & (PROP_IDPROPERTY | PROP_BUILTIN))
 		return;
 	
-	if(prop->name && prop->description && strcmp(prop->description, "") != 0)
+	/* disabled for now to avoid msvc compiler error due to large file size */
+#if 0
+	if (prop->name && prop->description && prop->description[0] != '\0')
 		fprintf(f, "\t/* %s: %s */\n", prop->name, prop->description);
-	else if(prop->name)
+	else if (prop->name)
 		fprintf(f, "\t/* %s */\n", prop->name);
 	else
 		fprintf(f, "\t/* */\n");
+#endif
 
-	switch(prop->type) {
-		case PROP_BOOLEAN: {
-			if(!prop->arraydimension)
-				fprintf(f, "\tbool %s(void);", prop->identifier);
-			else
-				fprintf(f, "\tArray<int, %d> %s(void);", prop->totarraylength, prop->identifier);
+	switch (prop->type) {
+		case PROP_BOOLEAN:
+		{
+			if (!prop->arraydimension) {
+				fprintf(f, "\tinline bool %s(void);\n", rna_safe_id(prop->identifier));
+				fprintf(f, "\tinline void %s(int value);", rna_safe_id(prop->identifier));
+			}
+			else if (prop->totarraylength) {
+				fprintf(f, "\tinline Array<int, %u> %s(void);\n", prop->totarraylength, rna_safe_id(prop->identifier));
+				fprintf(f, "\tinline void %s(int values[%u]);", rna_safe_id(prop->identifier), prop->totarraylength);
+			}
+			else if (prop->getlength) {
+				fprintf(f, "\tinline DynamicArray<int> %s(void);\n", rna_safe_id(prop->identifier));
+				fprintf(f, "\tinline void %s(int values[]);", rna_safe_id(prop->identifier));
+			}
 			break;
 		}
-		case PROP_INT: {
-			if(!prop->arraydimension)
-				fprintf(f, "\tint %s(void);", prop->identifier);
-			else
-				fprintf(f, "\tArray<int, %d> %s(void);", prop->totarraylength, prop->identifier);
+		case PROP_INT:
+		{
+			if (!prop->arraydimension) {
+				fprintf(f, "\tinline int %s(void);\n", rna_safe_id(prop->identifier));
+				fprintf(f, "\tinline void %s(int value);", rna_safe_id(prop->identifier));
+			}
+			else if (prop->totarraylength) {
+				fprintf(f, "\tinline Array<int, %u> %s(void);\n", prop->totarraylength, rna_safe_id(prop->identifier));
+				fprintf(f, "\tinline void %s(int values[%u]);", rna_safe_id(prop->identifier), prop->totarraylength);
+			}
+			else if (prop->getlength) {
+				fprintf(f, "\tinline DynamicArray<int> %s(void);\n", rna_safe_id(prop->identifier));
+				fprintf(f, "\tinline void %s(int values[]);", rna_safe_id(prop->identifier));
+			}
 			break;
 		}
-		case PROP_FLOAT: {
-			if(!prop->arraydimension)
-				fprintf(f, "\tfloat %s(void);", prop->identifier);
-			else
-				fprintf(f, "\tArray<float, %d> %s(void);", prop->totarraylength, prop->identifier);
+		case PROP_FLOAT:
+		{
+			if (!prop->arraydimension) {
+				fprintf(f, "\tinline float %s(void);\n", rna_safe_id(prop->identifier));
+				fprintf(f, "\tinline void %s(float value);", rna_safe_id(prop->identifier));
+			}
+			else if (prop->totarraylength) {
+				fprintf(f, "\tinline Array<float, %u> %s(void);\n", prop->totarraylength, rna_safe_id(prop->identifier));
+				fprintf(f, "\tinline void %s(float values[%u]);", rna_safe_id(prop->identifier), prop->totarraylength);
+			}
+			else if (prop->getlength) {
+				fprintf(f, "\tinline DynamicArray<float> %s(void);\n", rna_safe_id(prop->identifier));
+				fprintf(f, "\tinline void %s(float values[]);", rna_safe_id(prop->identifier));
+			}
 			break;
 		}
-		case PROP_ENUM: {
-			EnumPropertyRNA *eprop= (EnumPropertyRNA*)prop;
+		case PROP_ENUM:
+		{
+			EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
 			int i;
 
-			if(eprop->item) {
-				fprintf(f, "\tenum %s_enum {\n", prop->identifier);
+			if (eprop->item) {
+				fprintf(f, "\tenum %s_enum {\n", rna_safe_id(prop->identifier));
 
-				for(i=0; i<eprop->totitem; i++)
-					if(eprop->item[i].identifier[0])
-						fprintf(f, "\t\t%s_%s = %d,\n", prop->identifier, eprop->item[i].identifier, eprop->item[i].value);
+				for (i = 0; i < eprop->totitem; i++)
+					if (eprop->item[i].identifier[0])
+						fprintf(f, "\t\t%s_%s = %d,\n", rna_safe_id(prop->identifier), eprop->item[i].identifier,
+						        eprop->item[i].value);
 
 				fprintf(f, "\t};\n");
 			}
 
-			fprintf(f, "\t%s_enum %s(void);", prop->identifier, prop->identifier);
+			fprintf(f, "\tinline %s_enum %s(void);\n", rna_safe_id(prop->identifier), rna_safe_id(prop->identifier));
+			fprintf(f, "\tinline void %s(%s_enum value);", rna_safe_id(prop->identifier), rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_STRING: {
-			fprintf(f, "\tstd::string %s(void);", prop->identifier);
+		case PROP_STRING:
+		{
+			fprintf(f, "\tinline std::string %s(void);", rna_safe_id(prop->identifier));
+			fprintf(f, "\tinline void %s(const std::string& value);", rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_POINTER: {
-			PointerPropertyRNA *pprop= (PointerPropertyRNA*)dp->prop;
+		case PROP_POINTER:
+		{
+			PointerPropertyRNA *pprop = (PointerPropertyRNA *)dp->prop;
 
-			if(pprop->type)
-				fprintf(f, "\t%s %s(void);", (char*)pprop->type, prop->identifier);
+			if (pprop->type)
+				fprintf(f, "\tinline %s %s(void);", (const char *)pprop->type, rna_safe_id(prop->identifier));
 			else
-				fprintf(f, "\t%s %s(void);", "UnknownType", prop->identifier);
+				fprintf(f, "\tinline %s %s(void);", "UnknownType", rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_COLLECTION: {
-			CollectionPropertyRNA *cprop= (CollectionPropertyRNA*)dp->prop;
+		case PROP_COLLECTION:
+		{
+			CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)dp->prop;
+			const char *collection_funcs = "DefaultCollectionFunctions";
 
-			if(cprop->item_type)
-				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s)", (char*)cprop->item_type, srna->identifier, prop->identifier);
+			if (!(dp->prop->flag & (PROP_IDPROPERTY | PROP_BUILTIN)) && cprop->property.srna)
+				collection_funcs  = (char *)cprop->property.srna;
+
+			if (cprop->item_type)
+				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s, %s, %s, %s, %s)", collection_funcs, (const char *)cprop->item_type, srna->identifier,
+				        rna_safe_id(prop->identifier), (cprop->length ? "TRUE" : "FALSE"),
+				        (cprop->lookupint ? "TRUE" : "FALSE"), (cprop->lookupstring ? "TRUE" : "FALSE"));
 			else
-				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s)", "UnknownType", srna->identifier, prop->identifier);
+				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s, %s, %s, %s, %s)", collection_funcs, "UnknownType", srna->identifier,
+				        rna_safe_id(prop->identifier), (cprop->length ? "TRUE" : "FALSE"),
+				        (cprop->lookupint ? "TRUE" : "FALSE"), (cprop->lookupstring ? "TRUE" : "FALSE"));
 			break;
 		}
 	}
@@ -1431,67 +1780,371 @@ static void rna_def_property_funcs_header_cpp(FILE *f, StructRNA *srna, Property
 	fprintf(f, "\n");
 }
 
+static const char *rna_parameter_type_cpp_name(PropertyRNA *prop)
+{
+	if (prop->type == PROP_POINTER) {
+		/* for cpp api we need to use RNA structures names for pointers */
+		PointerPropertyRNA *pprop = (PointerPropertyRNA *) prop;
+
+		return (const char *) pprop->type;
+	}
+	else {
+		return rna_parameter_type_name(prop);
+	}
+}
+
+static void rna_def_struct_function_prototype_cpp(FILE *f, StructRNA *UNUSED(srna), FunctionDefRNA *dfunc,
+                                                  const char *namespace, int close_prototype)
+{
+	PropertyDefRNA *dp;
+	FunctionRNA *func = dfunc->func;
+
+	int first = 1;
+	const char *retval_type = "void";
+
+	if (func->c_ret) {
+		dp = rna_find_parameter_def(func->c_ret);
+		retval_type = rna_parameter_type_cpp_name(dp->prop);
+	}
+
+	if (namespace && namespace[0])
+		fprintf(f, "\tinline %s %s::%s(", retval_type, namespace, rna_safe_id(func->identifier));
+	else
+		fprintf(f, "\tinline %s %s(", retval_type, rna_safe_id(func->identifier));
+
+	if (func->flag & FUNC_USE_MAIN)
+		WRITE_PARAM("void *main");
+
+	if (func->flag & FUNC_USE_CONTEXT)
+		WRITE_PARAM("Context C");
+
+	for (dp = dfunc->cont.properties.first; dp; dp = dp->next) {
+		int type, flag, pout;
+		const char *ptrstr;
+
+		if (dp->prop == func->c_ret)
+			continue;
+
+		type = dp->prop->type;
+		flag = dp->prop->flag;
+		pout = (flag & PROP_OUTPUT);
+
+		if (flag & PROP_DYNAMIC)
+			ptrstr = pout ? "**" : "*";
+		else if (type == PROP_POINTER)
+			ptrstr = pout ? "*": "";
+		else if (dp->prop->arraydimension)
+			ptrstr = "*";
+		else if (type == PROP_STRING && (flag & PROP_THICK_WRAP))
+			ptrstr = "";
+		else
+			ptrstr = pout ? "*" : "";
+
+		WRITE_COMMA;
+
+		if (flag & PROP_DYNAMIC)
+			fprintf(f, "int %s%s_len, ", (flag & PROP_OUTPUT) ? "*" : "", dp->prop->identifier);
+
+		if (!(flag & PROP_DYNAMIC) && dp->prop->arraydimension)
+			fprintf(f, "%s %s[%u]", rna_parameter_type_cpp_name(dp->prop),
+			        rna_safe_id(dp->prop->identifier), dp->prop->totarraylength);
+		else
+			fprintf(f, "%s %s%s", rna_parameter_type_cpp_name(dp->prop),
+			        ptrstr, rna_safe_id(dp->prop->identifier));
+	}
+
+	fprintf(f, ")");
+	if (close_prototype)
+		fprintf(f, ";\n");
+}
+
+static void rna_def_struct_function_header_cpp(FILE *f, StructRNA *srna, FunctionDefRNA *dfunc)
+{
+	if (dfunc->call) {
+		/* disabled for now to avoid msvc compiler error due to large file size */
+#if 0
+		FunctionRNA *func = dfunc->func;
+		fprintf(f, "\n\t/* %s */\n", func->description);
+#endif
+
+		rna_def_struct_function_prototype_cpp(f, srna, dfunc, NULL, 1);
+	}
+}
+
 static void rna_def_property_funcs_impl_cpp(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 {
 	PropertyRNA *prop;
 
-	prop= dp->prop;
+	prop = dp->prop;
 
-	if(prop->flag & (PROP_IDPROPERTY|PROP_BUILTIN))
+	if (prop->flag & (PROP_IDPROPERTY | PROP_BUILTIN))
 		return;
 
-	switch(prop->type) {
-		case PROP_BOOLEAN: {
-			if(!prop->arraydimension)
-				fprintf(f, "\tBOOLEAN_PROPERTY(%s, %s)", srna->identifier, prop->identifier);
-			else
-				fprintf(f, "\tBOOLEAN_ARRAY_PROPERTY(%s, %d, %s)", srna->identifier, prop->totarraylength, prop->identifier);
+	switch (prop->type) {
+		case PROP_BOOLEAN:
+		{
+			if (!prop->arraydimension)
+				fprintf(f, "\tBOOLEAN_PROPERTY(%s, %s)", srna->identifier, rna_safe_id(prop->identifier));
+			else if (prop->totarraylength)
+				fprintf(f, "\tBOOLEAN_ARRAY_PROPERTY(%s, %u, %s)", srna->identifier, prop->totarraylength,
+				        rna_safe_id(prop->identifier));
+			else if (prop->getlength)
+				fprintf(f, "\tBOOLEAN_DYNAMIC_ARRAY_PROPERTY(%s, %s)", srna->identifier,
+				        rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_INT: {
-			if(!prop->arraydimension)
-				fprintf(f, "\tINT_PROPERTY(%s, %s)", srna->identifier, prop->identifier);
-			else
-				fprintf(f, "\tINT_ARRAY_PROPERTY(%s, %d, %s)", srna->identifier, prop->totarraylength, prop->identifier);
+		case PROP_INT:
+		{
+			if (!prop->arraydimension)
+				fprintf(f, "\tINT_PROPERTY(%s, %s)", srna->identifier, rna_safe_id(prop->identifier));
+			else if (prop->totarraylength)
+				fprintf(f, "\tINT_ARRAY_PROPERTY(%s, %u, %s)", srna->identifier, prop->totarraylength,
+				        rna_safe_id(prop->identifier));
+			else if (prop->getlength)
+				fprintf(f, "\tINT_DYNAMIC_ARRAY_PROPERTY(%s, %s)", srna->identifier,
+				        rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_FLOAT: {
-			if(!prop->arraydimension)
-				fprintf(f, "\tFLOAT_PROPERTY(%s, %s)", srna->identifier, prop->identifier);
-			else
-				fprintf(f, "\tFLOAT_ARRAY_PROPERTY(%s, %d, %s)", srna->identifier, prop->totarraylength, prop->identifier);
+		case PROP_FLOAT:
+		{
+			if (!prop->arraydimension)
+				fprintf(f, "\tFLOAT_PROPERTY(%s, %s)", srna->identifier, rna_safe_id(prop->identifier));
+			else if (prop->totarraylength)
+				fprintf(f, "\tFLOAT_ARRAY_PROPERTY(%s, %u, %s)", srna->identifier, prop->totarraylength,
+				        rna_safe_id(prop->identifier));
+			else if (prop->getlength)
+				fprintf(f, "\tFLOAT_DYNAMIC_ARRAY_PROPERTY(%s, %s)", srna->identifier,
+				        rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_ENUM: {
-			fprintf(f, "\tENUM_PROPERTY(%s_enum, %s, %s)", prop->identifier, srna->identifier, prop->identifier);
+		case PROP_ENUM:
+		{
+			fprintf(f, "\tENUM_PROPERTY(%s_enum, %s, %s)", rna_safe_id(prop->identifier), srna->identifier,
+			        rna_safe_id(prop->identifier));
 
 			break;
 		}
-		case PROP_STRING: {
-			fprintf(f, "\tSTRING_PROPERTY(%s, %s)", srna->identifier, prop->identifier);
+		case PROP_STRING:
+		{
+			fprintf(f, "\tSTRING_PROPERTY(%s, %s)", srna->identifier, rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_POINTER: {
-			PointerPropertyRNA *pprop= (PointerPropertyRNA*)dp->prop;
+		case PROP_POINTER:
+		{
+			PointerPropertyRNA *pprop = (PointerPropertyRNA *)dp->prop;
 
-			if(pprop->type)
-				fprintf(f, "\tPOINTER_PROPERTY(%s, %s, %s)", (char*)pprop->type, srna->identifier, prop->identifier);
+			if (pprop->type)
+				fprintf(f, "\tPOINTER_PROPERTY(%s, %s, %s)", (const char *)pprop->type, srna->identifier,
+				        rna_safe_id(prop->identifier));
 			else
-				fprintf(f, "\tPOINTER_PROPERTY(%s, %s, %s)", "UnknownType", srna->identifier, prop->identifier);
+				fprintf(f, "\tPOINTER_PROPERTY(%s, %s, %s)", "UnknownType", srna->identifier,
+				        rna_safe_id(prop->identifier));
 			break;
 		}
-		case PROP_COLLECTION: {
-			/*CollectionPropertyRNA *cprop= (CollectionPropertyRNA*)dp->prop;
+		case PROP_COLLECTION:
+		{
+#if 0
+			CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)dp->prop;
 
-			if(cprop->type)
-				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s)", (char*)cprop->type, srna->identifier, prop->identifier);
+			if (cprop->type)
+				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s, %s, %s, %s)", (const char *)cprop->type, srna->identifier,
+				        prop->identifier, (cprop->length ? "TRUE" : "FALSE"),
+				        (cprop->lookupint ? "TRUE" : "FALSE"), (cprop->lookupstring ? "TRUE" : "FALSE"));
 			else
-				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s)", "UnknownType", srna->identifier, prop->identifier);*/
+				fprintf(f, "\tCOLLECTION_PROPERTY(%s, %s, %s, %s, %s, %s)", "UnknownType", srna->identifier,
+				        prop->identifier, (cprop->length ? "TRUE" : "FALSE"),
+				        (cprop->lookupint ? "TRUE" : "FALSE"), (cprop->lookupstring ? "TRUE" : "FALSE"));
+#endif
 			break;
 		}
 	}
 
 	fprintf(f, "\n");
+}
+
+static void rna_def_struct_function_call_impl_cpp(FILE *f, StructRNA *srna, FunctionDefRNA *dfunc)
+{
+	PropertyDefRNA *dp;
+	StructDefRNA *dsrna;
+	FunctionRNA *func = dfunc->func;
+	char funcname[2048];
+
+	int first = 1;
+
+	rna_construct_wrapper_function_name(funcname, sizeof(funcname), srna->identifier, func->identifier, NULL);
+
+	fprintf(f, "%s(", funcname);
+
+	dsrna = rna_find_struct_def(srna);
+
+	if (func->flag & FUNC_USE_SELF_ID)
+		WRITE_PARAM("(::ID *) ptr.id.data");
+
+	if ((func->flag & FUNC_NO_SELF) == 0) {
+		WRITE_COMMA;
+		if (dsrna->dnaname) fprintf(f, "(::%s *) this->ptr.data", dsrna->dnaname);
+		else fprintf(f, "(::%s *) this->ptr.data", srna->identifier);
+	}
+	else if (func->flag & FUNC_USE_SELF_TYPE) {
+		WRITE_COMMA;
+		fprintf(f, "this->ptr.type");
+	}
+
+	if (func->flag & FUNC_USE_MAIN)
+		WRITE_PARAM("(::Main *) main");
+
+	if (func->flag & FUNC_USE_CONTEXT)
+		WRITE_PARAM("(::bContext *) C.ptr.data");
+
+	if (func->flag & FUNC_USE_REPORTS)
+		WRITE_PARAM("NULL");
+
+	dp = dfunc->cont.properties.first;
+	for (; dp; dp = dp->next) {
+		if (dp->prop == func->c_ret)
+			continue;
+
+		WRITE_COMMA;
+
+		if (dp->prop->flag & PROP_DYNAMIC)
+			fprintf(f, "%s_len, ", dp->prop->identifier);
+
+		if (dp->prop->type == PROP_POINTER)
+			if ((dp->prop->flag & PROP_RNAPTR) && !(dp->prop->flag & PROP_THICK_WRAP))
+				fprintf(f, "(::%s *) &%s.ptr", rna_parameter_type_name(dp->prop), rna_safe_id(dp->prop->identifier));
+			else if (dp->prop->flag & PROP_OUTPUT)
+				fprintf(f, "(::%s **) &%s->ptr.data", rna_parameter_type_name(dp->prop), rna_safe_id(dp->prop->identifier));
+			else
+				fprintf(f, "(::%s *) %s.ptr.data", rna_parameter_type_name(dp->prop), rna_safe_id(dp->prop->identifier));
+		else
+			fprintf(f, "%s", rna_safe_id(dp->prop->identifier));
+	}
+
+	fprintf(f, ");\n");
+}
+
+static void rna_def_struct_function_impl_cpp(FILE *f, StructRNA *srna, FunctionDefRNA *dfunc)
+{
+	PropertyDefRNA *dp;
+	PointerPropertyRNA *pprop;
+
+	FunctionRNA *func = dfunc->func;
+
+	if (!dfunc->call)
+		return;
+
+	rna_def_struct_function_prototype_cpp(f, srna, dfunc, srna->identifier, 0);
+
+	fprintf(f, " {\n");
+
+	if (func->c_ret) {
+		dp = rna_find_parameter_def(func->c_ret);
+
+		if (dp->prop->type == PROP_POINTER) {
+			pprop = (PointerPropertyRNA *) dp->prop;
+
+			fprintf(f, "\t\tPointerRNA result;\n");
+
+			if ((dp->prop->flag & PROP_RNAPTR) == 0) {
+				StructRNA *ret_srna = rna_find_struct((const char *) pprop->type);
+				fprintf(f, "\t\t::%s *retdata = ", rna_parameter_type_name(dp->prop));
+				rna_def_struct_function_call_impl_cpp(f, srna, dfunc);
+				if (ret_srna->flag & STRUCT_ID)
+					fprintf(f, "\t\tRNA_id_pointer_create((::ID *) retdata, &result);\n");
+				else
+					fprintf(f, "\t\tRNA_pointer_create((::ID *) ptr.id.data, &RNA_%s, retdata, &result);\n", (const char *) pprop->type);
+			}
+			else {
+				fprintf(f, "\t\tresult = ");
+				rna_def_struct_function_call_impl_cpp(f, srna, dfunc);
+			}
+
+			fprintf(f, "\t\treturn %s(result);\n", (const char *) pprop->type);
+		}
+		else {
+			fprintf(f, "\t\treturn ");
+			rna_def_struct_function_call_impl_cpp(f, srna, dfunc);
+		}
+	}
+	else {
+		fprintf(f, "\t\t");
+		rna_def_struct_function_call_impl_cpp(f, srna, dfunc);
+	}
+
+	fprintf(f, "\t}\n\n");
+}
+
+static void rna_def_property_wrapper_funcs(FILE *f, StructDefRNA *dsrna, PropertyDefRNA *dp)
+{
+	if (dp->prop->getlength) {
+		char funcname[2048];
+		rna_construct_wrapper_function_name(funcname, sizeof(funcname), dsrna->srna->identifier, dp->prop->identifier, "get_length");
+		fprintf(f, "int %s(PointerRNA *ptr, int *arraylen)\n", funcname);
+		fprintf(f, "{\n");
+		fprintf(f, "\treturn %s(ptr, arraylen);\n", rna_function_string(dp->prop->getlength));
+		fprintf(f, "}\n\n");
+	}
+}
+
+static void rna_def_function_wrapper_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA *dfunc)
+{
+	StructRNA *srna = dsrna->srna;
+	FunctionRNA *func = dfunc->func;
+	PropertyDefRNA *dparm;
+
+	int first;
+	char funcname[2048];
+
+	if (!dfunc->call)
+		return;
+
+	rna_construct_wrapper_function_name(funcname, sizeof(funcname), srna->identifier, func->identifier, NULL);
+
+	rna_generate_static_parameter_prototypes(f, srna, dfunc, funcname, 0);
+
+	fprintf(f, "\n{\n");
+
+	if (func->c_ret)
+		fprintf(f, "\treturn %s(", dfunc->call);
+	else
+		fprintf(f, "\t%s(", dfunc->call);
+
+	first = 1;
+
+	if (func->flag & FUNC_USE_SELF_ID)
+		WRITE_PARAM("_selfid");
+
+	if ((func->flag & FUNC_NO_SELF) == 0) {
+		WRITE_PARAM("_self");
+	}
+	else if (func->flag & FUNC_USE_SELF_TYPE) {
+		WRITE_PARAM("_type");
+	}
+
+	if (func->flag & FUNC_USE_MAIN)
+		WRITE_PARAM("bmain");
+
+	if (func->flag & FUNC_USE_CONTEXT)
+		WRITE_PARAM("C");
+
+	if (func->flag & FUNC_USE_REPORTS)
+		WRITE_PARAM("reports");
+
+	dparm = dfunc->cont.properties.first;
+	for (; dparm; dparm = dparm->next) {
+		if (dparm->prop == func->c_ret)
+			continue;
+
+		WRITE_COMMA;
+
+		if (dparm->prop->flag & PROP_DYNAMIC)
+			fprintf(f, "%s_len, %s", dparm->prop->identifier, dparm->prop->identifier);
+		else
+			fprintf(f, "%s", rna_safe_id(dparm->prop->identifier));
+	}
+
+	fprintf(f, ");\n");
+	fprintf(f, "}\n\n");
 }
 
 static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA *dfunc)
@@ -1502,16 +2155,16 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 	PropertyType type;
 	const char *funcname, *valstr;
 	const char *ptrstr;
-	const short has_data= (dfunc->cont.properties.first != NULL);
+	const short has_data = (dfunc->cont.properties.first != NULL);
 	int flag, pout, cptr, first;
 
-	srna= dsrna->srna;
-	func= dfunc->func;
+	srna = dsrna->srna;
+	func = dfunc->func;
 
-	if(!dfunc->call)
+	if (!dfunc->call)
 		return;
 
-	funcname= rna_alloc_function_name(srna->identifier, func->identifier, "call");
+	funcname = rna_alloc_function_name(srna->identifier, func->identifier, "call");
 
 	/* function definition */
 	fprintf(f, "void %s(bContext *C, ReportList *reports, PointerRNA *_ptr, ParameterList *_parms)", funcname);
@@ -1519,150 +2172,177 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 
 	/* variable definitions */
 	
-	if(func->flag & FUNC_USE_SELF_ID) {
+	if (func->flag & FUNC_USE_SELF_ID) {
 		fprintf(f, "\tstruct ID *_selfid;\n");
 	}
 
-	if((func->flag & FUNC_NO_SELF)==0) {
-		if(dsrna->dnaname) fprintf(f, "\tstruct %s *_self;\n", dsrna->dnaname);
+	if ((func->flag & FUNC_NO_SELF) == 0) {
+		if (dsrna->dnaname) fprintf(f, "\tstruct %s *_self;\n", dsrna->dnaname);
 		else fprintf(f, "\tstruct %s *_self;\n", srna->identifier);
 	}
+	else if (func->flag & FUNC_USE_SELF_TYPE) {
+		fprintf(f, "\tstruct StructRNA *_type;\n");
+	}
 
-	dparm= dfunc->cont.properties.first;
-	for(; dparm; dparm= dparm->next) {
+	dparm = dfunc->cont.properties.first;
+	for (; dparm; dparm = dparm->next) {
 		type = dparm->prop->type;
 		flag = dparm->prop->flag;
 		pout = (flag & PROP_OUTPUT);
 		cptr = ((type == PROP_POINTER) && !(flag & PROP_RNAPTR));
 
-		if(dparm->prop==func->c_ret)
-			ptrstr= cptr || dparm->prop->arraydimension ? "*" : "";
+		if (dparm->prop == func->c_ret)
+			ptrstr = cptr || dparm->prop->arraydimension ? "*" : "";
 		/* XXX only arrays and strings are allowed to be dynamic, is this checked anywhere? */
 		else if (cptr || (flag & PROP_DYNAMIC))
-			ptrstr= pout ? "**" : "*";
+			ptrstr = pout ? "**" : "*";
 		/* fixed size arrays and RNA pointers are pre-allocated on the ParameterList stack, pass a pointer to it */
 		else if (type == PROP_POINTER || dparm->prop->arraydimension)
-			ptrstr= "*";
-		/* PROP_THICK_WRAP strings are pre-allocated on the ParameterList stack, but type name for string props is already char*, so leave empty */
+			ptrstr = "*";
+		else if ((type == PROP_POINTER) && (flag & PROP_RNAPTR) && !(flag & PROP_THICK_WRAP))
+			ptrstr = "*";
+		/* PROP_THICK_WRAP strings are pre-allocated on the ParameterList stack,
+		 * but type name for string props is already char*, so leave empty */
 		else if (type == PROP_STRING && (flag & PROP_THICK_WRAP))
-			ptrstr= "";
+			ptrstr = "";
 		else
-			ptrstr= pout ? "*" : "";
+			ptrstr = pout ? "*" : "";
 
 		/* for dynamic parameters we pass an additional int for the length of the parameter */
 		if (flag & PROP_DYNAMIC)
 			fprintf(f, "\tint %s%s_len;\n", pout ? "*" : "", dparm->prop->identifier);
 		
-		fprintf(f, "\t%s%s %s%s;\n", rna_type_struct(dparm->prop), rna_parameter_type_name(dparm->prop), ptrstr, dparm->prop->identifier);
+		fprintf(f, "\t%s%s %s%s;\n", rna_type_struct(dparm->prop), rna_parameter_type_name(dparm->prop),
+		        ptrstr, dparm->prop->identifier);
 	}
 
-	if(has_data) {
+	if (has_data) {
 		fprintf(f, "\tchar *_data");
-		if(func->c_ret) fprintf(f, ", *_retdata");
+		if (func->c_ret) fprintf(f, ", *_retdata");
 		fprintf(f, ";\n");
 		fprintf(f, "\t\n");
 	}
 
 	/* assign self */
-	if(func->flag & FUNC_USE_SELF_ID) {
+	if (func->flag & FUNC_USE_SELF_ID) {
 		fprintf(f, "\t_selfid= (struct ID*)_ptr->id.data;\n");
 	}
 	
-	if((func->flag & FUNC_NO_SELF)==0) {
-		if(dsrna->dnaname) fprintf(f, "\t_self= (struct %s *)_ptr->data;\n", dsrna->dnaname);
+	if ((func->flag & FUNC_NO_SELF) == 0) {
+		if (dsrna->dnaname) fprintf(f, "\t_self= (struct %s *)_ptr->data;\n", dsrna->dnaname);
 		else fprintf(f, "\t_self= (struct %s *)_ptr->data;\n", srna->identifier);
 	}
+	else if (func->flag & FUNC_USE_SELF_TYPE) {
+		fprintf(f, "\t_type= _ptr->type;\n");
+	}
 
-	if(has_data) {
+	if (has_data) {
 		fprintf(f, "\t_data= (char *)_parms->data;\n");
 	}
 
-	dparm= dfunc->cont.properties.first;
-	for(; dparm; dparm= dparm->next) {
+	dparm = dfunc->cont.properties.first;
+	for (; dparm; dparm = dparm->next) {
 		type = dparm->prop->type;
 		flag = dparm->prop->flag;
 		pout = (flag & PROP_OUTPUT);
 		cptr = ((type == PROP_POINTER) && !(flag & PROP_RNAPTR));
 
-		if(dparm->prop==func->c_ret)
+		if (dparm->prop == func->c_ret)
 			fprintf(f, "\t_retdata= _data;\n");
-		else  {
+		else {
 			const char *data_str;
 			if (cptr || (flag & PROP_DYNAMIC)) {
-				ptrstr= "**";
-				valstr= "*";
+				ptrstr = "**";
+				valstr = "*";
+			}
+			else if ((type == PROP_POINTER) && !(flag & PROP_THICK_WRAP)) {
+				ptrstr = "**";
+				valstr = "*";
 			}
 			else if (type == PROP_POINTER || dparm->prop->arraydimension) {
-				ptrstr= "*";
-				valstr= "";
+				ptrstr = "*";
+				valstr = "";
 			}
 			else if (type == PROP_STRING && (flag & PROP_THICK_WRAP)) {
-				ptrstr= "";
-				valstr= "";
+				ptrstr = "";
+				valstr = "";
 			}
 			else {
-				ptrstr= "*";
-				valstr= "*";
+				ptrstr = "*";
+				valstr = "*";
 			}
 
-			/* this must be kept in sync with RNA_parameter_length_get_data, we could just call the function directly, but this is faster */
+			/* this must be kept in sync with RNA_parameter_length_get_data,
+			 * we could just call the function directly, but this is faster */
 			if (flag & PROP_DYNAMIC) {
 				fprintf(f, "\t%s_len= %s((int *)_data);\n", dparm->prop->identifier, pout ? "" : "*");
-				data_str= "(&(((char *)_data)[sizeof(void *)]))";
+				data_str = "(&(((char *)_data)[sizeof(void *)]))";
 			}
 			else {
-				data_str= "_data";
+				data_str = "_data";
 			}
-			fprintf(f, "\t%s= ", dparm->prop->identifier);
+			fprintf(f, "\t%s = ", dparm->prop->identifier);
 
 			if (!pout)
 				fprintf(f, "%s", valstr);
 
-			fprintf(f, "((%s%s%s)%s);\n", rna_type_struct(dparm->prop), rna_parameter_type_name(dparm->prop), ptrstr, data_str);
+			fprintf(f, "((%s%s%s)%s);\n", rna_type_struct(dparm->prop), rna_parameter_type_name(dparm->prop),
+			        ptrstr, data_str);
 		}
 
-		if(dparm->next)
-			fprintf(f, "\t_data+= %d;\n", rna_parameter_size_alloc(dparm->prop));
+		if (dparm->next)
+			fprintf(f, "\t_data += %d;\n", rna_parameter_size_alloc(dparm->prop));
 	}
 
-	if(dfunc->call) {
+	if (dfunc->call) {
 		fprintf(f, "\t\n");
 		fprintf(f, "\t");
-		if(func->c_ret) fprintf(f, "%s= ", func->c_ret->identifier);
+		if (func->c_ret) fprintf(f, "%s = ", func->c_ret->identifier);
 		fprintf(f, "%s(", dfunc->call);
 
-		first= 1;
+		first = 1;
 
-		if(func->flag & FUNC_USE_SELF_ID) {
+		if (func->flag & FUNC_USE_SELF_ID) {
 			fprintf(f, "_selfid");
-			first= 0;
+			first = 0;
 		}
 
-		if((func->flag & FUNC_NO_SELF)==0) {
-			if(!first) fprintf(f, ", ");
+		if ((func->flag & FUNC_NO_SELF) == 0) {
+			if (!first) fprintf(f, ", ");
 			fprintf(f, "_self");
-			first= 0;
+			first = 0;
+		}
+		else if (func->flag & FUNC_USE_SELF_TYPE) {
+			if (!first) fprintf(f, ", ");
+			fprintf(f, "_type");
+			first = 0;
 		}
 
-		if(func->flag & FUNC_USE_CONTEXT) {
-			if(!first) fprintf(f, ", ");
-			first= 0;
+		if (func->flag & FUNC_USE_MAIN) {
+			if (!first) fprintf(f, ", ");
+			first = 0;
+			fprintf(f, "CTX_data_main(C)"); /* may have direct access later */
+		}
+
+		if (func->flag & FUNC_USE_CONTEXT) {
+			if (!first) fprintf(f, ", ");
+			first = 0;
 			fprintf(f, "C");
 		}
 
-		if(func->flag & FUNC_USE_REPORTS) {
-			if(!first) fprintf(f, ", ");
-			first= 0;
+		if (func->flag & FUNC_USE_REPORTS) {
+			if (!first) fprintf(f, ", ");
+			first = 0;
 			fprintf(f, "reports");
 		}
 
-		dparm= dfunc->cont.properties.first;
-		for(; dparm; dparm= dparm->next) {
-			if(dparm->prop==func->c_ret)
+		dparm = dfunc->cont.properties.first;
+		for (; dparm; dparm = dparm->next) {
+			if (dparm->prop == func->c_ret)
 				continue;
 
-			if(!first) fprintf(f, ", ");
-			first= 0;
+			if (!first) fprintf(f, ", ");
+			first = 0;
 
 			if (dparm->prop->flag & PROP_DYNAMIC)
 				fprintf(f, "%s_len, %s", dparm->prop->identifier, dparm->prop->identifier);
@@ -1672,16 +2352,18 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
 
 		fprintf(f, ");\n");
 
-		if(func->c_ret) {
-			dparm= rna_find_parameter_def(func->c_ret);
-			ptrstr= (((dparm->prop->type == PROP_POINTER) && !(dparm->prop->flag & PROP_RNAPTR)) || (dparm->prop->arraydimension))? "*": "";
-			fprintf(f, "\t*((%s%s%s*)_retdata)= %s;\n", rna_type_struct(dparm->prop), rna_parameter_type_name(dparm->prop), ptrstr, func->c_ret->identifier);
+		if (func->c_ret) {
+			dparm = rna_find_parameter_def(func->c_ret);
+			ptrstr = (((dparm->prop->type == PROP_POINTER) && !(dparm->prop->flag & PROP_RNAPTR)) ||
+			          (dparm->prop->arraydimension)) ? "*" : "";
+			fprintf(f, "\t*((%s%s%s*)_retdata) = %s;\n", rna_type_struct(dparm->prop),
+			        rna_parameter_type_name(dparm->prop), ptrstr, func->c_ret->identifier);
 		}
 	}
 
 	fprintf(f, "}\n\n");
 
-	dfunc->gencall= funcname;
+	dfunc->gencall = funcname;
 }
 
 static void rna_auto_types(void)
@@ -1689,34 +2371,34 @@ static void rna_auto_types(void)
 	StructDefRNA *ds;
 	PropertyDefRNA *dp;
 
-	for(ds=DefRNA.structs.first; ds; ds=ds->cont.next) {
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next) {
 		/* DNA name for Screen is patched in 2.5, we do the reverse here .. */
-		if(ds->dnaname && strcmp(ds->dnaname, "Screen") == 0)
-			ds->dnaname= "bScreen";
+		if (ds->dnaname && strcmp(ds->dnaname, "Screen") == 0)
+			ds->dnaname = "bScreen";
 
-		for(dp=ds->cont.properties.first; dp; dp=dp->next) {
-			if(dp->dnastructname && strcmp(dp->dnastructname, "Screen") == 0)
-				dp->dnastructname= "bScreen";
+		for (dp = ds->cont.properties.first; dp; dp = dp->next) {
+			if (dp->dnastructname && strcmp(dp->dnastructname, "Screen") == 0)
+				dp->dnastructname = "bScreen";
 
-			if(dp->dnatype) {
-				if(dp->prop->type == PROP_POINTER) {
-					PointerPropertyRNA *pprop= (PointerPropertyRNA*)dp->prop;
+			if (dp->dnatype) {
+				if (dp->prop->type == PROP_POINTER) {
+					PointerPropertyRNA *pprop = (PointerPropertyRNA *)dp->prop;
 					StructRNA *type;
 
-					if(!pprop->type && !pprop->get)
-						pprop->type= (StructRNA*)rna_find_type(dp->dnatype);
+					if (!pprop->type && !pprop->get)
+						pprop->type = (StructRNA *)rna_find_type(dp->dnatype);
 
-					if(pprop->type) {
-						type= rna_find_struct((char*)pprop->type);
-						if(type && (type->flag & STRUCT_ID_REFCOUNT))
+					if (pprop->type) {
+						type = rna_find_struct((const char *)pprop->type);
+						if (type && (type->flag & STRUCT_ID_REFCOUNT))
 							pprop->property.flag |= PROP_ID_REFCOUNT;
 					}
 				}
-				else if(dp->prop->type== PROP_COLLECTION) {
-					CollectionPropertyRNA *cprop= (CollectionPropertyRNA*)dp->prop;
+				else if (dp->prop->type == PROP_COLLECTION) {
+					CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)dp->prop;
 
-					if(!cprop->item_type && !cprop->get && strcmp(dp->dnatype, "ListBase")==0)
-						cprop->item_type= (StructRNA*)rna_find_type(dp->dnatype);
+					if (!cprop->item_type && !cprop->get && strcmp(dp->dnatype, "ListBase") == 0)
+						cprop->item_type = (StructRNA *)rna_find_type(dp->dnatype);
 				}
 			}
 		}
@@ -1731,17 +2413,17 @@ static void rna_sort(BlenderRNA *brna)
 	rna_sortlist(&brna->structs, cmp_struct);
 	rna_sortlist(&DefRNA.structs, cmp_def_struct);
 
-	for(srna=brna->structs.first; srna; srna=srna->cont.next)
+	for (srna = brna->structs.first; srna; srna = srna->cont.next)
 		rna_sortlist(&srna->cont.properties, cmp_property);
 
-	for(ds=DefRNA.structs.first; ds; ds=ds->cont.next)
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next)
 		rna_sortlist(&ds->cont.properties, cmp_def_property);
 }
 
 static const char *rna_property_structname(PropertyType type)
 {
-	switch(type) {
-		case PROP_BOOLEAN: return "BooleanPropertyRNA";
+	switch (type) {
+		case PROP_BOOLEAN: return "BoolPropertyRNA";
 		case PROP_INT: return "IntPropertyRNA";
 		case PROP_FLOAT: return "FloatPropertyRNA";
 		case PROP_STRING: return "StringPropertyRNA";
@@ -1754,17 +2436,19 @@ static const char *rna_property_structname(PropertyType type)
 
 static const char *rna_property_subtypename(PropertySubType type)
 {
-	switch(type) {
+	switch (type) {
 		case PROP_NONE: return "PROP_NONE";
 		case PROP_FILEPATH: return "PROP_FILEPATH";
 		case PROP_FILENAME: return "PROP_FILENAME";
 		case PROP_DIRPATH: return "PROP_DIRPATH";
+		case PROP_BYTESTRING: return "PROP_BYTESTRING";
 		case PROP_UNSIGNED: return "PROP_UNSIGNED";
 		case PROP_PERCENTAGE: return "PROP_PERCENTAGE";
 		case PROP_FACTOR: return "PROP_FACTOR";
 		case PROP_ANGLE: return "PROP_ANGLE";
 		case PROP_TIME: return "PROP_TIME";
 		case PROP_DISTANCE: return "PROP_DISTANCE";
+		case PROP_DISTANCE_CAMERA: return "PROP_DISTANCE_CAMERA";
 		case PROP_COLOR: return "PROP_COLOR";
 		case PROP_TRANSLATION: return "PROP_TRANSLATION";
 		case PROP_DIRECTION: return "PROP_DIRECTION";
@@ -1779,9 +2463,11 @@ static const char *rna_property_subtypename(PropertySubType type)
 		case PROP_COORDS: return "PROP_COORDS";
 		case PROP_LAYER: return "PROP_LAYER";
 		case PROP_LAYER_MEMBER: return "PROP_LAYER_MEMBER";
-		default: {
-			/* incase we dont have a type preset that includes the subtype */
-			if(RNA_SUBTYPE_UNIT(type)) {
+		case PROP_PASSWORD: return "PROP_PASSWORD";
+		default:
+		{
+			/* in case we don't have a type preset that includes the subtype */
+			if (RNA_SUBTYPE_UNIT(type)) {
 				return rna_property_subtypename(type & ~RNA_SUBTYPE_UNIT(type));
 			}
 			else {
@@ -1793,17 +2479,18 @@ static const char *rna_property_subtypename(PropertySubType type)
 
 static const char *rna_property_subtype_unit(PropertySubType type)
 {
-	switch(RNA_SUBTYPE_UNIT(type)) {
-		case PROP_UNIT_NONE:		return "PROP_UNIT_NONE";
-		case PROP_UNIT_LENGTH:		return "PROP_UNIT_LENGTH";
-		case PROP_UNIT_AREA:		return "PROP_UNIT_AREA";
-		case PROP_UNIT_VOLUME:		return "PROP_UNIT_VOLUME";
-		case PROP_UNIT_MASS:		return "PROP_UNIT_MASS";
-		case PROP_UNIT_ROTATION:	return "PROP_UNIT_ROTATION";
-		case PROP_UNIT_TIME:		return "PROP_UNIT_TIME";
-		case PROP_UNIT_VELOCITY:	return "PROP_UNIT_VELOCITY";
-		case PROP_UNIT_ACCELERATION:return "PROP_UNIT_ACCELERATION";
-		default:					return "PROP_UNIT_UNKNOWN";
+	switch (RNA_SUBTYPE_UNIT(type)) {
+		case PROP_UNIT_NONE:         return "PROP_UNIT_NONE";
+		case PROP_UNIT_LENGTH:       return "PROP_UNIT_LENGTH";
+		case PROP_UNIT_AREA:         return "PROP_UNIT_AREA";
+		case PROP_UNIT_VOLUME:       return "PROP_UNIT_VOLUME";
+		case PROP_UNIT_MASS:         return "PROP_UNIT_MASS";
+		case PROP_UNIT_ROTATION:     return "PROP_UNIT_ROTATION";
+		case PROP_UNIT_TIME:         return "PROP_UNIT_TIME";
+		case PROP_UNIT_VELOCITY:     return "PROP_UNIT_VELOCITY";
+		case PROP_UNIT_ACCELERATION: return "PROP_UNIT_ACCELERATION";
+		case PROP_UNIT_CAMERA:       return "PROP_UNIT_CAMERA";
+		default:                     return "PROP_UNIT_UNKNOWN";
 	}
 }
 
@@ -1811,7 +2498,7 @@ static void rna_generate_prototypes(BlenderRNA *brna, FILE *f)
 {
 	StructRNA *srna;
 
-	for(srna=brna->structs.first; srna; srna=srna->cont.next)
+	for (srna = brna->structs.first; srna; srna = srna->cont.next)
 		fprintf(f, "extern StructRNA RNA_%s;\n", srna->identifier);
 	fprintf(f, "\n");
 }
@@ -1822,46 +2509,49 @@ static void rna_generate_blender(BlenderRNA *brna, FILE *f)
 
 	fprintf(f, "BlenderRNA BLENDER_RNA = {");
 
-	srna= brna->structs.first;
-	if(srna) fprintf(f, "{&RNA_%s, ", srna->identifier);
+	srna = brna->structs.first;
+	if (srna) fprintf(f, "{&RNA_%s, ", srna->identifier);
 	else fprintf(f, "{NULL, ");
 
-	srna= brna->structs.last;
-	if(srna) fprintf(f, "&RNA_%s}", srna->identifier);
+	srna = brna->structs.last;
+	if (srna) fprintf(f, "&RNA_%s}", srna->identifier);
 	else fprintf(f, "NULL}");
 
 	fprintf(f, "};\n\n");
 }
 
-static void rna_generate_property_prototypes(BlenderRNA *brna, StructRNA *srna, FILE *f)
+static void rna_generate_property_prototypes(BlenderRNA *UNUSED(brna), StructRNA *srna, FILE *f)
 {
 	PropertyRNA *prop;
 	StructRNA *base;
 
-	base= srna->base;
+	base = srna->base;
 	while (base) {
 		fprintf(f, "\n");
-		for(prop=base->cont.properties.first; prop; prop=prop->next)
-			fprintf(f, "%s%s rna_%s_%s;\n", "extern ", rna_property_structname(prop->type), base->identifier, prop->identifier);
-		base= base->base;
+		for (prop = base->cont.properties.first; prop; prop = prop->next)
+			fprintf(f, "%s%s rna_%s_%s;\n", "extern ", rna_property_structname(prop->type),
+			        base->identifier, prop->identifier);
+		base = base->base;
 	}
 
-	if(srna->cont.properties.first)
+	if (srna->cont.properties.first)
 		fprintf(f, "\n");
 
-	for(prop=srna->cont.properties.first; prop; prop=prop->next)
-		fprintf(f, "%s%s rna_%s_%s;\n", (prop->flag & PROP_EXPORT)? "": "", rna_property_structname(prop->type), srna->identifier, prop->identifier);
+	for (prop = srna->cont.properties.first; prop; prop = prop->next)
+		fprintf(f, "%s%s rna_%s_%s;\n", (prop->flag & PROP_EXPORT) ? "" : "", rna_property_structname(prop->type),
+		        srna->identifier, prop->identifier);
 	fprintf(f, "\n");
 }
 
-static void rna_generate_parameter_prototypes(BlenderRNA *brna, StructRNA *srna, FunctionRNA *func, FILE *f)
+static void rna_generate_parameter_prototypes(BlenderRNA *UNUSED(brna), StructRNA *srna, FunctionRNA *func, FILE *f)
 {
 	PropertyRNA *parm;
 
-	for(parm= func->cont.properties.first; parm; parm= parm->next)
-		fprintf(f, "%s%s rna_%s_%s_%s;\n", "extern ", rna_property_structname(parm->type), srna->identifier, func->identifier, parm->identifier);
+	for (parm = func->cont.properties.first; parm; parm = parm->next)
+		fprintf(f, "%s%s rna_%s_%s_%s;\n", "extern ", rna_property_structname(parm->type), srna->identifier,
+		        func->identifier, parm->identifier);
 
-	if(func->cont.properties.first)
+	if (func->cont.properties.first)
 		fprintf(f, "\n");
 }
 
@@ -1870,29 +2560,29 @@ static void rna_generate_function_prototypes(BlenderRNA *brna, StructRNA *srna, 
 	FunctionRNA *func;
 	StructRNA *base;
 
-	base= srna->base;
+	base = srna->base;
 	while (base) {
-		for(func= base->functions.first; func; func= func->cont.next) {
+		for (func = base->functions.first; func; func = func->cont.next) {
 			fprintf(f, "%s%s rna_%s_%s_func;\n", "extern ", "FunctionRNA", base->identifier, func->identifier);
 			rna_generate_parameter_prototypes(brna, base, func, f);
 		}
 
-		if(base->functions.first)
+		if (base->functions.first)
 			fprintf(f, "\n");
 
-		base= base->base;
+		base = base->base;
 	}
 
-	for(func= srna->functions.first; func; func= func->cont.next) {
+	for (func = srna->functions.first; func; func = func->cont.next) {
 		fprintf(f, "%s%s rna_%s_%s_func;\n", "extern ", "FunctionRNA", srna->identifier, func->identifier);
 		rna_generate_parameter_prototypes(brna, srna, func, f);
 	}
 
-	if(srna->functions.first)
+	if (srna->functions.first)
 		fprintf(f, "\n");
 }
 
-static void rna_generate_static_parameter_prototypes(BlenderRNA *brna, StructRNA *srna, FunctionDefRNA *dfunc, FILE *f)
+static void rna_generate_static_parameter_prototypes(FILE *f, StructRNA *srna, FunctionDefRNA *dfunc, const char *name_override, int close_prototype)
 {
 	FunctionRNA *func;
 	PropertyDefRNA *dparm;
@@ -1901,15 +2591,15 @@ static void rna_generate_static_parameter_prototypes(BlenderRNA *brna, StructRNA
 	int flag, pout, cptr, first;
 	const char *ptrstr;
 
-	dsrna= rna_find_struct_def(srna);
-	func= dfunc->func;
+	dsrna = rna_find_struct_def(srna);
+	func = dfunc->func;
 
 	/* return type */
-	for(dparm= dfunc->cont.properties.first; dparm; dparm= dparm->next) {
-		if(dparm->prop==func->c_ret) {
-			if(dparm->prop->arraydimension)
-				fprintf(f, "XXX no array return types yet"); /* XXX not supported */
-			else if(dparm->prop->type == PROP_POINTER && !(dparm->prop->flag & PROP_RNAPTR))
+	for (dparm = dfunc->cont.properties.first; dparm; dparm = dparm->next) {
+		if (dparm->prop == func->c_ret) {
+			if (dparm->prop->arraydimension)
+				fprintf(f, "XXX no array return types yet");  /* XXX not supported */
+			else if (dparm->prop->type == PROP_POINTER && !(dparm->prop->flag & PROP_RNAPTR))
 				fprintf(f, "%s%s *", rna_type_struct(dparm->prop), rna_parameter_type_name(dparm->prop));
 			else
 				fprintf(f, "%s%s ", rna_type_struct(dparm->prop), rna_parameter_type_name(dparm->prop));
@@ -1919,230 +2609,306 @@ static void rna_generate_static_parameter_prototypes(BlenderRNA *brna, StructRNA
 	}
 
 	/* void if nothing to return */
-	if(!dparm)
+	if (!dparm)
 		fprintf(f, "void ");
 
 	/* function name */
-	fprintf(f, "%s(", dfunc->call);
+	if (name_override == NULL || name_override[0] == '\0')
+		fprintf(f, "%s(", dfunc->call);
+	else
+		fprintf(f, "%s(", name_override);
 
-	first= 1;
+	first = 1;
 
 	/* self, context and reports parameters */
-	if(func->flag & FUNC_USE_SELF_ID) {
+	if (func->flag & FUNC_USE_SELF_ID) {
 		fprintf(f, "struct ID *_selfid");
-		first= 0;		
-	}
-	
-	if((func->flag & FUNC_NO_SELF)==0) {
-		if(!first) fprintf(f, ", ");
-		if(dsrna->dnaname) fprintf(f, "struct %s *_self", dsrna->dnaname);
-		else fprintf(f, "struct %s *_self", srna->identifier);
-		first= 0;
+		first = 0;
 	}
 
-	if(func->flag & FUNC_USE_CONTEXT) {
-		if(!first) fprintf(f, ", ");
-		first= 0;
+	if ((func->flag & FUNC_NO_SELF) == 0) {
+		if (!first) fprintf(f, ", ");
+		if (dsrna->dnaname) fprintf(f, "struct %s *_self", dsrna->dnaname);
+		else fprintf(f, "struct %s *_self", srna->identifier);
+		first = 0;
+	}
+	else if (func->flag & FUNC_USE_SELF_TYPE) {
+		if (!first) fprintf(f, ", ");
+		fprintf(f, "struct StructRNA *_type");
+		first = 0;
+	}
+
+	if (func->flag & FUNC_USE_MAIN) {
+		if (!first) fprintf(f, ", ");
+		first = 0;
+		fprintf(f, "Main *bmain");
+	}
+
+	if (func->flag & FUNC_USE_CONTEXT) {
+		if (!first) fprintf(f, ", ");
+		first = 0;
 		fprintf(f, "bContext *C");
 	}
 
-	if(func->flag & FUNC_USE_REPORTS) {
-		if(!first) fprintf(f, ", ");
-		first= 0;
+	if (func->flag & FUNC_USE_REPORTS) {
+		if (!first) fprintf(f, ", ");
+		first = 0;
 		fprintf(f, "ReportList *reports");
 	}
 
 	/* defined parameters */
-	for(dparm= dfunc->cont.properties.first; dparm; dparm= dparm->next) {
+	for (dparm = dfunc->cont.properties.first; dparm; dparm = dparm->next) {
 		type = dparm->prop->type;
 		flag = dparm->prop->flag;
 		pout = (flag & PROP_OUTPUT);
 		cptr = ((type == PROP_POINTER) && !(flag & PROP_RNAPTR));
 
-		if(dparm->prop==func->c_ret)
+		if (dparm->prop == func->c_ret)
 			continue;
 
 		if (cptr || (flag & PROP_DYNAMIC))
-			ptrstr= pout ? "**" : "*";
+			ptrstr = pout ? "**" : "*";
 		else if (type == PROP_POINTER || dparm->prop->arraydimension)
-			ptrstr= "*";
+			ptrstr = "*";
 		else if (type == PROP_STRING && (flag & PROP_THICK_WRAP))
-			ptrstr= "";
+			ptrstr = "";
 		else
-			ptrstr= pout ? "*" : "";
+			ptrstr = pout ? "*" : "";
 
-		if(!first) fprintf(f, ", ");
-		first= 0;
+		if (!first) fprintf(f, ", ");
+		first = 0;
 
 		if (flag & PROP_DYNAMIC)
 			fprintf(f, "int %s%s_len, ", pout ? "*" : "", dparm->prop->identifier);
 
-		if(!(flag & PROP_DYNAMIC) && dparm->prop->arraydimension)
-			fprintf(f, "%s%s %s[%d]", rna_type_struct(dparm->prop), rna_parameter_type_name(dparm->prop), dparm->prop->identifier, dparm->prop->totarraylength);
+		if (!(flag & PROP_DYNAMIC) && dparm->prop->arraydimension)
+			fprintf(f, "%s%s %s[%u]", rna_type_struct(dparm->prop), rna_parameter_type_name(dparm->prop),
+			        rna_safe_id(dparm->prop->identifier), dparm->prop->totarraylength);
 		else
-			fprintf(f, "%s%s %s%s", rna_type_struct(dparm->prop), rna_parameter_type_name(dparm->prop), ptrstr, dparm->prop->identifier);
+			fprintf(f, "%s%s %s%s", rna_type_struct(dparm->prop), rna_parameter_type_name(dparm->prop),
+			        ptrstr, rna_safe_id(dparm->prop->identifier));
 
 	}
 
-	fprintf(f, ");\n");
+	fprintf(f, ")");
+	if (close_prototype)
+		fprintf(f, ";\n");
 }
 
-static void rna_generate_static_function_prototypes(BlenderRNA *brna, StructRNA *srna, FILE *f)
+static void rna_generate_static_function_prototypes(BlenderRNA *UNUSED(brna), StructRNA *srna, FILE *f)
 {
 	FunctionRNA *func;
 	FunctionDefRNA *dfunc;
-	int first= 1;
+	int first = 1;
 
-	for(func= srna->functions.first; func; func= func->cont.next) {
-		dfunc= rna_find_function_def(func);
+	for (func = srna->functions.first; func; func = func->cont.next) {
+		dfunc = rna_find_function_def(func);
 
-		if(dfunc->call) {
-			if(first) {
+		if (dfunc->call) {
+			if (first) {
 				fprintf(f, "/* Repeated prototypes to detect errors */\n\n");
-				first= 0;
+				first = 0;
 			}
 
-			rna_generate_static_parameter_prototypes(brna, srna, dfunc, f);
+			rna_generate_static_parameter_prototypes(f, srna, dfunc, NULL, 1);
 		}
 	}
 
 	fprintf(f, "\n");
 }
 
-static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, PropertyRNA *prop) 
+static void rna_generate_struct_prototypes(FILE *f)
 {
-	char *strnest= "", *errnest= "";
-	int len, freenest= 0;
-	
-	if(nest != NULL) {
-		len= strlen(nest);
+	StructDefRNA *ds;
+	PropertyDefRNA *dp;
+	FunctionDefRNA *dfunc;
+	const char *structures[2048];
+	int all_structures = 0;
 
-		strnest= MEM_mallocN(sizeof(char)*(len+2), "rna_generate_property -> strnest");
-		errnest= MEM_mallocN(sizeof(char)*(len+2), "rna_generate_property -> errnest");
+	/* structures definitions */
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next) {
+		for (dfunc = ds->functions.first; dfunc; dfunc = dfunc->cont.next) {
+			if (dfunc->call) {
+				for (dp = dfunc->cont.properties.first; dp; dp = dp->next) {
+					if (dp->prop->type == PROP_POINTER) {
+						int a, found = 0;
+						const char *struct_name = rna_parameter_type_name(dp->prop);
+
+						for (a = 0; a < all_structures; a++) {
+							if (strcmp(struct_name, structures[a]) == 0) {
+								found = 1;
+								break;
+							}
+						}
+
+						if (found == 0) {
+							fprintf(f, "struct %s;\n", struct_name);
+
+							if (all_structures >= sizeof(structures) / sizeof(structures[0])) {
+								printf("Array size to store all structures names is too small\n");
+								exit(1);
+							}
+
+							structures[all_structures++] = struct_name;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	fprintf(f, "\n");
+}
+
+static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, PropertyRNA *prop)
+{
+	char *strnest = "", *errnest = "";
+	int len, freenest = 0;
+	
+	if (nest != NULL) {
+		len = strlen(nest);
+
+		strnest = MEM_mallocN(sizeof(char) * (len + 2), "rna_generate_property -> strnest");
+		errnest = MEM_mallocN(sizeof(char) * (len + 2), "rna_generate_property -> errnest");
 
 		strcpy(strnest, "_"); strcat(strnest, nest);
 		strcpy(errnest, "."); strcat(errnest, nest);
 
-		freenest= 1;
+		freenest = 1;
 	}
 
-	switch(prop->type) {
-			case PROP_ENUM: {
-				EnumPropertyRNA *eprop= (EnumPropertyRNA*)prop;
-				int i, defaultfound= 0, totflag= 0;
+	switch (prop->type) {
+		case PROP_ENUM:
+		{
+			EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
+			int i, defaultfound = 0, totflag = 0;
 
-				if(eprop->item) {
-					fprintf(f, "static EnumPropertyItem rna_%s%s_%s_items[%d] = {\n\t", srna->identifier, strnest, prop->identifier, eprop->totitem+1);
+			if (eprop->item) {
+				fprintf(f, "static EnumPropertyItem rna_%s%s_%s_items[%d] = {\n\t", srna->identifier,
+				        strnest, prop->identifier, eprop->totitem + 1);
 
-					for(i=0; i<eprop->totitem; i++) {
-						fprintf(f, "{%d, ", eprop->item[i].value);
-						rna_print_c_string(f, eprop->item[i].identifier); fprintf(f, ", ");
-						fprintf(f, "%d, ", eprop->item[i].icon);
-						rna_print_c_string(f, eprop->item[i].name); fprintf(f, ", ");
-						rna_print_c_string(f, eprop->item[i].description); fprintf(f, "},\n\t");
+				for (i = 0; i < eprop->totitem; i++) {
+					fprintf(f, "{%d, ", eprop->item[i].value);
+					rna_print_c_string(f, eprop->item[i].identifier); fprintf(f, ", ");
+					fprintf(f, "%d, ", eprop->item[i].icon);
+					rna_print_c_string(f, eprop->item[i].name); fprintf(f, ", ");
+					rna_print_c_string(f, eprop->item[i].description); fprintf(f, "},\n\t");
 
-						if(eprop->item[i].identifier[0]) {
-							if(prop->flag & PROP_ENUM_FLAG) {
-								totflag |= eprop->item[i].value;
-							}
-							else {
-								if(eprop->defaultvalue == eprop->item[i].value) {
-									defaultfound= 1;
-								}
+					if (eprop->item[i].identifier[0]) {
+						if (prop->flag & PROP_ENUM_FLAG) {
+							totflag |= eprop->item[i].value;
+						}
+						else {
+							if (eprop->defaultvalue == eprop->item[i].value) {
+								defaultfound = 1;
 							}
 						}
 					}
+				}
 
-					fprintf(f, "{0, NULL, 0, NULL, NULL}\n};\n\n");
+				fprintf(f, "{0, NULL, 0, NULL, NULL}\n};\n\n");
 
-					if(prop->flag & PROP_ENUM_FLAG) {
-						if(eprop->defaultvalue & ~totflag) {
-							fprintf(stderr, "rna_generate_structs: %s%s.%s, enum default includes unused bits (%d).\n", srna->identifier, errnest, prop->identifier, eprop->defaultvalue & ~totflag);
-							DefRNA.error= 1;
-						}
-					}
-					else {
-						if(!defaultfound) {
-							fprintf(stderr, "rna_generate_structs: %s%s.%s, enum default is not in items.\n", srna->identifier, errnest, prop->identifier);
-							DefRNA.error= 1;
-						}
+				if (prop->flag & PROP_ENUM_FLAG) {
+					if (eprop->defaultvalue & ~totflag) {
+						fprintf(stderr, "%s: %s%s.%s, enum default includes unused bits (%d).\n",
+						        __func__, srna->identifier, errnest, prop->identifier,
+						        eprop->defaultvalue & ~totflag);
+						DefRNA.error = 1;
 					}
 				}
 				else {
-					fprintf(stderr, "rna_generate_structs: %s%s.%s, enum must have items defined.\n", srna->identifier, errnest, prop->identifier);
-					DefRNA.error= 1;
-				}
-				break;
-			}
-			case PROP_BOOLEAN: {
-				BooleanPropertyRNA *bprop= (BooleanPropertyRNA*)prop;
-				unsigned int i;
-
-				if(prop->arraydimension && prop->totarraylength) {
-					fprintf(f, "static int rna_%s%s_%s_default[%d] = {\n\t", srna->identifier, strnest, prop->identifier, prop->totarraylength);
-
-					for(i=0; i<prop->totarraylength; i++) {
-						if(bprop->defaultarray)
-							fprintf(f, "%d", bprop->defaultarray[i]);
-						else
-							fprintf(f, "%d", bprop->defaultvalue);
-						if(i != prop->totarraylength-1)
-							fprintf(f, ",\n\t");
+					if (!defaultfound) {
+						fprintf(stderr, "%s: %s%s.%s, enum default is not in items.\n",
+						        __func__, srna->identifier, errnest, prop->identifier);
+						DefRNA.error = 1;
 					}
-
-					fprintf(f, "\n};\n\n");
 				}
-				break;
 			}
-			case PROP_INT: {
-				IntPropertyRNA *iprop= (IntPropertyRNA*)prop;
-				unsigned int i;
+			else {
+				fprintf(stderr, "%s: %s%s.%s, enum must have items defined.\n",
+				        __func__, srna->identifier, errnest, prop->identifier);
+				DefRNA.error = 1;
+			}
+			break;
+		}
+		case PROP_BOOLEAN:
+		{
+			BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
+			unsigned int i;
 
-				if(prop->arraydimension && prop->totarraylength) {
-					fprintf(f, "static int rna_%s%s_%s_default[%d] = {\n\t", srna->identifier, strnest, prop->identifier, prop->totarraylength);
+			if (prop->arraydimension && prop->totarraylength) {
+				fprintf(f, "static int rna_%s%s_%s_default[%u] = {\n\t", srna->identifier, strnest,
+				        prop->identifier, prop->totarraylength);
 
-					for(i=0; i<prop->totarraylength; i++) {
-						if(iprop->defaultarray)
-							fprintf(f, "%d", iprop->defaultarray[i]);
-						else
-							fprintf(f, "%d", iprop->defaultvalue);
-						if(i != prop->totarraylength-1)
-							fprintf(f, ",\n\t");
-					}
-
-					fprintf(f, "\n};\n\n");
+				for (i = 0; i < prop->totarraylength; i++) {
+					if (bprop->defaultarray)
+						fprintf(f, "%d", bprop->defaultarray[i]);
+					else
+						fprintf(f, "%d", bprop->defaultvalue);
+					if (i != prop->totarraylength - 1)
+						fprintf(f, ",\n\t");
 				}
-				break;
+
+				fprintf(f, "\n};\n\n");
 			}
-			case PROP_FLOAT: {
-				FloatPropertyRNA *fprop= (FloatPropertyRNA*)prop;
-				unsigned int i;
+			break;
+		}
+		case PROP_INT:
+		{
+			IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
+			unsigned int i;
 
-				if(prop->arraydimension && prop->totarraylength) {
-					fprintf(f, "static float rna_%s%s_%s_default[%d] = {\n\t", srna->identifier, strnest, prop->identifier, prop->totarraylength);
+			if (prop->arraydimension && prop->totarraylength) {
+				fprintf(f, "static int rna_%s%s_%s_default[%u] = {\n\t", srna->identifier, strnest,
+				        prop->identifier, prop->totarraylength);
 
-					for(i=0; i<prop->totarraylength; i++) {
-						if(fprop->defaultarray)
-							rna_float_print(f, fprop->defaultarray[i]);
-						else
-							rna_float_print(f, fprop->defaultvalue);
-						if(i != prop->totarraylength-1)
-							fprintf(f, ",\n\t");
-					}
-
-					fprintf(f, "\n};\n\n");
+				for (i = 0; i < prop->totarraylength; i++) {
+					if (iprop->defaultarray)
+						fprintf(f, "%d", iprop->defaultarray[i]);
+					else
+						fprintf(f, "%d", iprop->defaultvalue);
+					if (i != prop->totarraylength - 1)
+						fprintf(f, ",\n\t");
 				}
-				break;
+
+				fprintf(f, "\n};\n\n");
 			}
-			default:
-				break;
+			break;
+		}
+		case PROP_FLOAT:
+		{
+			FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
+			unsigned int i;
+
+			if (prop->arraydimension && prop->totarraylength) {
+				fprintf(f, "static float rna_%s%s_%s_default[%u] = {\n\t", srna->identifier, strnest,
+				        prop->identifier, prop->totarraylength);
+
+				for (i = 0; i < prop->totarraylength; i++) {
+					if (fprop->defaultarray)
+						rna_float_print(f, fprop->defaultarray[i]);
+					else
+						rna_float_print(f, fprop->defaultvalue);
+					if (i != prop->totarraylength - 1)
+						fprintf(f, ",\n\t");
+				}
+
+				fprintf(f, "\n};\n\n");
+			}
+			break;
+		}
+		default:
+			break;
 	}
 
-	fprintf(f, "%s%s rna_%s%s_%s = {\n", (prop->flag & PROP_EXPORT)? "": "", rna_property_structname(prop->type), srna->identifier, strnest, prop->identifier);
+	fprintf(f, "%s%s rna_%s%s_%s = {\n",
+	        (prop->flag & PROP_EXPORT) ? "" : "",
+	        rna_property_structname(prop->type),
+	        srna->identifier, strnest, prop->identifier);
 
-	if(prop->next) fprintf(f, "\t{(PropertyRNA*)&rna_%s%s_%s, ", srna->identifier, strnest, prop->next->identifier);
+	if (prop->next) fprintf(f, "\t{(PropertyRNA *)&rna_%s%s_%s, ", srna->identifier, strnest, prop->next->identifier);
 	else fprintf(f, "\t{NULL, ");
-	if(prop->prev) fprintf(f, "(PropertyRNA*)&rna_%s%s_%s,\n", srna->identifier, strnest, prop->prev->identifier);
+	if (prop->prev) fprintf(f, "(PropertyRNA *)&rna_%s%s_%s,\n", srna->identifier, strnest, prop->prev->identifier);
 	else fprintf(f, "NULL,\n");
 	fprintf(f, "\t%d, ", prop->magic);
 	rna_print_c_string(f, prop->identifier);
@@ -2150,94 +2916,171 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 	rna_print_c_string(f, prop->name); fprintf(f, ",\n\t");
 	rna_print_c_string(f, prop->description); fprintf(f, ",\n\t");
 	fprintf(f, "%d,\n", prop->icon);
-	fprintf(f, "\t%s, %s|%s, %s, %d, {%d, %d, %d}, %d,\n", RNA_property_typename(prop->type), rna_property_subtypename(prop->subtype), rna_property_subtype_unit(prop->subtype), rna_function_string(prop->getlength), prop->arraydimension, prop->arraylength[0], prop->arraylength[1], prop->arraylength[2], prop->totarraylength);
-	fprintf(f, "\t%s%s, %d, %s, %s,\n", (prop->flag & PROP_CONTEXT_UPDATE)? "(UpdateFunc)": "", rna_function_string(prop->update), prop->noteflag, rna_function_string(prop->editable), rna_function_string(prop->itemeditable));
+	rna_print_c_string(f, prop->translation_context); fprintf(f, ",\n\t");
+	fprintf(f, "\t%s, %s|%s, %s, %u, {%u, %u, %u}, %u,\n",
+	        RNA_property_typename(prop->type),
+	        rna_property_subtypename(prop->subtype),
+	        rna_property_subtype_unit(prop->subtype),
+	        rna_function_string(prop->getlength),
+	        prop->arraydimension,
+	        prop->arraylength[0],
+	        prop->arraylength[1],
+	        prop->arraylength[2],
+	        prop->totarraylength);
+	fprintf(f, "\t%s%s, %d, %s, %s,\n",
+	        (prop->flag & PROP_CONTEXT_UPDATE) ? "(UpdateFunc)" : "",
+	        rna_function_string(prop->update),
+	        prop->noteflag,
+	        rna_function_string(prop->editable),
+	        rna_function_string(prop->itemeditable));
 
-	if(prop->flag & PROP_RAW_ACCESS) rna_set_raw_offset(f, srna, prop);
+	if (prop->flag & PROP_RAW_ACCESS) rna_set_raw_offset(f, srna, prop);
 	else fprintf(f, "\t0, -1");
 
 	/* our own type - collections/arrays only */
-	if(prop->srna) fprintf(f, ", &RNA_%s", (char*)prop->srna);
+	if (prop->srna) fprintf(f, ", &RNA_%s", (const char *)prop->srna);
 	else fprintf(f, ", NULL");
 
 	fprintf(f, "},\n");
 
-	switch(prop->type) {
-			case PROP_BOOLEAN: {
-				BooleanPropertyRNA *bprop= (BooleanPropertyRNA*)prop;
-				fprintf(f, "\t%s, %s, %s, %s, %d, ", rna_function_string(bprop->get), rna_function_string(bprop->set), rna_function_string(bprop->getarray), rna_function_string(bprop->setarray), bprop->defaultvalue);
-				if(prop->arraydimension && prop->totarraylength) fprintf(f, "rna_%s%s_%s_default\n", srna->identifier, strnest, prop->identifier);
-				else fprintf(f, "NULL\n");
-				break;
-			}
-			case PROP_INT: {
-				IntPropertyRNA *iprop= (IntPropertyRNA*)prop;
-				fprintf(f, "\t%s, %s, %s, %s, %s,\n\t", rna_function_string(iprop->get), rna_function_string(iprop->set), rna_function_string(iprop->getarray), rna_function_string(iprop->setarray), rna_function_string(iprop->range));
-				rna_int_print(f, iprop->softmin); fprintf(f, ", ");
-				rna_int_print(f, iprop->softmax); fprintf(f, ", ");
-				rna_int_print(f, iprop->hardmin); fprintf(f, ", ");
-				rna_int_print(f, iprop->hardmax); fprintf(f, ", ");
-				rna_int_print(f, iprop->step); fprintf(f, ", ");
-				rna_int_print(f, iprop->defaultvalue); fprintf(f, ", ");
-				if(prop->arraydimension && prop->totarraylength) fprintf(f, "rna_%s%s_%s_default\n", srna->identifier, strnest, prop->identifier);
-				else fprintf(f, "NULL\n");
-				break;
-			 }
-			case PROP_FLOAT: {
-				FloatPropertyRNA *fprop= (FloatPropertyRNA*)prop;
-				fprintf(f, "\t%s, %s, %s, %s, %s, ", rna_function_string(fprop->get), rna_function_string(fprop->set), rna_function_string(fprop->getarray), rna_function_string(fprop->setarray), rna_function_string(fprop->range));
-				rna_float_print(f, fprop->softmin); fprintf(f, ", ");
-				rna_float_print(f, fprop->softmax); fprintf(f, ", ");
-				rna_float_print(f, fprop->hardmin); fprintf(f, ", ");
-				rna_float_print(f, fprop->hardmax); fprintf(f, ", ");
-				rna_float_print(f, fprop->step); fprintf(f, ", ");
-				rna_int_print(f, (int)fprop->precision); fprintf(f, ", ");
-				rna_float_print(f, fprop->defaultvalue); fprintf(f, ", ");
-				if(prop->arraydimension && prop->totarraylength) fprintf(f, "rna_%s%s_%s_default\n", srna->identifier, strnest, prop->identifier);
-				else fprintf(f, "NULL\n");
-				break;
-			 }
-			case PROP_STRING: {
-				StringPropertyRNA *sprop= (StringPropertyRNA*)prop;
-				fprintf(f, "\t%s, %s, %s, %d, ", rna_function_string(sprop->get), rna_function_string(sprop->length), rna_function_string(sprop->set), sprop->maxlength);
-				rna_print_c_string(f, sprop->defaultvalue); fprintf(f, "\n");
-				break;
-			}
-			case PROP_ENUM: {
-				EnumPropertyRNA *eprop= (EnumPropertyRNA*)prop;
-				fprintf(f, "\t%s, %s, %s, ", rna_function_string(eprop->get), rna_function_string(eprop->set), rna_function_string(eprop->itemf));
-				if(eprop->item)
-					fprintf(f, "rna_%s%s_%s_items, ", srna->identifier, strnest, prop->identifier);
-				else
-					fprintf(f, "NULL, ");
-				fprintf(f, "%d, %d\n", eprop->totitem, eprop->defaultvalue);
-				break;
-			}
-			case PROP_POINTER: {
-				PointerPropertyRNA *pprop= (PointerPropertyRNA*)prop;
-				fprintf(f, "\t%s, %s, %s, %s,", rna_function_string(pprop->get), rna_function_string(pprop->set), rna_function_string(pprop->typef), rna_function_string(pprop->poll));
-				if(pprop->type) fprintf(f, "&RNA_%s\n", (char*)pprop->type);
-				else fprintf(f, "NULL\n");
-				break;
-			 }
-			case PROP_COLLECTION: {
-				CollectionPropertyRNA *cprop= (CollectionPropertyRNA*)prop;
-				fprintf(f, "\t%s, %s, %s, %s, %s, %s, %s, ", rna_function_string(cprop->begin), rna_function_string(cprop->next), rna_function_string(cprop->end), rna_function_string(cprop->get), rna_function_string(cprop->length), rna_function_string(cprop->lookupint), rna_function_string(cprop->lookupstring));
-				if(cprop->item_type) fprintf(f, "&RNA_%s\n", (char*)cprop->item_type);
-				else fprintf(f, "NULL\n");
-				break;
-			}
+	switch (prop->type) {
+		case PROP_BOOLEAN:
+		{
+			BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
+			fprintf(f, "\t%s, %s, %s, %s, %s, %s, %s, %s, %d, ",
+			        rna_function_string(bprop->get),
+			        rna_function_string(bprop->set),
+			        rna_function_string(bprop->getarray),
+			        rna_function_string(bprop->setarray),
+			        rna_function_string(bprop->get_ex),
+			        rna_function_string(bprop->set_ex),
+			        rna_function_string(bprop->getarray_ex),
+			        rna_function_string(bprop->setarray_ex),
+			        bprop->defaultvalue);
+			if (prop->arraydimension && prop->totarraylength)
+				fprintf(f, "rna_%s%s_%s_default\n", srna->identifier, strnest, prop->identifier);
+			else fprintf(f, "NULL\n");
+			break;
+		}
+		case PROP_INT:
+		{
+			IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
+			fprintf(f, "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,\n\t",
+			        rna_function_string(iprop->get),
+			        rna_function_string(iprop->set),
+			        rna_function_string(iprop->getarray),
+			        rna_function_string(iprop->setarray),
+			        rna_function_string(iprop->range),
+			        rna_function_string(iprop->get_ex),
+			        rna_function_string(iprop->set_ex),
+			        rna_function_string(iprop->getarray_ex),
+			        rna_function_string(iprop->setarray_ex),
+			        rna_function_string(iprop->range_ex));
+			rna_int_print(f, iprop->softmin); fprintf(f, ", ");
+			rna_int_print(f, iprop->softmax); fprintf(f, ", ");
+			rna_int_print(f, iprop->hardmin); fprintf(f, ", ");
+			rna_int_print(f, iprop->hardmax); fprintf(f, ", ");
+			rna_int_print(f, iprop->step); fprintf(f, ", ");
+			rna_int_print(f, iprop->defaultvalue); fprintf(f, ", ");
+			if (prop->arraydimension && prop->totarraylength)
+				fprintf(f, "rna_%s%s_%s_default\n", srna->identifier, strnest, prop->identifier);
+			else fprintf(f, "NULL\n");
+			break;
+		}
+		case PROP_FLOAT:
+		{
+			FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
+			fprintf(f, "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, ",
+			        rna_function_string(fprop->get),
+			        rna_function_string(fprop->set),
+			        rna_function_string(fprop->getarray),
+			        rna_function_string(fprop->setarray),
+			        rna_function_string(fprop->range),
+			        rna_function_string(fprop->get_ex),
+			        rna_function_string(fprop->set_ex),
+			        rna_function_string(fprop->getarray_ex),
+			        rna_function_string(fprop->setarray_ex),
+			        rna_function_string(fprop->range_ex));
+			rna_float_print(f, fprop->softmin); fprintf(f, ", ");
+			rna_float_print(f, fprop->softmax); fprintf(f, ", ");
+			rna_float_print(f, fprop->hardmin); fprintf(f, ", ");
+			rna_float_print(f, fprop->hardmax); fprintf(f, ", ");
+			rna_float_print(f, fprop->step); fprintf(f, ", ");
+			rna_int_print(f, (int)fprop->precision); fprintf(f, ", ");
+			rna_float_print(f, fprop->defaultvalue); fprintf(f, ", ");
+			if (prop->arraydimension && prop->totarraylength)
+				fprintf(f, "rna_%s%s_%s_default\n", srna->identifier, strnest, prop->identifier);
+			else fprintf(f, "NULL\n");
+			break;
+		}
+		case PROP_STRING:
+		{
+			StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
+			fprintf(f, "\t%s, %s, %s, %s, %s, %s, %d, ",
+			        rna_function_string(sprop->get),
+			        rna_function_string(sprop->length),
+			        rna_function_string(sprop->set),
+			        rna_function_string(sprop->get_ex),
+			        rna_function_string(sprop->length_ex),
+			        rna_function_string(sprop->set_ex),
+			        sprop->maxlength);
+			rna_print_c_string(f, sprop->defaultvalue); fprintf(f, "\n");
+			break;
+		}
+		case PROP_ENUM:
+		{
+			EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
+			fprintf(f, "\t%s, %s, %s, %s, %s, NULL, ",
+			        rna_function_string(eprop->get),
+			        rna_function_string(eprop->set),
+			        rna_function_string(eprop->itemf),
+			        rna_function_string(eprop->get_ex),
+			        rna_function_string(eprop->set_ex));
+			if (eprop->item)
+				fprintf(f, "rna_%s%s_%s_items, ", srna->identifier, strnest, prop->identifier);
+			else
+				fprintf(f, "NULL, ");
+			fprintf(f, "%d, %d\n", eprop->totitem, eprop->defaultvalue);
+			break;
+		}
+		case PROP_POINTER:
+		{
+			PointerPropertyRNA *pprop = (PointerPropertyRNA *)prop;
+			fprintf(f, "\t%s, %s, %s, %s,", rna_function_string(pprop->get),
+			        rna_function_string(pprop->set),
+			        rna_function_string(pprop->typef),
+			        rna_function_string(pprop->poll));
+			if (pprop->type) fprintf(f, "&RNA_%s\n", (const char *)pprop->type);
+			else fprintf(f, "NULL\n");
+			break;
+		}
+		case PROP_COLLECTION:
+		{
+			CollectionPropertyRNA *cprop = (CollectionPropertyRNA *)prop;
+			fprintf(f, "\t%s, %s, %s, %s, %s, %s, %s, %s, ",
+			        rna_function_string(cprop->begin),
+			        rna_function_string(cprop->next),
+			        rna_function_string(cprop->end),
+			        rna_function_string(cprop->get),
+			        rna_function_string(cprop->length),
+			        rna_function_string(cprop->lookupint),
+			        rna_function_string(cprop->lookupstring),
+			        rna_function_string(cprop->assignint));
+			if (cprop->item_type) fprintf(f, "&RNA_%s\n", (const char *)cprop->item_type);
+			else fprintf(f, "NULL\n");
+			break;
+		}
 	}
 
 	fprintf(f, "};\n\n");
 
-	if(freenest) {
+	if (freenest) {
 		MEM_freeN(strnest);
 		MEM_freeN(errnest);
 	}
 }
 
-static void rna_generate_struct(BlenderRNA *brna, StructRNA *srna, FILE *f)
+static void rna_generate_struct(BlenderRNA *UNUSED(brna), StructRNA *srna, FILE *f)
 {
 	FunctionRNA *func;
 	FunctionDefRNA *dfunc;
@@ -2246,28 +3089,34 @@ static void rna_generate_struct(BlenderRNA *brna, StructRNA *srna, FILE *f)
 
 	fprintf(f, "/* %s */\n", srna->name);
 
-	for(prop= srna->cont.properties.first; prop; prop= prop->next)
+	for (prop = srna->cont.properties.first; prop; prop = prop->next)
 		rna_generate_property(f, srna, NULL, prop);
 
-	for(func= srna->functions.first; func; func= func->cont.next) {
-		for(parm= func->cont.properties.first; parm; parm= parm->next)
+	for (func = srna->functions.first; func; func = func->cont.next) {
+		for (parm = func->cont.properties.first; parm; parm = parm->next)
 			rna_generate_property(f, srna, func->identifier, parm);
 
 		fprintf(f, "%s%s rna_%s_%s_func = {\n", "", "FunctionRNA", srna->identifier, func->identifier);
 
-		if(func->cont.next) fprintf(f, "\t{(FunctionRNA*)&rna_%s_%s_func, ", srna->identifier, ((FunctionRNA*)func->cont.next)->identifier);
-		else fprintf(f, "\t{NULL, ");
-		if(func->cont.prev) fprintf(f, "(FunctionRNA*)&rna_%s_%s_func,\n", srna->identifier, ((FunctionRNA*)func->cont.prev)->identifier);
-		else fprintf(f, "NULL,\n");
+		if (func->cont.next)
+			fprintf(f, "\t{(FunctionRNA *)&rna_%s_%s_func, ", srna->identifier,
+			        ((FunctionRNA *)func->cont.next)->identifier);
+		else
+			fprintf(f, "\t{NULL, ");
+		if (func->cont.prev)
+			fprintf(f, "(FunctionRNA *)&rna_%s_%s_func,\n", srna->identifier,
+			        ((FunctionRNA *)func->cont.prev)->identifier);
+		else
+			fprintf(f, "NULL,\n");
 
 		fprintf(f, "\tNULL,\n");
 
-		parm= func->cont.properties.first;
-		if(parm) fprintf(f, "\t{(PropertyRNA*)&rna_%s_%s_%s, ", srna->identifier, func->identifier, parm->identifier);
+		parm = func->cont.properties.first;
+		if (parm) fprintf(f, "\t{(PropertyRNA *)&rna_%s_%s_%s, ", srna->identifier, func->identifier, parm->identifier);
 		else fprintf(f, "\t{NULL, ");
 
-		parm= func->cont.properties.last;
-		if(parm) fprintf(f, "(PropertyRNA*)&rna_%s_%s_%s}},\n", srna->identifier, func->identifier, parm->identifier);
+		parm = func->cont.properties.last;
+		if (parm) fprintf(f, "(PropertyRNA *)&rna_%s_%s_%s}},\n", srna->identifier, func->identifier, parm->identifier);
 		else fprintf(f, "NULL}},\n");
 
 		fprintf(f, "\t");
@@ -2275,12 +3124,14 @@ static void rna_generate_struct(BlenderRNA *brna, StructRNA *srna, FILE *f)
 		fprintf(f, ", %d, ", func->flag);
 		rna_print_c_string(f, func->description); fprintf(f, ",\n");
 
-		dfunc= rna_find_function_def(func);
-		if(dfunc->gencall) fprintf(f, "\t%s,\n", dfunc->gencall);
+		dfunc = rna_find_function_def(func);
+		if (dfunc->gencall) fprintf(f, "\t%s,\n", dfunc->gencall);
 		else fprintf(f, "\tNULL,\n");
 
-		if(func->c_ret) fprintf(f, "\t(PropertyRNA*)&rna_%s_%s_%s\n", srna->identifier, func->identifier, func->c_ret->identifier);
-		else fprintf(f, "\tNULL\n");
+		if (func->c_ret)
+			fprintf(f, "\t(PropertyRNA *)&rna_%s_%s_%s\n", srna->identifier, func->identifier, func->c_ret->identifier);
+		else
+			fprintf(f, "\tNULL\n");
 
 		fprintf(f, "};\n");
 		fprintf(f, "\n");
@@ -2288,19 +3139,19 @@ static void rna_generate_struct(BlenderRNA *brna, StructRNA *srna, FILE *f)
 
 	fprintf(f, "StructRNA RNA_%s = {\n", srna->identifier);
 
-	if(srna->cont.next) fprintf(f, "\t{(ContainerRNA *)&RNA_%s, ", ((StructRNA*)srna->cont.next)->identifier);
+	if (srna->cont.next) fprintf(f, "\t{(ContainerRNA *)&RNA_%s, ", ((StructRNA *)srna->cont.next)->identifier);
 	else fprintf(f, "\t{NULL, ");
-	if(srna->cont.prev) fprintf(f, "(ContainerRNA *)&RNA_%s,\n", ((StructRNA*)srna->cont.prev)->identifier);
+	if (srna->cont.prev) fprintf(f, "(ContainerRNA *)&RNA_%s,\n", ((StructRNA *)srna->cont.prev)->identifier);
 	else fprintf(f, "NULL,\n");
 
 	fprintf(f, "\tNULL,\n");
 
-	prop= srna->cont.properties.first;
-	if(prop) fprintf(f, "\t{(PropertyRNA*)&rna_%s_%s, ", srna->identifier, prop->identifier);
+	prop = srna->cont.properties.first;
+	if (prop) fprintf(f, "\t{(PropertyRNA *)&rna_%s_%s, ", srna->identifier, prop->identifier);
 	else fprintf(f, "\t{NULL, ");
 
-	prop= srna->cont.properties.last;
-	if(prop) fprintf(f, "(PropertyRNA*)&rna_%s_%s}},\n", srna->identifier, prop->identifier);
+	prop = srna->cont.properties.last;
+	if (prop) fprintf(f, "(PropertyRNA *)&rna_%s_%s}},\n", srna->identifier, prop->identifier);
 	else fprintf(f, "NULL}},\n");
 	fprintf(f, "\t");
 	rna_print_c_string(f, srna->identifier);
@@ -2309,47 +3160,53 @@ static void rna_generate_struct(BlenderRNA *brna, StructRNA *srna, FILE *f)
 	rna_print_c_string(f, srna->name);
 	fprintf(f, ", ");
 	rna_print_c_string(f, srna->description);
+	fprintf(f, ", ");
+	rna_print_c_string(f, srna->translation_context);
 	fprintf(f, ",\n\t%d,\n", srna->icon);
 
-	prop= srna->nameproperty;
-	if(prop) {
-		base= srna;
-		while (base->base && base->base->nameproperty==prop)
-			base= base->base;
+	prop = srna->nameproperty;
+	if (prop) {
+		base = srna;
+		while (base->base && base->base->nameproperty == prop)
+			base = base->base;
 
-		fprintf(f, "\t(PropertyRNA*)&rna_%s_%s, ", base->identifier, prop->identifier);
+		fprintf(f, "\t(PropertyRNA *)&rna_%s_%s, ", base->identifier, prop->identifier);
 	}
-	else fprintf(f, "\tNULL, ");
+	else {
+		fprintf(f, "\tNULL, ");
+	}
 
-	prop= srna->iteratorproperty;
-	base= srna;
-	while (base->base && base->base->iteratorproperty==prop)
-		base= base->base;
-	fprintf(f, "(PropertyRNA*)&rna_%s_rna_properties,\n", base->identifier);
+	prop = srna->iteratorproperty;
+	base = srna;
+	while (base->base && base->base->iteratorproperty == prop)
+		base = base->base;
+	fprintf(f, "(PropertyRNA *)&rna_%s_rna_properties,\n", base->identifier);
 
-	if(srna->base) fprintf(f, "\t&RNA_%s,\n", srna->base->identifier);
+	if (srna->base) fprintf(f, "\t&RNA_%s,\n", srna->base->identifier);
 	else fprintf(f, "\tNULL,\n");
 
-	if(srna->nested) fprintf(f, "\t&RNA_%s,\n", srna->nested->identifier);
+	if (srna->nested) fprintf(f, "\t&RNA_%s,\n", srna->nested->identifier);
 	else fprintf(f, "\tNULL,\n");
 
 	fprintf(f, "\t%s,\n", rna_function_string(srna->refine));
 	fprintf(f, "\t%s,\n", rna_function_string(srna->path));
 	fprintf(f, "\t%s,\n", rna_function_string(srna->reg));
 	fprintf(f, "\t%s,\n", rna_function_string(srna->unreg));
+	fprintf(f, "\t%s,\n", rna_function_string(srna->instance));
 	fprintf(f, "\t%s,\n", rna_function_string(srna->idproperties));
 
-	if(srna->reg && !srna->refine) {
-		fprintf(stderr, "rna_generate_struct: %s has a register function, must also have refine function.\n", srna->identifier);
-		DefRNA.error= 1;
+	if (srna->reg && !srna->refine) {
+		fprintf(stderr, "%s: %s has a register function, must also have refine function.\n",
+		        __func__, srna->identifier);
+		DefRNA.error = 1;
 	}
 
-	func= srna->functions.first;
-	if(func) fprintf(f, "\t{(FunctionRNA*)&rna_%s_%s_func, ", srna->identifier, func->identifier);
+	func = srna->functions.first;
+	if (func) fprintf(f, "\t{(FunctionRNA *)&rna_%s_%s_func, ", srna->identifier, func->identifier);
 	else fprintf(f, "\t{NULL, ");
 
-	func= srna->functions.last;
-	if(func) fprintf(f, "(FunctionRNA*)&rna_%s_%s_func}\n", srna->identifier, func->identifier);
+	func = srna->functions.last;
+	if (func) fprintf(f, "(FunctionRNA *)&rna_%s_%s_func}\n", srna->identifier, func->identifier);
 	else fprintf(f, "NULL}\n");
 
 	fprintf(f, "};\n");
@@ -2363,10 +3220,10 @@ typedef struct RNAProcessItem {
 	void (*define)(BlenderRNA *brna);
 } RNAProcessItem;
 
-static RNAProcessItem PROCESS_ITEMS[]= {
+static RNAProcessItem PROCESS_ITEMS[] = {
 	{"rna_rna.c", NULL, RNA_def_rna},
 	{"rna_ID.c", NULL, RNA_def_ID},
-	{"rna_texture.c", NULL, RNA_def_texture},
+	{"rna_texture.c", "rna_texture_api.c", RNA_def_texture},
 	{"rna_action.c", "rna_action_api.c", RNA_def_action},
 	{"rna_animation.c", "rna_animation_api.c", RNA_def_animation},
 	{"rna_animviz.c", NULL, RNA_def_animviz},
@@ -2374,13 +3231,14 @@ static RNAProcessItem PROCESS_ITEMS[]= {
 	{"rna_armature.c", "rna_armature_api.c", RNA_def_armature},
 	{"rna_boid.c", NULL, RNA_def_boid},
 	{"rna_brush.c", NULL, RNA_def_brush},
-	{"rna_camera.c", NULL, RNA_def_camera},
+	{"rna_camera.c", "rna_camera_api.c", RNA_def_camera},
 	{"rna_cloth.c", NULL, RNA_def_cloth},
 	{"rna_color.c", NULL, RNA_def_color},
 	{"rna_constraint.c", NULL, RNA_def_constraint},
 	{"rna_context.c", NULL, RNA_def_context},
 	{"rna_controller.c", "rna_controller_api.c", RNA_def_controller},
 	{"rna_curve.c", NULL, RNA_def_curve},
+	{"rna_dynamicpaint.c", NULL, RNA_def_dynamic_paint},
 	{"rna_fcurve.c", "rna_fcurve_api.c", RNA_def_fcurve},
 	{"rna_fluidsim.c", NULL, RNA_def_fluidsim},
 	{"rna_gpencil.c", NULL, RNA_def_gpencil},
@@ -2389,10 +3247,11 @@ static RNAProcessItem PROCESS_ITEMS[]= {
 	{"rna_key.c", NULL, RNA_def_key},
 	{"rna_lamp.c", NULL, RNA_def_lamp},
 	{"rna_lattice.c", NULL, RNA_def_lattice},
+	{"rna_linestyle.c", NULL, RNA_def_linestyle},
 	{"rna_main.c", "rna_main_api.c", RNA_def_main},
 	{"rna_material.c", "rna_material_api.c", RNA_def_material},
 	{"rna_mesh.c", "rna_mesh_api.c", RNA_def_mesh},
-	{"rna_meta.c", NULL, RNA_def_meta},
+	{"rna_meta.c", "rna_meta_api.c", RNA_def_meta},
 	{"rna_modifier.c", NULL, RNA_def_modifier},
 	{"rna_nla.c", NULL, RNA_def_nla},
 	{"rna_nodetree.c", NULL, RNA_def_nodetree},
@@ -2403,6 +3262,7 @@ static RNAProcessItem PROCESS_ITEMS[]= {
 	{"rna_pose.c", "rna_pose_api.c", RNA_def_pose},
 	{"rna_property.c", NULL, RNA_def_gameproperty},
 	{"rna_render.c", NULL, RNA_def_render},
+	{"rna_rigidbody.c", NULL, RNA_def_rigidbody},
 	{"rna_scene.c", "rna_scene_api.c", RNA_def_scene},
 	{"rna_screen.c", NULL, RNA_def_screen},
 	{"rna_sculpt_paint.c", NULL, RNA_def_sculpt_paint},
@@ -2410,16 +3270,21 @@ static RNAProcessItem PROCESS_ITEMS[]= {
 	{"rna_sequencer.c", "rna_sequencer_api.c", RNA_def_sequencer},
 	{"rna_smoke.c", NULL, RNA_def_smoke},
 	{"rna_space.c", NULL, RNA_def_space},
+	{"rna_speaker.c", NULL, RNA_def_speaker},
 	{"rna_test.c", NULL, RNA_def_test},
-	{"rna_text.c", NULL, RNA_def_text},
+	{"rna_text.c", "rna_text_api.c", RNA_def_text},
 	{"rna_timeline.c", NULL, RNA_def_timeline_marker},
 	{"rna_sound.c", NULL, RNA_def_sound},
 	{"rna_ui.c", "rna_ui_api.c", RNA_def_ui},
 	{"rna_userdef.c", NULL, RNA_def_userdef},
 	{"rna_vfont.c", NULL, RNA_def_vfont},
 	{"rna_wm.c", "rna_wm_api.c", RNA_def_wm},
-	{"rna_world.c", NULL, RNA_def_world},	
-	{NULL, NULL}};
+	{"rna_world.c", NULL, RNA_def_world},
+	{"rna_movieclip.c", NULL, RNA_def_movieclip},
+	{"rna_tracking.c", NULL, RNA_def_tracking},
+	{"rna_mask.c", NULL, RNA_def_mask},
+	{NULL, NULL}
+};
 
 static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const char *api_filename)
 {
@@ -2427,15 +3292,19 @@ static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const 
 	PropertyDefRNA *dp;
 	FunctionDefRNA *dfunc;
 	
-	fprintf(f, "\n/* Automatically generated struct definitions for the Data API.\n"
-				 "   Do not edit manually, changes will be overwritten.           */\n\n"
-				  "#define RNA_RUNTIME\n\n");
+	fprintf(f,
+	        "\n"
+	        "/* Automatically generated struct definitions for the Data API.\n"
+	        " * Do not edit manually, changes will be overwritten.           */\n\n"
+	        "#define RNA_RUNTIME\n\n");
 
 	fprintf(f, "#include <float.h>\n");
 	fprintf(f, "#include <stdio.h>\n");
 	fprintf(f, "#include <limits.h>\n");
 	fprintf(f, "#include <string.h>\n\n");
 	fprintf(f, "#include <stddef.h>\n\n");
+
+	fprintf(f, "#include \"MEM_guardedalloc.h\"\n\n");
 
 	fprintf(f, "#include \"DNA_ID.h\"\n");
 	fprintf(f, "#include \"DNA_scene_types.h\"\n");
@@ -2455,38 +3324,43 @@ static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const 
 	rna_generate_prototypes(brna, f);
 
 	fprintf(f, "#include \"%s\"\n", filename);
-	if(api_filename)
+	if (api_filename)
 		fprintf(f, "#include \"%s\"\n", api_filename);
 	fprintf(f, "\n");
 
 	fprintf(f, "/* Autogenerated Functions */\n\n");
 
-	for(ds=DefRNA.structs.first; ds; ds=ds->cont.next) {
-		if(!filename || ds->filename == filename) {
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next) {
+		if (!filename || ds->filename == filename) {
 			rna_generate_property_prototypes(brna, ds->srna, f);
 			rna_generate_function_prototypes(brna, ds->srna, f);
 		}
 	}
 
-	for(ds=DefRNA.structs.first; ds; ds=ds->cont.next)
-		if(!filename || ds->filename == filename)
-			for(dp=ds->cont.properties.first; dp; dp=dp->next)
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next)
+		if (!filename || ds->filename == filename)
+			for (dp = ds->cont.properties.first; dp; dp = dp->next)
 				rna_def_property_funcs(f, ds->srna, dp);
 
-	for(ds=DefRNA.structs.first; ds; ds=ds->cont.next) {
-		if(!filename || ds->filename == filename) {
-			for(dfunc=ds->functions.first; dfunc; dfunc= dfunc->cont.next)
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next) {
+		if (!filename || ds->filename == filename) {
+			for (dp = ds->cont.properties.first; dp; dp = dp->next)
+				rna_def_property_wrapper_funcs(f, ds, dp);
+
+			for (dfunc = ds->functions.first; dfunc; dfunc = dfunc->cont.next) {
+				rna_def_function_wrapper_funcs(f, ds, dfunc);
 				rna_def_function_funcs(f, ds, dfunc);
+			}
 
 			rna_generate_static_function_prototypes(brna, ds->srna, f);
 		}
 	}
 
-	for(ds=DefRNA.structs.first; ds; ds=ds->cont.next)
-		if(!filename || ds->filename == filename)
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next)
+		if (!filename || ds->filename == filename)
 			rna_generate_struct(brna, ds->srna, f);
 
-	if(strcmp(filename, "rna_ID.c") == 0) {
+	if (strcmp(filename, "rna_ID.c") == 0) {
 		/* this is ugly, but we cannot have c files compiled for both
 		 * makesrna and blender with some build systems at the moment */
 		fprintf(f, "#include \"rna_define.c\"\n\n");
@@ -2495,17 +3369,19 @@ static void rna_generate(BlenderRNA *brna, FILE *f, const char *filename, const 
 	}
 }
 
-static void rna_generate_header(BlenderRNA *brna, FILE *f)
+static void rna_generate_header(BlenderRNA *UNUSED(brna), FILE *f)
 {
 	StructDefRNA *ds;
 	PropertyDefRNA *dp;
 	StructRNA *srna;
+	FunctionDefRNA *dfunc;
 
 	fprintf(f, "\n#ifndef __RNA_BLENDER_H__\n");
 	fprintf(f, "#define __RNA_BLENDER_H__\n\n");
 
-	fprintf(f, "/* Automatically generated function declarations for the Data API.\n"
-				 "   Do not edit manually, changes will be overwritten.              */\n\n");
+	fprintf(f,
+	        "/* Automatically generated function declarations for the Data API.\n"
+	        " * Do not edit manually, changes will be overwritten.              */\n\n");
 
 	fprintf(f, "#include \"RNA_types.h\"\n\n");
 
@@ -2514,7 +3390,8 @@ static void rna_generate_header(BlenderRNA *brna, FILE *f)
 	fprintf(f, "#define FOREACH_BEGIN(property, sptr, itemptr) \\\n");
 	fprintf(f, "	{ \\\n");
 	fprintf(f, "		CollectionPropertyIterator rna_macro_iter; \\\n");
-	fprintf(f, "		for(property##_begin(&rna_macro_iter, sptr); rna_macro_iter.valid; property##_next(&rna_macro_iter)) { \\\n");
+	fprintf(f, "		for (property##_begin(&rna_macro_iter, sptr); rna_macro_iter.valid; "
+	        "property##_next(&rna_macro_iter)) { \\\n");
 	fprintf(f, "			itemptr= rna_macro_iter.ptr;\n\n");
 
 	fprintf(f, "#define FOREACH_END(property) \\\n");
@@ -2522,19 +3399,22 @@ static void rna_generate_header(BlenderRNA *brna, FILE *f)
 	fprintf(f, "		property##_end(&rna_macro_iter); \\\n");
 	fprintf(f, "	}\n\n");
 
-	for(ds=DefRNA.structs.first; ds; ds=ds->cont.next) {
-		srna= ds->srna;
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next) {
+		srna = ds->srna;
 
 		fprintf(f, "/**************** %s ****************/\n\n", srna->name);
 
-		while(srna) {
+		while (srna) {
 			fprintf(f, "extern StructRNA RNA_%s;\n", srna->identifier);
-			srna= srna->base;
+			srna = srna->base;
 		}
 		fprintf(f, "\n");
 
-		for(dp=ds->cont.properties.first; dp; dp=dp->next)
+		for (dp = ds->cont.properties.first; dp; dp = dp->next)
 			rna_def_property_funcs_header(f, ds->srna, dp);
+
+		for (dfunc = ds->functions.first; dfunc; dfunc = dfunc->cont.next)
+			rna_def_function_funcs_header(f, ds->srna, dfunc);
 	}
 
 	fprintf(f, "#ifdef __cplusplus\n}\n#endif\n\n");
@@ -2545,53 +3425,171 @@ static void rna_generate_header(BlenderRNA *brna, FILE *f)
 static const char *cpp_classes = ""
 "\n"
 "#include <string>\n"
+"#include <string.h> /* for memcpy */\n"
 "\n"
-"namespace RNA {\n"
+"namespace BL {\n"
 "\n"
 "#define BOOLEAN_PROPERTY(sname, identifier) \\\n"
-"	bool sname::identifier(void) { return (bool)sname##_##identifier##_get(&ptr); }\n"
+"	inline bool sname::identifier(void) { return sname##_##identifier##_get(&ptr) ? true: false; } \\\n"
+"	inline void sname::identifier(int value) { sname##_##identifier##_set(&ptr, value); }\n"
 "\n"
 "#define BOOLEAN_ARRAY_PROPERTY(sname, size, identifier) \\\n"
-"	Array<int,size> sname::identifier(void) \\\n"
-"		{ Array<int, size> ar; sname##_##identifier##_get(&ptr, ar.data); return ar; }\n"
+"	inline Array<int,size> sname::identifier(void) \\\n"
+"		{ Array<int, size> ar; sname##_##identifier##_get(&ptr, ar.data); return ar; } \\\n"
+"	inline void sname::identifier(int values[size]) \\\n"
+"		{ sname##_##identifier##_set(&ptr, values); } \\\n"
+"\n"
+"#define BOOLEAN_DYNAMIC_ARRAY_PROPERTY(sname, identifier) \\\n"
+"	inline DynamicArray<int> sname::identifier(void) { \\\n"
+"		int arraylen[3]; \\\n"
+"		int len = sname##_##identifier##_get_length(&ptr, arraylen); \\\n"
+"		DynamicArray<int> ar(len); \\\n"
+"		sname##_##identifier##_get(&ptr, ar.data); \\\n"
+"		return ar; } \\\n"
+"	inline void sname::identifier(int values[]) \\\n"
+"		{ sname##_##identifier##_set(&ptr, values); } \\\n"
 "\n"
 "#define INT_PROPERTY(sname, identifier) \\\n"
-"	int sname::identifier(void) { return sname##_##identifier##_get(&ptr); }\n"
+"	inline int sname::identifier(void) { return sname##_##identifier##_get(&ptr); } \\\n"
+"	inline void sname::identifier(int value) { sname##_##identifier##_set(&ptr, value); }\n"
 "\n"
 "#define INT_ARRAY_PROPERTY(sname, size, identifier) \\\n"
-"	Array<int,size> sname::identifier(void) \\\n"
-"		{ Array<int, size> ar; sname##_##identifier##_get(&ptr, ar.data); return ar; }\n"
+"	inline Array<int,size> sname::identifier(void) \\\n"
+"		{ Array<int, size> ar; sname##_##identifier##_get(&ptr, ar.data); return ar; } \\\n"
+"	inline void sname::identifier(int values[size]) \\\n"
+"		{ sname##_##identifier##_set(&ptr, values); } \\\n"
+"\n"
+"#define INT_DYNAMIC_ARRAY_PROPERTY(sname, identifier) \\\n"
+"	inline DynamicArray<int> sname::identifier(void) { \\\n"
+"		int arraylen[3]; \\\n"
+"		int len = sname##_##identifier##_get_length(&ptr, arraylen); \\\n"
+"		DynamicArray<int> ar(len); \\\n"
+"		sname##_##identifier##_get(&ptr, ar.data); \\\n"
+"		return ar; } \\\n"
+"	inline void sname::identifier(int values[]) \\\n"
+"		{ sname##_##identifier##_set(&ptr, values); } \\\n"
 "\n"
 "#define FLOAT_PROPERTY(sname, identifier) \\\n"
-"	float sname::identifier(void) { return sname##_##identifier##_get(&ptr); }\n"
+"	inline float sname::identifier(void) { return sname##_##identifier##_get(&ptr); } \\\n"
+"	inline void sname::identifier(float value) { sname##_##identifier##_set(&ptr, value); }\n"
 "\n"
 "#define FLOAT_ARRAY_PROPERTY(sname, size, identifier) \\\n"
-"	Array<float,size> sname::identifier(void) \\\n"
-"		{ Array<float, size> ar; sname##_##identifier##_get(&ptr, ar.data); return ar; }\n"
+"	inline Array<float,size> sname::identifier(void) \\\n"
+"		{ Array<float, size> ar; sname##_##identifier##_get(&ptr, ar.data); return ar; } \\\n"
+"	inline void sname::identifier(float values[size]) \\\n"
+"		{ sname##_##identifier##_set(&ptr, values); } \\\n"
+"\n"
+"#define FLOAT_DYNAMIC_ARRAY_PROPERTY(sname, identifier) \\\n"
+"	inline DynamicArray<float> sname::identifier(void) { \\\n"
+"		int arraylen[3]; \\\n"
+"		int len = sname##_##identifier##_get_length(&ptr, arraylen); \\\n"
+"		DynamicArray<float> ar(len); \\\n"
+"		sname##_##identifier##_get(&ptr, ar.data); \\\n"
+"		return ar; } \\\n"
+"	inline void sname::identifier(float values[]) \\\n"
+"		{ sname##_##identifier##_set(&ptr, values); } \\\n"
 "\n"
 "#define ENUM_PROPERTY(type, sname, identifier) \\\n"
-"	sname::type sname::identifier(void) { return (type)sname##_##identifier##_get(&ptr); }\n"
+"	inline sname::type sname::identifier(void) { return (type)sname##_##identifier##_get(&ptr); } \\\n"
+"	inline void sname::identifier(sname::type value) { sname##_##identifier##_set(&ptr, value); }\n"
 "\n"
 "#define STRING_PROPERTY(sname, identifier) \\\n"
-"	std::string sname::identifier(void) { \\\n"
+"	inline std::string sname::identifier(void) { \\\n"
 "		int len= sname##_##identifier##_length(&ptr); \\\n"
 "		std::string str; str.resize(len); \\\n"
 "		sname##_##identifier##_get(&ptr, &str[0]); return str; } \\\n"
+"	inline void sname::identifier(const std::string& value) { \\\n"
+"		sname##_##identifier##_set(&ptr, value.c_str()); } \\\n"
 "\n"
 "#define POINTER_PROPERTY(type, sname, identifier) \\\n"
-"	type sname::identifier(void) { return type(sname##_##identifier##_get(&ptr)); }\n"
+"	inline type sname::identifier(void) { return type(sname##_##identifier##_get(&ptr)); }\n"
 "\n"
-"#define COLLECTION_PROPERTY(type, sname, identifier) \\\n"
+"#define COLLECTION_PROPERTY_LENGTH_FALSE(sname, identifier) \\\n"
+"	inline static int sname##_##identifier##_length_wrap(PointerRNA *ptr) \\\n"
+"	{ \\\n"
+"		CollectionPropertyIterator iter; \\\n"
+"		int length = 0; \\\n"
+"		sname##_##identifier##_begin(&iter, ptr); \\\n"
+"		while (iter.valid) { \\\n"
+"			sname##_##identifier##_next(&iter); \\\n"
+"			++length; \\\n"
+"		} \\\n"
+"		sname##_##identifier##_end(&iter); \\\n"
+"		return length; \\\n"
+"	} \n"
+"#define COLLECTION_PROPERTY_LENGTH_TRUE(sname, identifier) \\\n"
+"	inline static int sname##_##identifier##_length_wrap(PointerRNA *ptr) \\\n"
+"	{ return sname##_##identifier##_length(ptr); } \n"
+"\n"
+"#define COLLECTION_PROPERTY_LOOKUP_INT_FALSE(sname, identifier) \\\n"
+"	inline static int sname##_##identifier##_lookup_int_wrap(PointerRNA *ptr, int key, PointerRNA *r_ptr) \\\n"
+"	{ \\\n"
+"		CollectionPropertyIterator iter; \\\n"
+"		int i = 0, found = 0; \\\n"
+"		sname##_##identifier##_begin(&iter, ptr); \\\n"
+"		while (iter.valid) { \\\n"
+"			if (i == key) { \\\n"
+"				*r_ptr = iter.ptr; \\\n"
+"				found = 1; \\\n"
+"				break; \\\n"
+"			} \\\n"
+"			sname##_##identifier##_next(&iter); \\\n"
+"			++i; \\\n"
+"		} \\\n"
+"		sname##_##identifier##_end(&iter); \\\n"
+"		if (!found) \\\n"
+"			memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
+"		return found; \\\n"
+"	} \n"
+"#define COLLECTION_PROPERTY_LOOKUP_INT_TRUE(sname, identifier) \\\n"
+"	inline static int sname##_##identifier##_lookup_int_wrap(PointerRNA *ptr, int key, PointerRNA *r_ptr) \\\n"
+"	{ return sname##_##identifier##_lookup_int(ptr, key, r_ptr); } \n"
+"\n"
+"#define COLLECTION_PROPERTY_LOOKUP_STRING_FALSE(sname, identifier) \\\n"
+"	inline static int sname##_##identifier##_lookup_string_wrap(PointerRNA *ptr, const char *key, PointerRNA *r_ptr) \\\n"
+"	{ \\\n"
+"		CollectionPropertyIterator iter; \\\n"
+"		int found = 0; \\\n"
+"		PropertyRNA *item_name_prop = RNA_struct_name_property(ptr->type); \\\n"
+"		sname##_##identifier##_begin(&iter, ptr); \\\n"
+"		while (iter.valid && !found) { \\\n"
+"			char name_fixed[32]; \\\n"
+"			const char *name; \\\n"
+"			int name_length; \\\n"
+"			name = RNA_property_string_get_alloc(&iter.ptr, item_name_prop, name_fixed, sizeof(name_fixed), &name_length); \\\n"
+"			if (!strncmp(name, key, name_length)) { \\\n"
+"				*r_ptr = iter.ptr; \\\n"
+"				found = 1; \\\n"
+"			} \\\n"
+"			if (name_fixed != name) \\\n"
+"				MEM_freeN((void *) name); \\\n"
+"			sname##_##identifier##_next(&iter); \\\n"
+"		} \\\n"
+"		sname##_##identifier##_end(&iter); \\\n"
+"		if (!found) \\\n"
+"			memset(r_ptr, 0, sizeof(*r_ptr)); \\\n"
+"		return found; \\\n"
+"	} \n"
+"#define COLLECTION_PROPERTY_LOOKUP_STRING_TRUE(sname, identifier) \\\n"
+"	inline static int sname##_##identifier##_lookup_string_wrap(PointerRNA *ptr, const char *key, PointerRNA *r_ptr) \\\n"
+"	{ return sname##_##identifier##_lookup_string(ptr, key, r_ptr); } \n"
+"\n"
+"#define COLLECTION_PROPERTY(collection_funcs, type, sname, identifier, has_length, has_lookup_int, has_lookup_string) \\\n"
 "	typedef CollectionIterator<type, sname##_##identifier##_begin, \\\n"
 "		sname##_##identifier##_next, sname##_##identifier##_end> identifier##_iterator; \\\n"
+"	COLLECTION_PROPERTY_LENGTH_##has_length(sname, identifier) \\\n"
+"	COLLECTION_PROPERTY_LOOKUP_INT_##has_lookup_int(sname, identifier) \\\n"
+"	COLLECTION_PROPERTY_LOOKUP_STRING_##has_lookup_string(sname, identifier) \\\n"
 "	Collection<sname, type, sname##_##identifier##_begin, \\\n"
-"		sname##_##identifier##_next, sname##_##identifier##_end> identifier;\n"
+"		sname##_##identifier##_next, sname##_##identifier##_end, \\\n"
+"		sname##_##identifier##_length_wrap, \\\n"
+"		sname##_##identifier##_lookup_int_wrap, sname##_##identifier##_lookup_string_wrap, collection_funcs> identifier;\n"
 "\n"
 "class Pointer {\n"
 "public:\n"
-"	Pointer(const PointerRNA& p) : ptr(p) { }\n"
+"	Pointer(const PointerRNA &p) : ptr(p) { }\n"
 "	operator const PointerRNA&() { return ptr; }\n"
-"	bool is_a(StructRNA *type) { return RNA_struct_is_a(&ptr, type); }\n"
+"	bool is_a(StructRNA *type) { return RNA_struct_is_a(ptr.type, type) ? true: false; }\n"
 "	operator void*() { return ptr.data; }\n"
 "	operator bool() { return ptr.data != NULL; }\n"
 "\n"
@@ -2603,101 +3601,260 @@ static const char *cpp_classes = ""
 "class Array {\n"
 "public:\n"
 "	T data[Tsize];\n"
+"\n"
+"	Array() {}\n"
+"	Array(const Array<T, Tsize>& other) { memcpy(data, other.data, sizeof(T) * Tsize); }\n"
+"	const Array<T, Tsize>& operator=(const Array<T, Tsize>& other) { memcpy(data, other.data, sizeof(T) * Tsize); "
+"return *this; }\n"
+"\n"
 "	operator T*() { return data; }\n"
+"};\n"
+"\n"
+"template<typename T>\n"
+"class DynamicArray {\n"
+"public:\n"
+"	T *data;\n"
+"	int length;\n"
+"\n"
+"	DynamicArray() : data(NULL), length(0) {}\n"
+"	DynamicArray(int new_length) : data(NULL), length(new_length) { data = (float *)malloc(sizeof(T) * new_length); }\n"
+"	DynamicArray(const DynamicArray<T>& other) { copy_from(other); }\n"
+"	const DynamicArray<T>& operator=(const DynamicArray<T>& other) { copy_from(other); return *this; }\n"
+"\n"
+"	~DynamicArray() { if (data) free(data); }\n"
+"\n"
+"	operator T*() { return data; }\n"
+"\n"
+"protected:\n"
+"	void copy_from(const DynamicArray<T>& other) {\n"
+"		if (data) free(data);\n"
+"		data = (float *)malloc(sizeof(T) * other.length);\n"
+"		memcpy(data, other.data, sizeof(T) * other.length);\n"
+"		length = other.length;\n"
+"	}\n"
 "};\n"
 "\n"
 "typedef void (*TBeginFunc)(CollectionPropertyIterator *iter, PointerRNA *ptr);\n"
 "typedef void (*TNextFunc)(CollectionPropertyIterator *iter);\n"
 "typedef void (*TEndFunc)(CollectionPropertyIterator *iter);\n"
+"typedef int (*TLengthFunc)(PointerRNA *ptr);\n"
+"typedef int (*TLookupIntFunc)(PointerRNA *ptr, int key, PointerRNA *r_ptr);\n"
+"typedef int (*TLookupStringFunc)(PointerRNA *ptr, const char *key, PointerRNA *r_ptr);\n"
 "\n"
 "template<typename T, TBeginFunc Tbegin, TNextFunc Tnext, TEndFunc Tend>\n"
 "class CollectionIterator {\n"
 "public:\n"
 "	CollectionIterator() : t(iter.ptr), init(false) { iter.valid= false; }\n"
-"	~CollectionIterator(void) { if(init) Tend(&iter); };\n"
-"	const CollectionIterator<T, Tbegin, Tnext, Tend>& operator=(const CollectionIterator<T, Tbegin, Tnext, Tend>& copy)\n"
-"	{ if(init) Tend(&iter); iter= copy.iter; if(iter.internal) iter.internal= MEM_dupallocN(iter.internal); t= copy.t; init= copy.init; return *this; }\n"
+"	~CollectionIterator(void) { if (init) Tend(&iter); };\n"
 "\n"
 "	operator bool(void)\n"
 "	{ return iter.valid != 0; }\n"
 "	const CollectionIterator<T, Tbegin, Tnext, Tend>& operator++() { Tnext(&iter); t = T(iter.ptr); return *this; }\n"
+"\n"
 "	T& operator*(void) { return t; }\n"
 "	T* operator->(void) { return &t; }\n"
-"	bool operator==(const CollectionIterator<T, Tbegin, Tnext, Tend>& other) { return iter.valid == other.iter.valid; }\n"
-"	bool operator!=(const CollectionIterator<T, Tbegin, Tnext, Tend>& other) { return iter.valid != other.iter.valid; }\n"
+"	bool operator==(const CollectionIterator<T, Tbegin, Tnext, Tend>& other) "
+"{ return iter.valid == other.iter.valid; }\n"
+"	bool operator!=(const CollectionIterator<T, Tbegin, Tnext, Tend>& other) "
+"{ return iter.valid != other.iter.valid; }\n"
 "\n"
-"	void begin(const Pointer& ptr)\n"
-"	{ if(init) Tend(&iter); Tbegin(&iter, (PointerRNA*)&ptr.ptr); t = T(iter.ptr); init = true; }\n"
+"	void begin(const Pointer &ptr)\n"
+"	{ if (init) Tend(&iter); Tbegin(&iter, (PointerRNA *)&ptr.ptr); t = T(iter.ptr); init = true; }\n"
 "\n"
 "private:\n"
+"	const CollectionIterator<T, Tbegin, Tnext, Tend>& operator="
+"(const CollectionIterator<T, Tbegin, Tnext, Tend>& copy) {}\n"
+""
 "	CollectionPropertyIterator iter;\n"
 "	T t;\n"
 "	bool init;\n"
 "};\n"
 "\n"
-"template<typename Tp, typename T, TBeginFunc Tbegin, TNextFunc Tnext, TEndFunc Tend>\n"
-"class Collection {\n"
+"template<typename Tp, typename T, TBeginFunc Tbegin, TNextFunc Tnext, TEndFunc Tend,\n"
+"         TLengthFunc Tlength, TLookupIntFunc Tlookup_int, TLookupStringFunc Tlookup_string,\n"
+"         typename Tcollection_funcs>\n"
+"class Collection : public Tcollection_funcs {\n"
 "public:\n"
-"	Collection(const PointerRNA& p) : ptr(p) {}\n"
+"	Collection(const PointerRNA &p) : Tcollection_funcs(p), ptr(p)  {}\n"
 "\n"
-"	CollectionIterator<T, Tbegin, Tnext, Tend> begin()\n"
-"	{ CollectionIterator<T, Tbegin, Tnext, Tend> iter; iter.begin(ptr); return iter; }\n"
+"	void begin(CollectionIterator<T, Tbegin, Tnext, Tend>& iter)\n"
+"	{ iter.begin(ptr); }\n"
 "	CollectionIterator<T, Tbegin, Tnext, Tend> end()\n"
 "	{ return CollectionIterator<T, Tbegin, Tnext, Tend>(); } /* test */ \n"
+""
+"	int length()\n"
+"	{ return Tlength(&ptr); }\n"
+"	T operator[](int key)\n"
+"	{ PointerRNA r_ptr; Tlookup_int(&ptr, key, &r_ptr); return T(r_ptr); }\n"
+"	T operator[](const std::string &key)\n"
+"	{ PointerRNA r_ptr; Tlookup_string(&ptr, key.c_str(), &r_ptr); return T(r_ptr); }\n"
 "\n"
 "private:\n"
 "	PointerRNA ptr;\n"
 "};\n"
+"\n"
+"class DefaultCollectionFunctions {\n"
+"public:\n"
+"	DefaultCollectionFunctions(const PointerRNA &p) {}\n"
+"};\n"
+"\n"
 "\n";
 
-static void rna_generate_header_cpp(BlenderRNA *brna, FILE *f)
+static int rna_is_collection_prop(PropertyRNA *prop)
+{
+	if (!(prop->flag & (PROP_IDPROPERTY | PROP_BUILTIN)))
+		if (prop->type == PROP_COLLECTION)
+			return 1;
+
+	return 0;
+}
+
+static int rna_is_collection_functions_struct(const char **collection_structs, const char *struct_name)
+{
+	int a = 0, found = 0;
+
+	while (collection_structs[a]) {
+		if (!strcmp(collection_structs[a], struct_name)) {
+			found = 1;
+			break;
+		}
+		a++;
+	}
+
+	return found;
+}
+
+static void rna_generate_header_class_cpp(StructDefRNA *ds, FILE *f)
+{
+	StructRNA *srna = ds->srna;
+	PropertyDefRNA *dp;
+	FunctionDefRNA *dfunc;
+
+	fprintf(f, "/**************** %s ****************/\n\n", srna->name);
+
+	fprintf(f, "class %s : public %s {\n", srna->identifier, (srna->base) ? srna->base->identifier : "Pointer");
+	fprintf(f, "public:\n");
+	fprintf(f, "\t%s(const PointerRNA &ptr_arg) :\n\t\t%s(ptr_arg)", srna->identifier,
+	        (srna->base) ? srna->base->identifier : "Pointer");
+	for (dp = ds->cont.properties.first; dp; dp = dp->next)
+		if (rna_is_collection_prop(dp->prop))
+			fprintf(f, ",\n\t\t%s(ptr_arg)", dp->prop->identifier);
+	fprintf(f, "\n\t\t{}\n\n");
+
+	for (dp = ds->cont.properties.first; dp; dp = dp->next)
+		rna_def_property_funcs_header_cpp(f, ds->srna, dp);
+
+	fprintf(f, "\n");
+	for (dfunc = ds->functions.first; dfunc; dfunc = dfunc->cont.next)
+		rna_def_struct_function_header_cpp(f, srna, dfunc);
+
+	fprintf(f, "};\n\n");
+}
+
+static void rna_generate_header_cpp(BlenderRNA *UNUSED(brna), FILE *f)
 {
 	StructDefRNA *ds;
 	PropertyDefRNA *dp;
 	StructRNA *srna;
+	FunctionDefRNA *dfunc;
+	const char *first_collection_func_struct = NULL;
+	const char *collection_func_structs[256] = {NULL};
+	int all_collection_func_structs = 0;
+	int max_collection_func_structs = sizeof(collection_func_structs) / sizeof(collection_func_structs[0]) - 1;
 
 	fprintf(f, "\n#ifndef __RNA_BLENDER_CPP_H__\n");
 	fprintf(f, "#define __RNA_BLENDER_CPP_H__\n\n");
 
-	fprintf(f, "/* Automatically generated classes for the Data API.\n"
-				 "   Do not edit manually, changes will be overwritten. */\n\n");
-
+	fprintf(f,
+	        "/* Automatically generated classes for the Data API.\n"
+	        " * Do not edit manually, changes will be overwritten. */\n\n");
+	
 	fprintf(f, "#include \"RNA_blender.h\"\n");
 	fprintf(f, "#include \"RNA_types.h\"\n");
+	fprintf(f, "#include \"RNA_access.h\"\n");
 
 	fprintf(f, "%s", cpp_classes);
 
 	fprintf(f, "/**************** Declarations ****************/\n\n");
 
-	for(ds=DefRNA.structs.first; ds; ds=ds->cont.next)
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next) {
 		fprintf(f, "class %s;\n", ds->srna->identifier);
+	}
 	fprintf(f, "\n");
 
-	for(ds=DefRNA.structs.first; ds; ds=ds->cont.next) {
-		srna= ds->srna;
+	/* first get list of all structures used as collection functions, so they'll be declared first */
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next) {
+		for (dp = ds->cont.properties.first; dp; dp = dp->next) {
+			if (rna_is_collection_prop(dp->prop)) {
+				PropertyRNA *prop = dp->prop;
 
-		fprintf(f, "/**************** %s ****************/\n\n", srna->name);
+				if (prop->srna) {
+					/* store name of structure which first uses custom functions for collections */
+					if (first_collection_func_struct == NULL)
+						first_collection_func_struct = ds->srna->identifier;
 
-		fprintf(f, "class %s : public %s {\n", srna->identifier, (srna->base)? srna->base->identifier: "Pointer");
-		fprintf(f, "public:\n");
-		fprintf(f, "\t%s(const PointerRNA& ptr) :\n\t\t%s(ptr)", srna->identifier, (srna->base)? srna->base->identifier: "Pointer");
-		for(dp=ds->cont.properties.first; dp; dp=dp->next)
-			if(!(dp->prop->flag & (PROP_IDPROPERTY|PROP_BUILTIN)))
-				if(dp->prop->type == PROP_COLLECTION)
-					fprintf(f, ",\n\t\t%s(ptr)", dp->prop->identifier);
-		fprintf(f, "\n\t\t{}\n\n");
+					if (!rna_is_collection_functions_struct(collection_func_structs, (char *)prop->srna)) {
+						if (all_collection_func_structs >= max_collection_func_structs) {
+							printf("Array size to store all collection structures names is too small\n");
+							exit(1);
+						}
 
-		for(dp=ds->cont.properties.first; dp; dp=dp->next)
-			rna_def_property_funcs_header_cpp(f, ds->srna, dp);
-		fprintf(f, "};\n\n");
+						collection_func_structs[all_collection_func_structs++] = (char *)prop->srna;
+					}
+				}
+			}
+		}
 	}
 
+	/* declare all structures in such order:
+	 * - first N structures which doesn't use custom functions for collections
+	 * - all structures used for custom functions in collections
+	 * - all the rest structures
+	 * such an order prevents usage of non-declared classes
+	 */
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next) {
+		srna = ds->srna;
 
+		if (!strcmp(srna->identifier, first_collection_func_struct)) {
+			StructDefRNA *ds2;
+			StructRNA *srna2;
+
+			for (ds2 = DefRNA.structs.first; ds2; ds2 = ds2->cont.next) {
+				srna2 = ds2->srna;
+
+				if (rna_is_collection_functions_struct(collection_func_structs, srna2->identifier)) {
+					rna_generate_header_class_cpp(ds2, f);
+				}
+			}
+		}
+
+		if (!rna_is_collection_functions_struct(collection_func_structs, srna->identifier))
+			rna_generate_header_class_cpp(ds, f);
+	}
+
+	fprintf(f, "} /* namespace BL */\n");
+
+	fprintf(f, "\n");
 	fprintf(f, "/**************** Implementation ****************/\n");
+	fprintf(f, "\n");
 
-	for(ds=DefRNA.structs.first; ds; ds=ds->cont.next) {
-		for(dp=ds->cont.properties.first; dp; dp=dp->next)
+	fprintf(f, "/* Structure prototypes */\n\n");
+	fprintf(f, "extern \"C\" {\n");
+	rna_generate_struct_prototypes(f);
+	fprintf(f, "}\n\n");
+
+	fprintf(f, "namespace BL {\n");
+
+	for (ds = DefRNA.structs.first; ds; ds = ds->cont.next) {
+		srna = ds->srna;
+
+		for (dp = ds->cont.properties.first; dp; dp = dp->next)
 			rna_def_property_funcs_impl_cpp(f, ds->srna, dp);
+
+		fprintf(f, "\n");
+
+		for (dfunc = ds->functions.first; dfunc; dfunc = dfunc->cont.next)
+			rna_def_struct_function_impl_cpp(f, srna, dfunc);
 
 		fprintf(f, "\n");
 	}
@@ -2705,14 +3862,14 @@ static void rna_generate_header_cpp(BlenderRNA *brna, FILE *f)
 	fprintf(f, "}\n\n#endif /* __RNA_BLENDER_CPP_H__ */\n\n");
 }
 
-static void make_bad_file(char *file, int line)
+static void make_bad_file(const char *file, int line)
 {
-	FILE *fp= fopen(file, "w");
+	FILE *fp = fopen(file, "w");
 	fprintf(fp, "#error \"Error! can't make correct RNA file from %s:%d, STUPID!\"\n", __FILE__, line);
 	fclose(fp);
 }
 
-static int rna_preprocess(char *outfile)
+static int rna_preprocess(const char *outfile)
 {
 	BlenderRNA *brna;
 	StructDefRNA *ds;
@@ -2722,41 +3879,79 @@ static int rna_preprocess(char *outfile)
 	const char *deps[3]; /* expand as needed */
 
 	/* define rna */
-	brna= RNA_create();
+	brna = RNA_create();
 
-	for(i=0; PROCESS_ITEMS[i].filename; i++) {
-		if(PROCESS_ITEMS[i].define) {
+	for (i = 0; PROCESS_ITEMS[i].filename; i++) {
+		if (PROCESS_ITEMS[i].define) {
 			PROCESS_ITEMS[i].define(brna);
 
-			for(ds=DefRNA.structs.first; ds; ds=ds->cont.next)
-				if(!ds->filename)
-					ds->filename= PROCESS_ITEMS[i].filename;
+			/* sanity check */
+			if (!DefRNA.animate) {
+				fprintf(stderr,
+				        "Error: DefRNA.animate left disabled in %s\n",
+				        PROCESS_ITEMS[i].filename);
+			}
+
+			for (ds = DefRNA.structs.first; ds; ds = ds->cont.next)
+				if (!ds->filename)
+					ds->filename = PROCESS_ITEMS[i].filename;
 		}
 	}
 
 	rna_auto_types();
 
+	status = (DefRNA.error != 0);
+
+	/* create rna_gen_*.c files */
+	for (i = 0; PROCESS_ITEMS[i].filename; i++) {
+		strcpy(deffile, outfile);
+		strcat(deffile, PROCESS_ITEMS[i].filename);
+		deffile[strlen(deffile) - 2] = '\0';
+		strcat(deffile, "_gen.c" TMP_EXT);
+
+		if (status) {
+			make_bad_file(deffile, __LINE__);
+		}
+		else {
+			file = fopen(deffile, "w");
+
+			if (!file) {
+				fprintf(stderr, "Unable to open file: %s\n", deffile);
+				status = 1;
+			}
+			else {
+				rna_generate(brna, file, PROCESS_ITEMS[i].filename, PROCESS_ITEMS[i].api_filename);
+				fclose(file);
+				status = (DefRNA.error != 0);
+			}
+		}
+
+		/* avoid unneeded rebuilds */
+		deps[0] = PROCESS_ITEMS[i].filename;
+		deps[1] = PROCESS_ITEMS[i].api_filename;
+		deps[2] = NULL;
+
+		replace_if_different(deffile, deps);
+	}
 
 	/* create RNA_blender_cpp.h */
 	strcpy(deffile, outfile);
 	strcat(deffile, "RNA_blender_cpp.h" TMP_EXT);
 
-	status= (DefRNA.error != 0);
-
-	if(status) {
+	if (status) {
 		make_bad_file(deffile, __LINE__);
 	}
 	else {
 		file = fopen(deffile, "w");
 
-		if(!file) {
-			printf ("Unable to open file: %s\n", deffile);
+		if (!file) {
+			fprintf(stderr, "Unable to open file: %s\n", deffile);
 			status = 1;
 		}
 		else {
 			rna_generate_header_cpp(brna, file);
 			fclose(file);
-			status= (DefRNA.error != 0);
+			status = (DefRNA.error != 0);
 		}
 	}
 
@@ -2764,56 +3959,24 @@ static int rna_preprocess(char *outfile)
 
 	rna_sort(brna);
 
-	/* create rna_gen_*.c files */
-	for(i=0; PROCESS_ITEMS[i].filename; i++) {
-		strcpy(deffile, outfile);
-		strcat(deffile, PROCESS_ITEMS[i].filename);
-		deffile[strlen(deffile)-2] = '\0';
-		strcat(deffile, "_gen.c" TMP_EXT);
-
-		if(status) {
-			make_bad_file(deffile, __LINE__);
-		}
-		else {
-			file = fopen(deffile, "w");
-
-			if(!file) {
-				printf ("Unable to open file: %s\n", deffile);
-				status = 1;
-			}
-			else {
-				rna_generate(brna, file, PROCESS_ITEMS[i].filename, PROCESS_ITEMS[i].api_filename);
-				fclose(file);
-				status= (DefRNA.error != 0);
-			}
-		}
-
-		/* avoid unneeded rebuilds */
-		deps[0]= PROCESS_ITEMS[i].filename;
-		deps[1]= PROCESS_ITEMS[i].api_filename;
-		deps[2]= NULL;
-
-		replace_if_different(deffile, deps);
-	}
-
 	/* create RNA_blender.h */
 	strcpy(deffile, outfile);
 	strcat(deffile, "RNA_blender.h" TMP_EXT);
 
-	if(status) {
+	if (status) {
 		make_bad_file(deffile, __LINE__);
 	}
 	else {
 		file = fopen(deffile, "w");
 
-		if(!file) {
-			printf ("Unable to open file: %s\n", deffile);
+		if (!file) {
+			fprintf(stderr, "Unable to open file: %s\n", deffile);
 			status = 1;
 		}
 		else {
 			rna_generate_header(brna, file);
 			fclose(file);
-			status= (DefRNA.error != 0);
+			status = (DefRNA.error != 0);
 		}
 	}
 
@@ -2836,24 +3999,22 @@ int main(int argc, char **argv)
 {
 	int totblock, return_status = 0;
 
-	if(argc<2) {
-		printf("Usage: %s outdirectory/\n", argv[0]);
+	if (argc < 2) {
+		fprintf(stderr, "Usage: %s outdirectory/\n", argv[0]);
 		return_status = 1;
 	}
 	else {
-		printf("Running makesrna, program versions %s\n",  RNA_VERSION_DATE);
-		makesrna_path= argv[0];
-		return_status= rna_preprocess(argv[1]);
+		fprintf(stderr, "Running makesrna\n");
+		makesrna_path = argv[0];
+		return_status = rna_preprocess(argv[1]);
 	}
 
-	totblock= MEM_get_memory_blocks_in_use();
-	if(totblock!=0) {
-		printf("Error Totblock: %d\n",totblock);
+	totblock = MEM_get_memory_blocks_in_use();
+	if (totblock != 0) {
+		fprintf(stderr, "Error Totblock: %d\n", totblock);
 		MEM_set_error_callback(mem_error_cb);
 		MEM_printmemlist();
 	}
 
 	return return_status;
 }
-
-

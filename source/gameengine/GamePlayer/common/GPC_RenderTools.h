@@ -1,6 +1,4 @@
 /*
- * $Id: GPC_RenderTools.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,14 +29,14 @@
  *  \ingroup player
  */
 
-#ifndef __GPC_RENDERTOOLS_H
-#define __GPC_RENDERTOOLS_H
+#ifndef __GPC_RENDERTOOLS_H__
+#define __GPC_RENDERTOOLS_H__
 
 #ifdef WIN32
 // don't show stl-warnings
 #pragma warning (disable:4786)
 #include <windows.h>
-#endif // WIN32
+#endif  /* WIN32 */
 
 #include "RAS_IRenderTools.h"
 
@@ -72,6 +70,12 @@ public:
 	void				DisableOpenGLLights();
 	void				ProcessLighting(RAS_IRasterizer *rasty, bool uselights, const MT_Transform& viewmat);
 
+	void				RenderBox2D(int xco,
+						int yco,
+						int width,
+						int height,
+						float percentage);
+
 	void				RenderText3D(int fontid,
 									 const char* text,
 									 int size,
@@ -79,7 +83,7 @@ public:
 									 float* color,
 									 double* mat,
 									 float aspect);
-	/* @attention mode is ignored here */
+	/* \attention mode is ignored here */
 	void			    RenderText2D(RAS_TEXT_RENDER_MODE mode,
 									 const char* text,
 									 int xco,
@@ -108,7 +112,4 @@ public:
 	virtual void SetClientObject(RAS_IRasterizer *rasty, void* obj);
 };
 
-#endif  // __GPC_RENDERTOOLS_H
-
-
-
+#endif  /* __GPC_RENDERTOOLS_H__ */

@@ -1,5 +1,4 @@
 /*
- * $Id: KX_OrientationInterpolator.cpp 35171 2011-02-25 13:35:59Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -35,7 +34,8 @@
 #include "MT_Matrix3x3.h"
 #include "KX_IScalarInterpolator.h"
 
-void KX_OrientationInterpolator::Execute(float currentTime) const {
+void KX_OrientationInterpolator::Execute(float currentTime) const
+{
 	MT_Vector3 eul(m_ipos[0]->GetValue(currentTime),
 				   m_ipos[1]->GetValue(currentTime),
 				   m_ipos[2]->GetValue(currentTime));
@@ -51,6 +51,6 @@ void KX_OrientationInterpolator::Execute(float currentTime) const {
 	MT_Scalar ss = si*sh;
 
 	m_target.setValue(cj*ch, sj*sc-cs, sj*cc+ss,
-					  cj*sh, sj*ss+cc, sj*cs-sc, 
-					    -sj,    cj*si,    cj*ci);
+	                  cj*sh, sj*ss+cc, sj*cs-sc,
+	                  -sj,    cj*si,    cj*ci);
 }

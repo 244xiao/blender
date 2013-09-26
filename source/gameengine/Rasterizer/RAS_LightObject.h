@@ -1,6 +1,4 @@
 /*
- * $Id: RAS_LightObject.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,14 +29,14 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_LIGHTOBJECT_H
-#define __RAS_LIGHTOBJECT_H
+#ifndef __RAS_LIGHTOBJECT_H__
+#define __RAS_LIGHTOBJECT_H__
 
 #include "MT_CmMatrix4x4.h"
 
 struct RAS_LightObject
 {
-	enum LightType{
+	enum LightType {
 		LIGHT_SPOT,
 		LIGHT_SUN,
 		LIGHT_NORMAL
@@ -66,5 +64,4 @@ struct RAS_LightObject
 	bool	m_nospecular;
 };
 
-#endif //__RAS_LIGHTOBJECT_H
-
+#endif  /* __RAS_LIGHTOBJECT_H__ */

@@ -1,6 +1,4 @@
 /*
- * $Id: script_intern.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,14 +28,10 @@
  *  \ingroup spscript
  */
 
-#ifndef ED_SCRIPT_INTERN_H
-#define ED_SCRIPT_INTERN_H
+#ifndef __SCRIPT_INTERN_H__
+#define __SCRIPT_INTERN_H__
 
 /* internal exports only */
-
-
-/* script_header.c */
-void script_header_buttons(const bContext *C, ARegion *ar);
 
 /* script_ops.c */
 void script_operatortypes(void);
@@ -46,6 +40,7 @@ void script_keymap(struct wmKeyConfig *keyconf);
 /* script_edit.c */
 void SCRIPT_OT_reload(struct wmOperatorType *ot);
 void SCRIPT_OT_python_file_run(struct wmOperatorType *ot);
+void SCRIPT_OT_autoexec_warn_clear(struct wmOperatorType *ot);
 
-#endif /* ED_SCRIPT_INTERN_H */
+#endif /* __SCRIPT_INTERN_H__ */
 

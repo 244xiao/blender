@@ -1,6 +1,4 @@
 /*
- * $Id: KX_IPO_SGController.cpp 35171 2011-02-25 13:35:59Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -33,16 +31,16 @@
  */
 
 
-#if defined(_WIN64)
+#if defined(_WIN64) && !defined(FREE_WINDOWS64)
 typedef unsigned __int64 uint_ptr;
 #else
 typedef unsigned long uint_ptr;
 #endif
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-// This warning tells us about truncation of __long__ stl-generated names.
-// It can occasionally cause DevStudio to have internal compiler warnings.
-#pragma warning( disable : 4786 )     
+#ifdef _MSC_VER
+   /* This warning tells us about truncation of __long__ stl-generated names.
+    * It can occasionally cause DevStudio to have internal compiler warnings. */
+#  pragma warning(disable:4786)
 #endif
 
 #include "KX_IPO_SGController.h"
@@ -54,7 +52,7 @@ typedef unsigned long uint_ptr;
 
 // All objects should start on frame 1! Will we ever need an object to 
 // start on another frame, the 1.0 should change.
-KX_IpoSGController::KX_IpoSGController() 
+KX_IpoSGController::KX_IpoSGController()
 : m_ipo_as_force(false),
   m_ipo_add(false),
   m_ipo_local(false),
@@ -134,7 +132,7 @@ bool KX_IpoSGController::Update(double currentTime)
 		SG_Spatial* ob = (SG_Spatial*)m_pObject;
 
 		//initialization on the first frame of the IPO
-		if (! m_ipo_start_initialized && currentTime > 0.0) {
+		if (! m_ipo_start_initialized && currentTime != 0.0) {
 			m_ipo_start_point = ob->GetLocalPosition();
 			m_ipo_start_orient = ob->GetLocalOrientation();
 			m_ipo_start_scale = ob->GetLocalScale();
@@ -147,7 +145,8 @@ bool KX_IpoSGController::Update(double currentTime)
 		}
 
 		//modifies position?
-		if (m_ipo_channels_active[OB_LOC_X] || m_ipo_channels_active[OB_LOC_Y] || m_ipo_channels_active[OB_LOC_Z] || m_ipo_channels_active[OB_DLOC_X] || m_ipo_channels_active[OB_DLOC_Y] || m_ipo_channels_active[OB_DLOC_Z])
+		if (m_ipo_channels_active[OB_LOC_X]  || m_ipo_channels_active[OB_LOC_Y]  || m_ipo_channels_active[OB_LOC_Z] ||
+		    m_ipo_channels_active[OB_DLOC_X] || m_ipo_channels_active[OB_DLOC_Y] || m_ipo_channels_active[OB_DLOC_Z])
 		{
 			if (m_ipo_as_force == true) 
 			{
@@ -200,7 +199,9 @@ bool KX_IpoSGController::Update(double currentTime)
 			}
 		}
 		//modifies orientation?
-		if (m_ipo_channels_active[OB_ROT_X] || m_ipo_channels_active[OB_ROT_Y] || m_ipo_channels_active[OB_ROT_Z] || m_ipo_channels_active[OB_DROT_X] || m_ipo_channels_active[OB_DROT_Y] || m_ipo_channels_active[OB_DROT_Z]) {
+		if (m_ipo_channels_active[OB_ROT_X]  || m_ipo_channels_active[OB_ROT_Y]  || m_ipo_channels_active[OB_ROT_Z] ||
+		    m_ipo_channels_active[OB_DROT_X] || m_ipo_channels_active[OB_DROT_Y] || m_ipo_channels_active[OB_DROT_Z])
+		{
 			if (m_ipo_as_force) {
 				
 				if (m_game_object && ob) {
@@ -295,7 +296,9 @@ bool KX_IpoSGController::Update(double currentTime)
 			}
 		}
 		//modifies scale?
-		if (m_ipo_channels_active[OB_SIZE_X] || m_ipo_channels_active[OB_SIZE_Y] || m_ipo_channels_active[OB_SIZE_Z] || m_ipo_channels_active[OB_DSIZE_X] || m_ipo_channels_active[OB_DSIZE_Y] || m_ipo_channels_active[OB_DSIZE_Z]) {
+		if (m_ipo_channels_active[OB_SIZE_X] || m_ipo_channels_active[OB_SIZE_Y] || m_ipo_channels_active[OB_SIZE_Z] ||
+		    m_ipo_channels_active[OB_DSIZE_X] || m_ipo_channels_active[OB_DSIZE_Y] || m_ipo_channels_active[OB_DSIZE_Z])
+		{
 			//default is no scale change
 			MT_Vector3 newScale(1.0,1.0,1.0);
 			if (!m_ipo_add)

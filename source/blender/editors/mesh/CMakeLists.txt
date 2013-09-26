@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -21,27 +20,38 @@
 
 set(INC
 	../include
+	../uvedit
+	../../blenfont
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../bmesh
+	../../gpu
 	../../imbuf
 	../../makesdna
 	../../makesrna
-	../../windowmanager
 	../../render/extern/include
+	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
 	editface.c
-	editmesh.c
 	editmesh_add.c
-	editmesh_lib.c
-	editmesh_loop.c
-	editmesh_mods.c
+	editmesh_bevel.c
+	editmesh_extrude.c
+	editmesh_inset.c
+	editmesh_knife.c
+	editmesh_knife_project.c
+	editmesh_loopcut.c
+	editmesh_path.c
+	editmesh_rip.c
+	editmesh_select.c
 	editmesh_tools.c
-	loopcut.c
+	editmesh_utils.c
 	mesh_data.c
 	mesh_ops.c
 	meshtools.c
@@ -49,4 +59,28 @@ set(SRC
 	mesh_intern.h
 )
 
-blender_add_lib(bf_editor_mesh "${SRC}" "${INC}")
+if(WITH_GAMEENGINE)
+	add_definitions(-DWITH_GAMEENGINE)
+
+	list(APPEND INC
+		../../../../extern/recastnavigation
+	)
+
+	list(APPEND SRC
+		mesh_navmesh.c
+	)
+endif()
+
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_FREESTYLE)
+	add_definitions(-DWITH_FREESTYLE)
+endif()
+
+if(WITH_BULLET)
+	add_definitions(-DWITH_BULLET)
+endif()
+
+blender_add_lib(bf_editor_mesh "${SRC}" "${INC}" "${INC_SYS}")

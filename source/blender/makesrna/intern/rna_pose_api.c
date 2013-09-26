@@ -1,12 +1,10 @@
 /*
- * $Id: rna_pose_api.c 35238 2011-02-27 20:20:01Z jesterking $
- * 
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,7 +18,7 @@
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
  *
- * 
+ *
  * Contributor(s): Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -36,11 +34,15 @@
 #include <string.h>
 #include <time.h>
 
+#include "BLI_utildefines.h"
+
 #include "RNA_define.h"
 
 #include "DNA_object_types.h"
 
-/* #include "BLO_sys_types.h" */
+/* #include "BLI_sys_types.h" */
+
+#include "rna_internal.h"  /* own include */
 
 #ifdef RNA_RUNTIME
 
@@ -54,11 +56,12 @@ static float rna_PoseBone_do_envelope(bPoseChannel *chan, float *vec)
 
 	float scale = (bone->flag & BONE_MULT_VG_ENV) == BONE_MULT_VG_ENV ? bone->weight : 1.0f;
 
-	return distfactor_to_bone(vec, chan->pose_head, chan->pose_tail, bone->rad_head * scale, bone->rad_tail * scale, bone->dist * scale);
+	return distfactor_to_bone(vec, chan->pose_head, chan->pose_tail, bone->rad_head * scale,
+	                          bone->rad_tail * scale, bone->dist * scale);
 }
 #else
 
-void RNA_api_pose(StructRNA *srna)
+void RNA_api_pose(StructRNA *UNUSED(srna))
 {
 	/* FunctionRNA *func; */
 	/* PropertyRNA *parm; */
@@ -69,12 +72,13 @@ void RNA_api_pose_channel(StructRNA *srna)
 	PropertyRNA *parm;
 	FunctionRNA *func;
 
-	func= RNA_def_function(srna, "evaluate_envelope", "rna_PoseBone_do_envelope");
-	RNA_def_function_ui_description(func, "Calculate bone envelope at given point.");
-	parm= RNA_def_float_vector_xyz(func, "point", 3, NULL, -FLT_MAX, FLT_MAX, "Point", "Position in 3d space to evaluate", -FLT_MAX, FLT_MAX);
+	func = RNA_def_function(srna, "evaluate_envelope", "rna_PoseBone_do_envelope");
+	RNA_def_function_ui_description(func, "Calculate bone envelope at given point");
+	parm = RNA_def_float_vector_xyz(func, "point", 3, NULL, -FLT_MAX, FLT_MAX, "Point",
+	                                "Position in 3d space to evaluate", -FLT_MAX, FLT_MAX);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	/* return value */
-	parm= RNA_def_float(func, "factor", 0, -FLT_MAX, FLT_MAX, "Factor", "Envelope factor", -FLT_MAX, FLT_MAX);
+	parm = RNA_def_float(func, "factor", 0, -FLT_MAX, FLT_MAX, "Factor", "Envelope factor", -FLT_MAX, FLT_MAX);
 	RNA_def_function_return(func, parm);
 }
 

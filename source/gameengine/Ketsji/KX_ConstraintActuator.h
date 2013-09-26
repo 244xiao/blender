@@ -1,6 +1,4 @@
 /*
- * $Id: KX_ConstraintActuator.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_CONSTRAINTACTUATOR
-#define __KX_CONSTRAINTACTUATOR
+#ifndef __KX_CONSTRAINTACTUATOR_H__
+#define __KX_CONSTRAINTACTUATOR_H__
 
 #include "SCA_IActuator.h"
 #include "MT_Scalar.h"
@@ -44,8 +42,8 @@ class KX_GameObject;
 
 class KX_ConstraintActuator : public SCA_IActuator
 {
-	Py_Header;
-protected:	
+	Py_Header
+protected:
 	// Damp time (int),
 	int m_posDampTime;
 	int m_rotDampTime;
@@ -147,5 +145,4 @@ protected:
 
 };
 
-#endif //__KX_CONSTRAINTACTUATOR
-
+#endif  /* __KX_CONSTRAINTACTUATOR_H__ */

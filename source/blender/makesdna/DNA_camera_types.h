@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_camera_types.h 34941 2011-02-17 20:48:12Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,12 +24,15 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_CAMERA_TYPES_H
-#define DNA_CAMERA_TYPES_H
 
 /** \file DNA_camera_types.h
  *  \ingroup DNA
  */
+
+#ifndef __DNA_CAMERA_TYPES_H__
+#define __DNA_CAMERA_TYPES_H__
+
+#include "DNA_defs.h"
 
 #include "DNA_ID.h"
 
@@ -47,20 +48,26 @@ typedef struct Camera {
 	ID id;
 	struct AnimData *adt;	/* animation data (must be immediately after id for utilities to use it) */ 
 	
-	short type, flag;
+	char type; /* CAM_PERSP, CAM_ORTHO or CAM_PANO */
+	char dtx; /* draw type extra */
+	short flag;
 	float passepartalpha;
 	float clipsta, clipend;
 	float lens, ortho_scale, drawsize;
+	float sensor_x, sensor_y;
 	float shiftx, shifty;
 	
 	/* yafray: dof params */
-	/* qdn: yafray var 'YF_dofdist' now enabled for defocus composit node as well.
-			The name was not changed so that no other files need to be modified */
+	/* qdn: yafray var 'YF_dofdist' now enabled for defocus composite node as well.
+	 * The name was not changed so that no other files need to be modified */
 	float YF_dofdist;
 
-	struct Ipo *ipo;			// XXX depreceated... old animation system
+	struct Ipo *ipo  DNA_DEPRECATED; /* old animation system, deprecated for 2.5 */
 	
 	struct Object *dof_ob;
+
+	char sensor_fit;
+	char pad[7];
 } Camera;
 
 /* **************** CAMERA ********************* */
@@ -68,6 +75,17 @@ typedef struct Camera {
 /* type */
 #define CAM_PERSP		0
 #define CAM_ORTHO		1
+#define CAM_PANO		2
+
+/* dtx */
+#define CAM_DTX_CENTER			1
+#define CAM_DTX_CENTER_DIAG		2
+#define CAM_DTX_THIRDS			4
+#define CAM_DTX_GOLDEN			8
+#define CAM_DTX_GOLDEN_TRI_A	16
+#define CAM_DTX_GOLDEN_TRI_B	32
+#define CAM_DTX_HARMONY_TRI_A	64
+#define CAM_DTX_HARMONY_TRI_B	128
 
 /* flag */
 #define CAM_SHOWLIMITS	1
@@ -77,11 +95,19 @@ typedef struct Camera {
 #define CAM_SHOWNAME		16
 #define CAM_ANGLETOGGLE		32
 #define CAM_DS_EXPAND		64
-#define CAM_PANORAMA		128
+#define CAM_PANORAMA		128 /* deprecated */
+#define CAM_SHOWSENSOR		256
 
 /* yafray: dof sampling switch */
-/* #define CAM_YF_NO_QMC	512 */ /* depreceated */
+/* #define CAM_YF_NO_QMC	512 */ /* deprecated */
 
+/* Sensor fit */
+#define CAMERA_SENSOR_FIT_AUTO	0
+#define CAMERA_SENSOR_FIT_HOR	1
+#define CAMERA_SENSOR_FIT_VERT	2
+
+#define DEFAULT_SENSOR_WIDTH	32.0f
+#define DEFAULT_SENSOR_HEIGHT	18.0f
 
 #ifdef __cplusplus
 }

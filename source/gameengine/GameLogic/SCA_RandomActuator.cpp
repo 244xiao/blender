@@ -1,7 +1,6 @@
 /*
  * Set random/camera stuff
  *
- * $Id: SCA_RandomActuator.cpp 35169 2011-02-25 13:32:11Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -35,13 +34,13 @@
 
 
 #include <stddef.h>
+#include <math.h>
 
 #include "BoolValue.h"
 #include "IntValue.h"
 #include "FloatValue.h"
 #include "SCA_IActuator.h"
 #include "SCA_RandomActuator.h"
-#include "math.h"
 #include "MT_Transform.h"
 
 /* ------------------------------------------------------------------------- */
@@ -49,13 +48,13 @@
 /* ------------------------------------------------------------------------- */
 
 SCA_RandomActuator::SCA_RandomActuator(SCA_IObject *gameobj, 
-									 long seed,
-									 SCA_RandomActuator::KX_RANDOMACT_MODE mode,
-									 float para1,
-									 float para2,
-									 const STR_String &propName)
-	: SCA_IActuator(gameobj, KX_ACT_RANDOM),
-	  m_propname(propName),
+                                       long seed,
+                                       SCA_RandomActuator::KX_RANDOMACT_MODE mode,
+                                       float para1,
+                                       float para2,
+                                       const STR_String &propName)
+    : SCA_IActuator(gameobj, KX_ACT_RANDOM),
+      m_propname(propName),
 	  m_parameter1(para1),
 	  m_parameter2(para2),
 	  m_distribution(mode)
@@ -142,8 +141,7 @@ bool SCA_RandomActuator::Update()
 		int res; 
 		/* The [0, 1] interval is projected onto the [min, max+1] domain,    */
 		/* and then rounded.                                                 */
-		res = (int) floor( ((m_parameter2 - m_parameter1 + 1) * m_base->DrawFloat())
-						   + m_parameter1);
+		res = (int)floor( ((m_parameter2 - m_parameter1 + 1) * m_base->DrawFloat()) + m_parameter1);
 		tmpval = new CIntValue(res);
 	}
 	break;
@@ -152,7 +150,7 @@ bool SCA_RandomActuator::Update()
 		/* If x_1, x_2, ... is a sequence of random numbers with uniform     */
 		/* distribution between zero and one, k is the first integer for     */
 		/* which the product x_1*x_2*...*x_k < exp(-\lamba).                 */
-		float a = 0.0, b = 0.0;
+		float a, b;
 		int res = 0;
 		/* The - sign is important here! The number to test for, a, must be  */
 		/* between 0 and 1.                                                  */
@@ -163,7 +161,7 @@ bool SCA_RandomActuator::Update()
 		while (b >= a) {
 			b = b * m_base->DrawFloat();
 			res++;
-		};	
+		};
 		tmpval = new CIntValue(res);
 	}
 	break;
@@ -173,64 +171,52 @@ bool SCA_RandomActuator::Update()
 	}
 	break;
 	case KX_RANDOMACT_FLOAT_UNIFORM: {
-		float res = ((m_parameter2 - m_parameter1) * m_base->DrawFloat())
-			+ m_parameter1;
+		float res = ((m_parameter2 - m_parameter1) * m_base->DrawFloat()) + m_parameter1;
 		tmpval = new CFloatValue(res);
 	}
 	break;
 	case KX_RANDOMACT_FLOAT_NORMAL: {
 		/* normal (big numbers): para1 = mean, para2 = std dev               */
 
-		/* 
-
-		   070301 - nzc - Changed the termination condition. I think I 
-		   made a small mistake here, but it only affects distro's where
-		   the seed equals 0. In that case, the algorithm locks. Let's
-		   just guard that case separately.
-
-		*/
+		/* 070301 - nzc: Changed the termination condition. I think I
+		 * made a small mistake here, but it only affects distro's where
+		 * the seed equals 0. In that case, the algorithm locks. Let's
+		 * just guard that case separately.
+		 */
 
 		float x = 0.0, y = 0.0, s = 0.0, t = 0.0;
 		if (m_base->GetSeed() == 0) {
-			/*
-
-			  070301 - nzc 
-			  Just taking the mean here seems reasonable.
-
-			 */
+			/* 070301 - nzc: Just taking the mean here seems reasonable. */
 			tmpval = new CFloatValue(m_parameter1);
-		} else {
-			/*
-
-			  070301 - nzc 
-			  Now, with seed != 0, we will most assuredly get some
-			  sensible values. The termination condition states two 
-			  things: 
-			  1. s >= 0 is not allowed: to prevent the distro from 
-			     getting a bias towards high values. This is a small 
-				 correction, really, and might also be left out.
-			  2. s == 0 is not allowed: to prevent a division by zero
-			     when renormalising the drawn value to the desired 
-				 distribution shape. As a side effect, the distro will
-				 never yield the exact mean. 
-			  I am not sure whether this is consistent, since the error 
-			  cause by #2 is of the same magnitude as the one 
-			  prevented by #1. The error introduced into the SD will be 
-			  improved, though. By how much? Hard to say... If you like
-			  the maths, feel free to analyse. Be aware that this is 
-			  one of the really old standard algorithms. I think the 
-			  original came in Fortran, was translated to Pascal, and 
-			  then someone came up with the C code. My guess it that
-			  this will be quite sufficient here.
-
+		}
+		else {
+			/* 070301 - nzc
+			 * Now, with seed != 0, we will most assuredly get some
+			 * sensible values. The termination condition states two
+			 * things:
+			 * 1. s >= 0 is not allowed: to prevent the distro from
+			 *    getting a bias towards high values. This is a small
+			 *    correction, really, and might also be left out.
+			 * 2. s == 0 is not allowed: to prevent a division by zero
+			 *    when renormalising the drawn value to the desired
+			 *    distribution shape. As a side effect, the distro will
+			 *    never yield the exact mean.
+			 * I am not sure whether this is consistent, since the error
+			 * cause by #2 is of the same magnitude as the one
+			 * prevented by #1. The error introduced into the SD will be
+			 * improved, though. By how much? Hard to say... If you like
+			 * the maths, feel free to analyse. Be aware that this is
+			 * one of the really old standard algorithms. I think the
+			 * original came in Fortran, was translated to Pascal, and
+			 * then someone came up with the C code. My guess it that
+			 * this will be quite sufficient here.
 			 */
-			do 
-			{
-				x = 2.0 * m_base->DrawFloat() - 1.0;
-				y = 2.0 * m_base->DrawFloat() - 1.0;
-				s = x*x + y*y;
-			} while ( (s >= 1.0) || (s == 0.0) );
-			t = x * sqrt( (-2.0 * log(s)) / s);
+			do {
+				x = 2.0f * m_base->DrawFloat() - 1.0f;
+				y = 2.0f * m_base->DrawFloat() - 1.0f;
+				s = x * x + y * y;
+			} while ((s >= 1.0f) || (s == 0.0f));
+			t = x * sqrtf((-2.0 * log(s)) / s);
 			tmpval = new CFloatValue(m_parameter1 + m_parameter2 * t);
 		}
 	}
@@ -240,8 +226,7 @@ bool SCA_RandomActuator::Update()
 		/* controlling parameter. Using the 'normal' exponent is not very     */
 		/* intuitive...                                                       */
 		/* tmpval = new CFloatValue( (1.0 / m_parameter1)                     */
-		tmpval = new CFloatValue( (m_parameter1) 
-								  * (-log(1.0 - m_base->DrawFloat())) );
+		tmpval = new CFloatValue((m_parameter1)  * (-log(1.0 - m_base->DrawFloat())));
 
 	}
 	break;
@@ -267,7 +252,8 @@ bool SCA_RandomActuator::Update()
 	return false;
 }
 
-void SCA_RandomActuator::enforceConstraints() {
+void SCA_RandomActuator::enforceConstraints()
+{
 	/* The constraints that are checked here are the ones fundamental to     */
 	/* the various distributions. Limitations of the algorithms are checked  */
 	/* elsewhere (or they should be... ).                                    */
@@ -361,25 +347,25 @@ PyAttributeDef SCA_RandomActuator::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_RO("para1",SCA_RandomActuator,m_parameter1),
 	KX_PYATTRIBUTE_FLOAT_RO("para2",SCA_RandomActuator,m_parameter2),
 	KX_PYATTRIBUTE_ENUM_RO("distribution",SCA_RandomActuator,m_distribution),
-	KX_PYATTRIBUTE_STRING_RW_CHECK("propName",0,100,false,SCA_RandomActuator,m_propname,CheckProperty),
+	KX_PYATTRIBUTE_STRING_RW_CHECK("propName",0,MAX_PROP_NAME,false,SCA_RandomActuator,m_propname,CheckProperty),
 	KX_PYATTRIBUTE_RW_FUNCTION("seed",SCA_RandomActuator,pyattr_get_seed,pyattr_set_seed),
 	{ NULL }	//Sentinel
-};	
+};
 
-PyObject* SCA_RandomActuator::pyattr_get_seed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_RandomActuator::pyattr_get_seed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_RandomActuator* act = static_cast<SCA_RandomActuator*>(self);
-	return PyLong_FromSsize_t(act->m_base->GetSeed());
+	return PyLong_FromLong(act->m_base->GetSeed());
 }
 
 int SCA_RandomActuator::pyattr_set_seed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	SCA_RandomActuator* act = static_cast<SCA_RandomActuator*>(self);
-	if (PyLong_Check(value))	{
-		int ival = PyLong_AsSsize_t(value);
-		act->m_base->SetSeed(ival);
+	if (PyLong_Check(value)) {
+		act->m_base->SetSeed(PyLong_AsLong(value));
 		return PY_SET_ATTR_SUCCESS;
-	} else {
+	}
+	else {
 		PyErr_SetString(PyExc_TypeError, "actuator.seed = int: Random Actuator, expected an integer");
 		return PY_SET_ATTR_FAIL;
 	}
@@ -392,7 +378,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setBoolConst,
 "\tSet this generator to produce a constant boolean value.\n") 
 {
 	int paraArg;
-	if(!PyArg_ParseTuple(args, "i:setBoolConst", &paraArg)) {
+	if (!PyArg_ParseTuple(args, "i:setBoolConst", &paraArg)) {
 		return NULL;
 	}
 	
@@ -404,7 +390,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setBoolConst,
 /* 12. setBoolUniform, */
 KX_PYMETHODDEF_DOC_NOARGS(SCA_RandomActuator, setBoolUniform,
 "setBoolUniform()\n"
-"\tSet this generator to produce true and false, each with 50%% chance of occuring\n") 
+"\tSet this generator to produce true and false, each with 50%% chance of occurring\n") 
 {
 	/* no args */
 	m_distribution = KX_RANDOMACT_BOOL_UNIFORM;
@@ -418,12 +404,12 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setBoolBernouilli,
 "\tReturn false value * 100%% of the time.\n")
 {
 	float paraArg;
-	if(!PyArg_ParseTuple(args, "f:setBoolBernouilli", &paraArg)) {
+	if (!PyArg_ParseTuple(args, "f:setBoolBernouilli", &paraArg)) {
 		return NULL;
 	}
 	
 	m_distribution = KX_RANDOMACT_BOOL_BERNOUILLI;
-	m_parameter1 = paraArg;	
+	m_parameter1 = paraArg;
 	enforceConstraints();
 	Py_RETURN_NONE;
 }
@@ -434,7 +420,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setIntConst,
 "\tAlways return value\n") 
 {
 	int paraArg;
-	if(!PyArg_ParseTuple(args, "i:setIntConst", &paraArg)) {
+	if (!PyArg_ParseTuple(args, "i:setIntConst", &paraArg)) {
 		return NULL;
 	}
 	
@@ -452,7 +438,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setIntUniform,
 "\tupper_bound. The boundaries are included.\n")
 {
 	int paraArg1, paraArg2;
-	if(!PyArg_ParseTuple(args, "ii:setIntUniform", &paraArg1, &paraArg2)) {
+	if (!PyArg_ParseTuple(args, "ii:setIntUniform", &paraArg1, &paraArg2)) {
 		return NULL;
 	}
 	
@@ -471,12 +457,12 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setIntPoisson,
 "\tnumber of tries needed to achieve succes.\n")
 {
 	float paraArg;
-	if(!PyArg_ParseTuple(args, "f:setIntPoisson", &paraArg)) {
+	if (!PyArg_ParseTuple(args, "f:setIntPoisson", &paraArg)) {
 		return NULL;
 	}
 	
 	m_distribution = KX_RANDOMACT_INT_POISSON;
-	m_parameter1 = paraArg;	
+	m_parameter1 = paraArg;
 	enforceConstraints();
 	Py_RETURN_NONE;
 }
@@ -487,12 +473,12 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setFloatConst,
 "\tAlways return value\n")
 {
 	float paraArg;
-	if(!PyArg_ParseTuple(args, "f:setFloatConst", &paraArg)) {
+	if (!PyArg_ParseTuple(args, "f:setFloatConst", &paraArg)) {
 		return NULL;
 	}
 	
 	m_distribution = KX_RANDOMACT_FLOAT_CONST;
-	m_parameter1 = paraArg;	
+	m_parameter1 = paraArg;
 	enforceConstraints();
 	Py_RETURN_NONE;
 }
@@ -505,7 +491,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setFloatUniform,
 "\tupper_bound.\n")
 {
 	float paraArg1, paraArg2;
-	if(!PyArg_ParseTuple(args, "ff:setFloatUniform", &paraArg1, &paraArg2)) {
+	if (!PyArg_ParseTuple(args, "ff:setFloatUniform", &paraArg1, &paraArg2)) {
 		return NULL;
 	}
 	
@@ -524,7 +510,7 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setFloatNormal,
 "\tdeviation from the mean is characterized by standard_deviation.\n")
 {
 	float paraArg1, paraArg2;
-	if(!PyArg_ParseTuple(args, "ff:setFloatNormal", &paraArg1, &paraArg2)) {
+	if (!PyArg_ParseTuple(args, "ff:setFloatNormal", &paraArg1, &paraArg2)) {
 		return NULL;
 	}
 	
@@ -542,12 +528,12 @@ KX_PYMETHODDEF_DOC_VARARGS(SCA_RandomActuator, setFloatNegativeExponential,
 "\tis characterized by half_life.\n")
 {
 	float paraArg;
-	if(!PyArg_ParseTuple(args, "f:setFloatNegativeExponential", &paraArg)) {
+	if (!PyArg_ParseTuple(args, "f:setFloatNegativeExponential", &paraArg)) {
 		return NULL;
 	}
 	
 	m_distribution = KX_RANDOMACT_FLOAT_NEGATIVE_EXPONENTIAL;
-	m_parameter1 = paraArg;	
+	m_parameter1 = paraArg;
 	enforceConstraints();
 	Py_RETURN_NONE;
 }

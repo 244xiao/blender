@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_ILogicBrick.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,21 +29,21 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __KX_ILOGICBRICK
-#define __KX_ILOGICBRICK
+#ifndef __SCA_ILOGICBRICK_H__
+#define __SCA_ILOGICBRICK_H__
 
 #include "Value.h"
 #include "SCA_IObject.h"
 #include "BoolValue.h"
-#include "GEN_Map.h"
-#include "GEN_HashedPtr.h"
+#include "CTR_Map.h"
+#include "CTR_HashedPtr.h"
 
 class NG_NetworkScene;
 class SCA_IScene;
 
 class SCA_ILogicBrick : public CValue
 {
-	Py_Header;
+	Py_Header
 protected:
 	SCA_IObject*		m_gameobj;
 	int					m_Execute_Priority;
@@ -70,7 +68,7 @@ public:
 	SCA_IObject*	GetParent() { return m_gameobj; }
 
 	virtual void	ReParent(SCA_IObject* parent);
-	virtual void	Relink(GEN_Map<GEN_HashedPtr, void*> *obj_map);
+	virtual void	Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map);
 	virtual void Delete() { Release(); }
 
 	// act as a BoolValue (with value IsPositiveTrigger)
@@ -96,7 +94,7 @@ public:
 	void			    InsertActiveQList(SG_QList& head)
 	{
 		SG_QList::iterator<SCA_ILogicBrick> it(head);
-		for(it.begin(); !it.end() && m_Execute_Priority > (*it)->m_Execute_Priority; ++it);
+		for (it.begin(); !it.end() && m_Execute_Priority > (*it)->m_Execute_Priority; ++it);
 		it.add_back(this);
 	}
 
@@ -121,9 +119,8 @@ public:
 			// this element comes before the first
 			*current = this;
 		}
-		else
-		{
-			for(++it; !it.end() && (*it)->m_gameobj == m_gameobj &&  m_Execute_Priority > (*it)->m_Execute_Priority; ++it);
+		else {
+			for (++it; !it.end() && (*it)->m_gameobj == m_gameobj &&  m_Execute_Priority > (*it)->m_Execute_Priority; ++it);
 		}
 		it.add_back(this);
 	}
@@ -135,8 +132,8 @@ public:
 
 
 	/* for moving logic bricks between scenes */
-	virtual void		Replace_IScene(SCA_IScene *val) {};
-	virtual void		Replace_NetworkScene(NG_NetworkScene *val) {};
+	virtual void		Replace_IScene(SCA_IScene *val) {}
+	virtual void		Replace_NetworkScene(NG_NetworkScene *val) {}
 
 #ifdef WITH_PYTHON
 	// python methods
@@ -160,11 +157,10 @@ protected:
 	bool PyArgToBool(int boolArg);
 
 	/** Convert a a c++ value to KX_TRUE, KX_FALSE in Python. */
-	PyObject* BoolToPyArg(bool);
+	PyObject *BoolToPyArg(bool);
 	
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
 };
 
-#endif
-
+#endif  /* __SCA_ILOGICBRICK_H__ */

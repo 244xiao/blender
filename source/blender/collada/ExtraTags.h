@@ -1,6 +1,4 @@
 /*
- * $Id: ExtraTags.h 35897 2011-03-30 10:51:01Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +28,7 @@
 #include <map>
 #include <vector>
 
-/** \brief Class for saving <extra> tags for a specific UniqueId.
+/** \brief Class for saving \<extra\> tags for a specific UniqueId.
  */
 class ExtraTags
 {
@@ -61,7 +59,7 @@ public:
 	
 private:
 	/** Disable default copy constructor. */
-	ExtraTags( const ExtraTags& pre );
+	ExtraTags(const ExtraTags& pre);
 	/** Disable default assignment operator. */
 	const ExtraTags& operator= ( const ExtraTags& pre );
 	

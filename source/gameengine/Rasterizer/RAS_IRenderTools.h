@@ -1,6 +1,4 @@
 /*
- * $Id: RAS_IRenderTools.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_IRENDERTOOLS
-#define __RAS_IRENDERTOOLS
+#ifndef __RAS_IRENDERTOOLS_H__
+#define __RAS_IRENDERTOOLS_H__
 
 #include "MT_Transform.h"
 #include "RAS_IRasterizer.h"
@@ -74,18 +72,18 @@ public:
 	{
 	};
 
-	virtual 
+	virtual
 	~RAS_IRenderTools(
 	) {};
 
 	virtual 
-		void	
+		void
 	BeginFrame(
 		RAS_IRasterizer* rasty
 	)=0;
 
 	virtual 
-		void	
+		void
 	EndFrame(
 		RAS_IRasterizer* rasty
 	)=0;
@@ -96,46 +94,62 @@ public:
 	// so must be renamed to 'applyTransform' or something
 
 	virtual 
-		void	
+		void
 	applyTransform(
 		class RAS_IRasterizer* rasty,
 		double* oglmatrix,
 		int drawingmode
 	)=0;
+	
+	/**
+	 * Renders 2D boxes.
+	 * \param xco			Position on the screen (origin in lower left corner).
+	 * \param yco			Position on the screen (origin in lower left corner).
+	 * \param width			Width of the canvas to draw to.
+	 * \param height		Height of the canvas to draw to.
+	 * \param percentage	Percentage of bar.
+	 */
+	virtual
+		void
+		RenderBox2D(int xco,
+					int yco,
+					int width,
+					int height,
+					float percentage) = 0;
 
 	/**
 	 * Renders 3D text string using BFL.
-	 * @param fontid	The id of the font.
-	 * @param text		The string to render.
-	 * @param size		The size of the text.
-	 * @param dpi		The resolution of the text.
-	 * @param color		The color of the object.
-	 * @param mat		The Matrix of the text object.
-	 * @param aspect	A scaling factor to compensate for the size.
+	 * \param fontid	The id of the font.
+	 * \param text		The string to render.
+	 * \param size		The size of the text.
+	 * \param dpi		The resolution of the text.
+	 * \param color		The color of the object.
+	 * \param mat		The Matrix of the text object.
+	 * \param aspect	A scaling factor to compensate for the size.
 	 */
 	virtual 
-		void	
-	RenderText3D(int fontid,
-				 const char* text,
-				 int size,
-				 int dpi,
-				 float* color,
-				 double* mat,
-				 float aspect
-	) = 0;
+		void
+		RenderText3D(int fontid,
+		             const char* text,
+		             int size,
+		             int dpi,
+		             float* color,
+		             double* mat,
+		             float aspect
+		             ) = 0;
 
 
 	/**
 	 * Renders 2D text string.
-	 * @param mode      The type of text
-	 * @param text		The string to render.
-	 * @param xco		Position on the screen (origin in lower left corner).
-	 * @param yco		Position on the screen (origin in lower left corner).
-	 * @param width		Width of the canvas to draw to.
-	 * @param height	Height of the canvas to draw to.
+	 * \param mode      The type of text
+	 * \param text		The string to render.
+	 * \param xco		Position on the screen (origin in lower left corner).
+	 * \param yco		Position on the screen (origin in lower left corner).
+	 * \param width		Width of the canvas to draw to.
+	 * \param height	Height of the canvas to draw to.
 	 */
 	virtual 
-		void	
+		void
 	RenderText2D(
 		RAS_TEXT_RENDER_MODE mode,
 		const char* text,
@@ -147,7 +161,7 @@ public:
 
 	// 3d text, mapped on polygon
 	virtual 
-		void	
+		void
 	RenderText(
 		int mode,
 		RAS_IPolyMaterial* polymat,
@@ -158,8 +172,8 @@ public:
 		int glattrib
 	)=0;
 
-	virtual 
-		void		
+	virtual
+		void
 	ProcessLighting(
 		RAS_IRasterizer *rasty,
 		bool uselights,
@@ -167,35 +181,35 @@ public:
 	)=0;
 
 	virtual
-		void	
+		void
 	SetClientObject(
 		RAS_IRasterizer* rasty,
 		void* obj
 	);
 
-		void	
+		void
 	SetAuxilaryClientInfo(
 		void* inf
 	);
 
 	virtual 
-		void	
+		void
 	PushMatrix(
 	)=0;
 
 	virtual 
-		void	
+		void
 	PopMatrix(
 	)=0;
 
 	virtual 
-		void		
+		void
 	AddLight(
 		struct	RAS_LightObject* lightobject
 	);
 
 	virtual 
-		void		
+		void
 	RemoveLight(
 		struct RAS_LightObject* lightobject
 	);
@@ -203,16 +217,11 @@ public:
 	virtual
 		void
 	MotionBlur(RAS_IRasterizer* rasterizer)=0;
-		
-		
+
+
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_IRenderTools"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IRenderTools")
 #endif
 };
 
-#endif //__RAS_IRENDERTOOLS
-
-
-
+#endif  /* __RAS_IRENDERTOOLS_H__ */

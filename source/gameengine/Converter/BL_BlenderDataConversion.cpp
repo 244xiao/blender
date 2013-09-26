@@ -1,6 +1,4 @@
 /*
- * $Id: BL_BlenderDataConversion.cpp 36083 2011-04-10 09:37:04Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,12 +30,13 @@
  *  \ingroup bgeconv
  */
 
-
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable : 4786)
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)
 #endif
 
 #include <math.h>
+#include <vector>
+#include <algorithm>
 
 #include "BL_BlenderDataConversion.h"
 #include "KX_BlenderGL.h"
@@ -143,9 +142,13 @@ extern "C" {
 #include "BKE_customdata.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_material.h" /* give_current_material */
+#include "BKE_image.h"
+#include "IMB_imbuf_types.h"
+
+extern Material defmaterial;	/* material.c */
 }
 
-#include "BKE_material.h" /* give_current_material */
 /* end of blender include block */
 
 #include "KX_BlenderInputDevice.h"
@@ -156,14 +159,14 @@ extern "C" {
 #include "KX_ScalarInterpolator.h"
 
 #include "KX_IpoConvert.h"
-#include "SYS_System.h"
+#include "BL_System.h"
 
 #include "SG_Node.h"
 #include "SG_BBox.h"
 #include "SG_Tree.h"
 
 #include "KX_ConvertPhysicsObject.h"
-#ifdef USE_BULLET
+#ifdef WITH_BULLET
 #include "CcdPhysicsEnvironment.h"
 #include "CcdGraphicController.h"
 #endif
@@ -178,19 +181,197 @@ extern "C" {
 #include "BL_ArmatureObject.h"
 #include "BL_DeformableGameObject.h"
 
+#include "KX_NavMeshObject.h"
+#include "KX_ObstacleSimulation.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-//XXX #include "BSE_headerbuttons.h"
 //XXX void update_for_newframe();
-//void scene_update_for_newframe(struct Scene *sce, unsigned int lay);
-//#include "BKE_ipo.h"
+//void BKE_scene_update_for_newframe(struct Scene *sce, unsigned int lay);
 //void do_all_data_ipos(void);
 #ifdef __cplusplus
 }
 #endif
 
-static int default_face_mode = TF_DYNAMIC;
+#include "BLI_threads.h"
+
+static bool default_light_mode = 0;
+
+static std::map<int, SCA_IInputDevice::KX_EnumInputs> create_translate_table()
+{
+	std::map<int, SCA_IInputDevice::KX_EnumInputs> m;
+		
+	/* The reverse table. In order to not confuse ourselves, we      */
+	/* immediately convert all events that come in to KX codes.      */
+	m[LEFTMOUSE			] =	SCA_IInputDevice::KX_LEFTMOUSE;
+	m[MIDDLEMOUSE		] =	SCA_IInputDevice::KX_MIDDLEMOUSE;
+	m[RIGHTMOUSE		] =	SCA_IInputDevice::KX_RIGHTMOUSE;
+	m[WHEELUPMOUSE		] =	SCA_IInputDevice::KX_WHEELUPMOUSE;
+	m[WHEELDOWNMOUSE	] =	SCA_IInputDevice::KX_WHEELDOWNMOUSE;
+	m[MOUSEX			] = SCA_IInputDevice::KX_MOUSEX;
+	m[MOUSEY			] =	SCA_IInputDevice::KX_MOUSEY;
+		
+	// TIMERS                                                                                                  
+		
+	m[TIMER0			] = SCA_IInputDevice::KX_TIMER0;                  
+	m[TIMER1			] = SCA_IInputDevice::KX_TIMER1;                  
+	m[TIMER2			] = SCA_IInputDevice::KX_TIMER2;                  
+		
+	// SYSTEM                                                                                                  
+		
+#if 0
+	/* **** XXX **** */
+	m[KEYBD				] = SCA_IInputDevice::KX_KEYBD;                  
+	m[RAWKEYBD			] = SCA_IInputDevice::KX_RAWKEYBD;                  
+	m[REDRAW			] = SCA_IInputDevice::KX_REDRAW;                  
+	m[INPUTCHANGE		] = SCA_IInputDevice::KX_INPUTCHANGE;                  
+	m[QFULL				] = SCA_IInputDevice::KX_QFULL;                  
+	m[WINFREEZE			] = SCA_IInputDevice::KX_WINFREEZE;                  
+	m[WINTHAW			] = SCA_IInputDevice::KX_WINTHAW;                  
+	m[WINCLOSE			] = SCA_IInputDevice::KX_WINCLOSE;                  
+	m[WINQUIT			] = SCA_IInputDevice::KX_WINQUIT;                  
+	m[Q_FIRSTTIME		] = SCA_IInputDevice::KX_Q_FIRSTTIME;                  
+	/* **** XXX **** */
+#endif
+		
+	// standard keyboard                                                                                       
+		
+	m[AKEY				] = SCA_IInputDevice::KX_AKEY;                  
+	m[BKEY				] = SCA_IInputDevice::KX_BKEY;                  
+	m[CKEY				] = SCA_IInputDevice::KX_CKEY;                  
+	m[DKEY				] = SCA_IInputDevice::KX_DKEY;                  
+	m[EKEY				] = SCA_IInputDevice::KX_EKEY;                  
+	m[FKEY				] = SCA_IInputDevice::KX_FKEY;                  
+	m[GKEY				] = SCA_IInputDevice::KX_GKEY;                  
+
+//XXX clean up
+#ifdef WIN32
+#define HKEY	'h'
+#endif
+	m[HKEY				] = SCA_IInputDevice::KX_HKEY;                  
+//XXX clean up
+#ifdef WIN32
+#undef HKEY
+#endif
+
+	m[IKEY				] = SCA_IInputDevice::KX_IKEY;                  
+	m[JKEY				] = SCA_IInputDevice::KX_JKEY;                  
+	m[KKEY				] = SCA_IInputDevice::KX_KKEY;                  
+	m[LKEY				] = SCA_IInputDevice::KX_LKEY;                  
+	m[MKEY				] = SCA_IInputDevice::KX_MKEY;                  
+	m[NKEY				] = SCA_IInputDevice::KX_NKEY;                  
+	m[OKEY				] = SCA_IInputDevice::KX_OKEY;                  
+	m[PKEY				] = SCA_IInputDevice::KX_PKEY;                  
+	m[QKEY				] = SCA_IInputDevice::KX_QKEY;                  
+	m[RKEY				] = SCA_IInputDevice::KX_RKEY;                  
+	m[SKEY				] = SCA_IInputDevice::KX_SKEY;                  
+	m[TKEY				] = SCA_IInputDevice::KX_TKEY;                  
+	m[UKEY				] = SCA_IInputDevice::KX_UKEY;                  
+	m[VKEY				] = SCA_IInputDevice::KX_VKEY;                  
+	m[WKEY				] = SCA_IInputDevice::KX_WKEY;                  
+	m[XKEY				] = SCA_IInputDevice::KX_XKEY;                  
+	m[YKEY				] = SCA_IInputDevice::KX_YKEY;                  
+	m[ZKEY				] = SCA_IInputDevice::KX_ZKEY;                  
+		
+	m[ZEROKEY			] = SCA_IInputDevice::KX_ZEROKEY;                  
+	m[ONEKEY			] = SCA_IInputDevice::KX_ONEKEY;                  
+	m[TWOKEY			] = SCA_IInputDevice::KX_TWOKEY;                  
+	m[THREEKEY			] = SCA_IInputDevice::KX_THREEKEY;                  
+	m[FOURKEY			] = SCA_IInputDevice::KX_FOURKEY;                  
+	m[FIVEKEY			] = SCA_IInputDevice::KX_FIVEKEY;                  
+	m[SIXKEY			] = SCA_IInputDevice::KX_SIXKEY;                  
+	m[SEVENKEY			] = SCA_IInputDevice::KX_SEVENKEY;                  
+	m[EIGHTKEY			] = SCA_IInputDevice::KX_EIGHTKEY;                  
+	m[NINEKEY			] = SCA_IInputDevice::KX_NINEKEY;                  
+		
+	m[CAPSLOCKKEY		] = SCA_IInputDevice::KX_CAPSLOCKKEY;                  
+		
+	m[LEFTCTRLKEY		] = SCA_IInputDevice::KX_LEFTCTRLKEY;                  
+	m[LEFTALTKEY		] = SCA_IInputDevice::KX_LEFTALTKEY;                  
+	m[RIGHTALTKEY		] = SCA_IInputDevice::KX_RIGHTALTKEY;                  
+	m[RIGHTCTRLKEY		] = SCA_IInputDevice::KX_RIGHTCTRLKEY;                  
+	m[RIGHTSHIFTKEY		] = SCA_IInputDevice::KX_RIGHTSHIFTKEY;                  
+	m[LEFTSHIFTKEY		] = SCA_IInputDevice::KX_LEFTSHIFTKEY;                  
+		
+	m[ESCKEY			] = SCA_IInputDevice::KX_ESCKEY;                  
+	m[TABKEY			] = SCA_IInputDevice::KX_TABKEY;                  
+	m[RETKEY			] = SCA_IInputDevice::KX_RETKEY;                  
+	m[SPACEKEY			] = SCA_IInputDevice::KX_SPACEKEY;                  
+	m[LINEFEEDKEY		] = SCA_IInputDevice::KX_LINEFEEDKEY;                  
+	m[BACKSPACEKEY		] = SCA_IInputDevice::KX_BACKSPACEKEY;                  
+	m[DELKEY			] = SCA_IInputDevice::KX_DELKEY;                  
+	m[SEMICOLONKEY		] = SCA_IInputDevice::KX_SEMICOLONKEY;                  
+	m[PERIODKEY			] = SCA_IInputDevice::KX_PERIODKEY;                  
+	m[COMMAKEY			] = SCA_IInputDevice::KX_COMMAKEY;                  
+	m[QUOTEKEY			] = SCA_IInputDevice::KX_QUOTEKEY;                  
+	m[ACCENTGRAVEKEY	] = SCA_IInputDevice::KX_ACCENTGRAVEKEY;                  
+	m[MINUSKEY			] = SCA_IInputDevice::KX_MINUSKEY;                  
+	m[SLASHKEY			] = SCA_IInputDevice::KX_SLASHKEY;                  
+	m[BACKSLASHKEY		] = SCA_IInputDevice::KX_BACKSLASHKEY;                  
+	m[EQUALKEY			] = SCA_IInputDevice::KX_EQUALKEY;                  
+	m[LEFTBRACKETKEY	] = SCA_IInputDevice::KX_LEFTBRACKETKEY;                  
+	m[RIGHTBRACKETKEY	] = SCA_IInputDevice::KX_RIGHTBRACKETKEY;                  
+		
+	m[LEFTARROWKEY		] = SCA_IInputDevice::KX_LEFTARROWKEY;                  
+	m[DOWNARROWKEY		] = SCA_IInputDevice::KX_DOWNARROWKEY;                  
+	m[RIGHTARROWKEY		] = SCA_IInputDevice::KX_RIGHTARROWKEY;                  
+	m[UPARROWKEY		] = SCA_IInputDevice::KX_UPARROWKEY;                  
+		
+	m[PAD2				] = SCA_IInputDevice::KX_PAD2;                  
+	m[PAD4				] = SCA_IInputDevice::KX_PAD4;                  
+	m[PAD6				] = SCA_IInputDevice::KX_PAD6;                  
+	m[PAD8				] = SCA_IInputDevice::KX_PAD8;                  
+		
+	m[PAD1				] = SCA_IInputDevice::KX_PAD1;                  
+	m[PAD3				] = SCA_IInputDevice::KX_PAD3;                  
+	m[PAD5				] = SCA_IInputDevice::KX_PAD5;                  
+	m[PAD7				] = SCA_IInputDevice::KX_PAD7;                  
+	m[PAD9				] = SCA_IInputDevice::KX_PAD9;                  
+		
+	m[PADPERIOD			] = SCA_IInputDevice::KX_PADPERIOD;                  
+	m[PADSLASHKEY		] = SCA_IInputDevice::KX_PADSLASHKEY;                  
+	m[PADASTERKEY		] = SCA_IInputDevice::KX_PADASTERKEY;                  
+		
+	m[PAD0				] = SCA_IInputDevice::KX_PAD0;                  
+	m[PADMINUS			] = SCA_IInputDevice::KX_PADMINUS;                  
+	m[PADENTER			] = SCA_IInputDevice::KX_PADENTER;                  
+	m[PADPLUSKEY		] = SCA_IInputDevice::KX_PADPLUSKEY;                  
+		
+		
+	m[F1KEY				] = SCA_IInputDevice::KX_F1KEY;                  
+	m[F2KEY				] = SCA_IInputDevice::KX_F2KEY;                  
+	m[F3KEY				] = SCA_IInputDevice::KX_F3KEY;                  
+	m[F4KEY				] = SCA_IInputDevice::KX_F4KEY;                  
+	m[F5KEY				] = SCA_IInputDevice::KX_F5KEY;                  
+	m[F6KEY				] = SCA_IInputDevice::KX_F6KEY;                  
+	m[F7KEY				] = SCA_IInputDevice::KX_F7KEY;                  
+	m[F8KEY				] = SCA_IInputDevice::KX_F8KEY;                  
+	m[F9KEY				] = SCA_IInputDevice::KX_F9KEY;                  
+	m[F10KEY			] = SCA_IInputDevice::KX_F10KEY;                  
+	m[F11KEY			] = SCA_IInputDevice::KX_F11KEY;                  
+	m[F12KEY			] = SCA_IInputDevice::KX_F12KEY;
+	m[F13KEY			] = SCA_IInputDevice::KX_F13KEY;
+	m[F14KEY			] = SCA_IInputDevice::KX_F14KEY;
+	m[F15KEY			] = SCA_IInputDevice::KX_F15KEY;
+	m[F16KEY			] = SCA_IInputDevice::KX_F16KEY;
+	m[F17KEY			] = SCA_IInputDevice::KX_F17KEY;
+	m[F18KEY			] = SCA_IInputDevice::KX_F18KEY;
+	m[F19KEY			] = SCA_IInputDevice::KX_F19KEY;
+
+	m[OSKEY				] = SCA_IInputDevice::KX_OSKEY;
+
+	m[PAUSEKEY			] = SCA_IInputDevice::KX_PAUSEKEY;                  
+	m[INSERTKEY			] = SCA_IInputDevice::KX_INSERTKEY;                  
+	m[HOMEKEY			] = SCA_IInputDevice::KX_HOMEKEY;                  
+	m[PAGEUPKEY			] = SCA_IInputDevice::KX_PAGEUPKEY;                  
+	m[PAGEDOWNKEY		] = SCA_IInputDevice::KX_PAGEDOWNKEY;                  
+	m[ENDKEY			] = SCA_IInputDevice::KX_ENDKEY;
+
+	return m;
+}
+
+static std::map<int, SCA_IInputDevice::KX_EnumInputs> gReverseKeyTranslateTable = create_translate_table();
 
 static unsigned int KX_rgbaint2uint_new(unsigned int icol)
 {
@@ -229,179 +410,233 @@ static unsigned int KX_Mcol2uint_new(MCol col)
 	return out_color.integer;
 }
 
-static void SetDefaultFaceType(Scene* scene)
+static void SetDefaultLightMode(Scene* scene)
 {
-	default_face_mode = TF_DYNAMIC;
+	default_light_mode = false;
 	Scene *sce_iter;
 	Base *base;
 
-	for(SETLOOPER(scene, sce_iter, base))
+	for (SETLOOPER(scene, sce_iter, base))
 	{
 		if (base->object->type == OB_LAMP)
 		{
-			default_face_mode = TF_DYNAMIC|TF_LIGHT;
+			default_light_mode = true;
 			return;
 		}
 	}
 }
 
 
-// --
-static void GetRGB(short type,
-	MFace* mface,
-	MCol* mmcol,
-	Material *mat,
-	unsigned int &c0, 
-	unsigned int &c1, 
-	unsigned int &c2, 
-	unsigned int &c3)
+static bool GetMaterialUseVColor(Material *ma, const bool glslmat)
 {
-	unsigned int color = 0xFFFFFFFFL;
-	switch(type)
-	{
-		case 0:	// vertex colors
-		{
-			if(mmcol) {
-				c0 = KX_Mcol2uint_new(mmcol[0]);
-				c1 = KX_Mcol2uint_new(mmcol[1]);
-				c2 = KX_Mcol2uint_new(mmcol[2]);
-				if (mface->v4)
-					c3 = KX_Mcol2uint_new(mmcol[3]);
-			}else // backup white
-			{
-				c0 = KX_rgbaint2uint_new(color);
-				c1 = KX_rgbaint2uint_new(color);
-				c2 = KX_rgbaint2uint_new(color);	
-				if (mface->v4)
-					c3 = KX_rgbaint2uint_new( color );
-			}
-		} break;
-		
-	
-		case 1: // material rgba
-		{
-			if (mat) {
-				union {
-					unsigned char cp[4];
-					unsigned int integer;
-				} col_converter;
-				col_converter.cp[3] = (unsigned char) (mat->r*255.0);
-				col_converter.cp[2] = (unsigned char) (mat->g*255.0);
-				col_converter.cp[1] = (unsigned char) (mat->b*255.0);
-				col_converter.cp[0] = (unsigned char) (mat->alpha*255.0);
-				color = col_converter.integer;
-			}
-			c0 = KX_rgbaint2uint_new(color);
-			c1 = KX_rgbaint2uint_new(color);
-			c2 = KX_rgbaint2uint_new(color);	
-			if (mface->v4)
-				c3 = KX_rgbaint2uint_new(color);
-		} break;
-		
-		default: // white
-		{
-			c0 = KX_rgbaint2uint_new(color);
-			c1 = KX_rgbaint2uint_new(color);
-			c2 = KX_rgbaint2uint_new(color);	
-			if (mface->v4)
-				c3 = KX_rgbaint2uint_new(color);
-		} break;
+	if (ma) {
+		/* glsl uses vertex colors, otherwise use material setting
+		 * defmaterial doesn't have VERTEXCOLP as default [#34505] */
+		return (glslmat || ma == &defmaterial || (ma->mode & MA_VERTEXCOLP) != 0);
+	}
+	else {
+		/* no material, use vertex colors */
+		return true;
 	}
 }
 
-typedef struct MTF_localLayer
+// --
+static void GetRGB(
+        const bool use_vcol,
+        MFace* mface,
+        MCol* mmcol,
+        Material *mat,
+        unsigned int c[4])
 {
+	unsigned int color = 0xFFFFFFFFL;
+	if (use_vcol == true) {
+		if (mmcol) {
+			c[0] = KX_Mcol2uint_new(mmcol[0]);
+			c[1] = KX_Mcol2uint_new(mmcol[1]);
+			c[2] = KX_Mcol2uint_new(mmcol[2]);
+			if (mface->v4)
+				c[3] = KX_Mcol2uint_new(mmcol[3]);
+		}
+		else { // backup white
+			c[0] = KX_rgbaint2uint_new(color);
+			c[1] = KX_rgbaint2uint_new(color);
+			c[2] = KX_rgbaint2uint_new(color);
+			if (mface->v4)
+				c[3] = KX_rgbaint2uint_new( color );
+		}
+	}
+	else {
+		/* material rgba */
+		if (mat) {
+			union {
+				unsigned char cp[4];
+				unsigned int integer;
+			} col_converter;
+			col_converter.cp[3] = (unsigned char) (mat->r     * 255.0f);
+			col_converter.cp[2] = (unsigned char) (mat->g     * 255.0f);
+			col_converter.cp[1] = (unsigned char) (mat->b     * 255.0f);
+			col_converter.cp[0] = (unsigned char) (mat->alpha * 255.0f);
+			color = col_converter.integer;
+		}
+		c[0] = KX_rgbaint2uint_new(color);
+		c[1] = KX_rgbaint2uint_new(color);
+		c[2] = KX_rgbaint2uint_new(color);
+		if (mface->v4) {
+			c[3] = KX_rgbaint2uint_new(color);
+		}
+	}
+
+#if 0  /* white, unused */
+	{
+		c[0] = KX_rgbaint2uint_new(color);
+		c[1] = KX_rgbaint2uint_new(color);
+		c[2] = KX_rgbaint2uint_new(color);
+		if (mface->v4)
+			c[3] = KX_rgbaint2uint_new(color);
+	}
+#endif
+}
+
+typedef struct MTF_localLayer {
 	MTFace *face;
 	const char *name;
-}MTF_localLayer;
+} MTF_localLayer;
+
+static void GetUVs(BL_Material *material, MTF_localLayer *layers, MFace *mface, MTFace *tface, MT_Point2 uvs[4][MAXTEX])
+{
+	int unit = 0;
+	if (tface)
+	{
+			
+		uvs[0][0].setValue(tface->uv[0]);
+		uvs[1][0].setValue(tface->uv[1]);
+		uvs[2][0].setValue(tface->uv[2]);
+
+		if (mface->v4) 
+			uvs[3][0].setValue(tface->uv[3]);
+	}
+	else
+	{
+		uvs[0][0] = uvs[1][0] = uvs[2][0] = uvs[3][0] = MT_Point2(0.f, 0.f);
+	}
+	
+	vector<STR_String> found_layers;
+
+	for (int vind = 0; vind<MAXTEX; vind++)
+	{
+		BL_Mapping &map = material->mapping[vind];
+
+		if (!(map.mapping & USEUV)) continue;
+
+		if (std::find(found_layers.begin(), found_layers.end(), map.uvCoName) != found_layers.end())
+			continue;
+
+		//If no UVSet is specified, try grabbing one from the UV/Image editor
+		if (map.uvCoName.IsEmpty() && tface)
+		{			
+			uvs[0][unit].setValue(tface->uv[0]);
+			uvs[1][unit].setValue(tface->uv[1]);
+			uvs[2][unit].setValue(tface->uv[2]);
+
+			if (mface->v4) 
+				uvs[3][unit].setValue(tface->uv[3]);
+
+			++unit;
+			continue;
+		}
+
+
+		for (int lay=0; lay<MAX_MTFACE; lay++)
+		{
+			MTF_localLayer& layer = layers[lay];
+			if (layer.face == 0) break;
+
+			if (map.uvCoName.IsEmpty() || strcmp(map.uvCoName.ReadPtr(), layer.name)==0)
+			{
+				uvs[0][unit].setValue(layer.face->uv[0]);
+				uvs[1][unit].setValue(layer.face->uv[1]);
+				uvs[2][unit].setValue(layer.face->uv[2]);
+
+				if (mface->v4) 
+					uvs[3][unit].setValue(layer.face->uv[3]);
+				else
+					uvs[3][unit].setValue(0.0f, 0.0f);
+
+				++unit;
+				found_layers.push_back(map.uvCoName);
+				break;
+			}
+		}
+	}
+}
 
 // ------------------------------------
-bool ConvertMaterial(
+static bool ConvertMaterial(
 	BL_Material *material,
 	Material *mat, 
 	MTFace* tface,  
 	const char *tfaceName,
 	MFace* mface, 
 	MCol* mmcol,
-	MTF_localLayer *layers,
 	bool glslmat)
 {
 	material->Initialize();
-	int numchan =	-1, texalpha = 0;
-	bool validmat	= (mat!=0);
-	bool validface	= (tface!=0);
-	
-	short type = 0;
-	if( validmat )
-		type = 1; // material color 
+	int texalpha = 0;
+	const bool validmat  = (mat != NULL);
+	const bool validface = (tface != NULL);
+	const bool use_vcol  = GetMaterialUseVColor(mat, glslmat);
 	
 	material->IdMode = DEFAULT_BLENDER;
-	material->glslmat = (validmat)? glslmat: false;
+	material->glslmat = (validmat) ? glslmat: false;
 	material->materialindex = mface->mat_nr;
 
 	// --------------------------------
-	if(validmat) {
-
-		// use vertex colors by explicitly setting
-		if(mat->mode &MA_VERTEXCOLP || glslmat)
-			type = 0;
+	if (validmat) {
 
 		// use lighting?
 		material->ras_mode |= ( mat->mode & MA_SHLESS )?0:USE_LIGHT;
+		material->ras_mode |= ( mat->game.flag & GEMAT_BACKCULL )?0:TWOSIDED;
+
+		// cast shadows?
+		material->ras_mode |= ( mat->mode & MA_SHADBUF )?CAST_SHADOW:0;
 		MTex *mttmp = 0;
-		numchan = getNumTexChannels(mat);
 		int valid_index = 0;
 		
-		// use the face texture if
-		// 1) it is set in the buttons
-		// 2) we have a face texture and a material but no valid texture in slot 1
+		/* In Multitexture use the face texture if and only if
+		 * it is set in the buttons
+		 * In GLSL is not working yet :/ 3.2011 */
 		bool facetex = false;
-		if(validface && mat->mode &MA_FACETEXTURE) 
+		if (validface && mat->mode &MA_FACETEXTURE) 
 			facetex = true;
-		if(validface && !mat->mtex[0])
-			facetex = true;
-		if(validface && mat->mtex[0]) {
-			MTex *tmp = mat->mtex[0];
-			if(!tmp->tex || (tmp->tex && !tmp->tex->ima))
-				facetex = true;
-		}
-		numchan = numchan>MAXTEX?MAXTEX:numchan;
 	
 		// foreach MTex
-		for(int i=0; i<numchan; i++) {
+		for (int i=0; i<MAXTEX; i++) {
 			// use face tex
 
-			if(i==0 && facetex ) {
+			if (i==0 && facetex ) {
+				facetex = false;
 				Image*tmp = (Image*)(tface->tpage);
 
-				if(tmp) {
+				if (tmp) {
 					material->img[i] = tmp;
 					material->texname[i] = material->img[i]->id.name;
-					material->flag[i] |= ( tface->transp  &TF_ALPHA	)?USEALPHA:0;
-					material->flag[i] |= ( tface->transp  &TF_ADD	)?CALCALPHA:0;
 					material->flag[i] |= MIPMAP;
 
-					if(material->img[i]->flag & IMA_REFLECT)
-						material->mapping[i].mapping |= USEREFL;
-					else
-					{
-						mttmp = getImageFromMaterial( mat, i );
-						if(mttmp && mttmp->texco &TEXCO_UV)
-						{
-							STR_String uvName = mttmp->uvname;
+					material->flag[i] |= ( mat->game.alpha_blend & GEMAT_ALPHA_SORT )?USEALPHA:0;
+					material->flag[i] |= ( mat->game.alpha_blend & GEMAT_ALPHA )?USEALPHA:0;
+					material->flag[i] |= ( mat->game.alpha_blend & GEMAT_ADD )?CALCALPHA:0;
 
-							if (!uvName.IsEmpty())
-								material->mapping[i].uvCoName = mttmp->uvname;
-							else
-								material->mapping[i].uvCoName = "";
+					if (material->img[i]->flag & IMA_REFLECT) {
+						material->mapping[i].mapping |= USEREFL;
+					}
+					else {
+						mttmp = getMTexFromMaterial(mat, i);
+						if (mttmp && (mttmp->texco & TEXCO_UV)) {
+							/* string may be "" but thats detected as empty after */
+							material->mapping[i].uvCoName = mttmp->uvname;
 						}
 						material->mapping[i].mapping |= USEUV;
 					}
-
-					if(material->ras_mode & USE_LIGHT)
-						material->ras_mode &= ~USE_LIGHT;
-					if(tface->mode & TF_LIGHT)
-						material->ras_mode |= USE_LIGHT;
 
 					valid_index++;
 				}
@@ -412,25 +647,24 @@ bool ConvertMaterial(
 				continue;
 			}
 
-			mttmp = getImageFromMaterial( mat, i );
-			if( mttmp ) {
-				if( mttmp->tex ) {
-					if( mttmp->tex->type == TEX_IMAGE ) {
+			mttmp = getMTexFromMaterial(mat, i);
+			if (mttmp) {
+				if (mttmp->tex) {
+					if ( mttmp->tex->type == TEX_IMAGE ) {
 						material->mtexname[i] = mttmp->tex->id.name;
 						material->img[i] = mttmp->tex->ima;
-						if( material->img[i] ) {
+						if ( material->img[i] ) {
 
 							material->texname[i] = material->img[i]->id.name;
 							material->flag[i] |= ( mttmp->tex->imaflag &TEX_MIPMAP )?MIPMAP:0;
 							// -----------------------
-							if( mttmp->tex->imaflag &TEX_USEALPHA ) {
+							if (material->img[i] && (material->img[i]->flag & IMA_IGNORE_ALPHA) == 0)
 								material->flag[i]	|= USEALPHA;
-							}
 							// -----------------------
-							else if( mttmp->tex->imaflag &TEX_CALCALPHA ) {
+							if ( mttmp->tex->imaflag &TEX_CALCALPHA ) {
 								material->flag[i]	|= CALCALPHA;
 							}
-							else if(mttmp->tex->flag &TEX_NEGALPHA) {
+							else if (mttmp->tex->flag &TEX_NEGALPHA) {
 								material->flag[i]	|= USENEGALPHA;
 							}
 
@@ -438,12 +672,12 @@ bool ConvertMaterial(
 							material->flag[i] |= ( mttmp->mapto  & MAP_ALPHA		)?TEXALPHA:0;
 							material->flag[i] |= ( mttmp->texflag& MTEX_NEGATIVE	)?TEXNEG:0;
 
-							if(!glslmat && (material->flag[i] & TEXALPHA))
+							if (!glslmat && (material->flag[i] & TEXALPHA))
 								texalpha = 1;
 						}
 					}
-					else if(mttmp->tex->type == TEX_ENVMAP) {
-						if( mttmp->tex->env->stype == ENV_LOAD ) {
+					else if (mttmp->tex->type == TEX_ENVMAP) {
+						if ( mttmp->tex->env->stype == ENV_LOAD ) {
 					
 							material->mtexname[i]     = mttmp->tex->id.name;
 							EnvMap *env = mttmp->tex->env;
@@ -455,55 +689,57 @@ bool ConvertMaterial(
 								if (!material->cubemap[i]->cube[0])
 									BL_Texture::SplitEnvMap(material->cubemap[i]);
 
-								material->texname[i]= material->cubemap[i]->ima->id.name;
+								material->texname[i] = material->cubemap[i]->ima->id.name;
 								material->mapping[i].mapping |= USEENV;
 							}
 						}
 					}
-					material->flag[i] |= (mat->ipo!=0)?HASIPO:0;
+#if 0				/* this flag isn't used anymore */
+					material->flag[i] |= (BKE_animdata_from_id(mat->id) != NULL) ? HASIPO : 0;
+#endif
 					/// --------------------------------
 					// mapping methods
-					material->mapping[i].mapping |= ( mttmp->texco  & TEXCO_REFL	)?USEREFL:0;
-					
-					if(mttmp->texco & TEXCO_OBJECT) {
-						material->mapping[i].mapping |= USEOBJ;
-						if(mttmp->object)
-							material->mapping[i].objconame = mttmp->object->id.name;
-					}
-					else if(mttmp->texco &TEXCO_REFL)
-						material->mapping[i].mapping |= USEREFL;
-					else if(mttmp->texco &(TEXCO_ORCO|TEXCO_GLOB))
-						material->mapping[i].mapping |= USEORCO;
-					else if(mttmp->texco &TEXCO_UV)
-					{
-						STR_String uvName = mttmp->uvname;
+					if (mat->septex & (1 << i)) {
+						// If this texture slot isn't in use, set it to disabled to prevent multi-uv problems
+						material->mapping[i].mapping = DISABLE;
+					} else {
+						material->mapping[i].mapping |= ( mttmp->texco  & TEXCO_REFL	)?USEREFL:0;
 
-						if (!uvName.IsEmpty())
+						if (mttmp->texco & TEXCO_OBJECT) {
+							material->mapping[i].mapping |= USEOBJ;
+							if (mttmp->object)
+								material->mapping[i].objconame = mttmp->object->id.name;
+						}
+						else if (mttmp->texco &TEXCO_REFL)
+							material->mapping[i].mapping |= USEREFL;
+						else if (mttmp->texco &(TEXCO_ORCO|TEXCO_GLOB))
+							material->mapping[i].mapping |= USEORCO;
+						else if (mttmp->texco & TEXCO_UV) {
+							/* string may be "" but thats detected as empty after */
 							material->mapping[i].uvCoName = mttmp->uvname;
+							material->mapping[i].mapping |= USEUV;
+						}
+						else if (mttmp->texco &TEXCO_NORM)
+							material->mapping[i].mapping |= USENORM;
+						else if (mttmp->texco &TEXCO_TANGENT)
+							material->mapping[i].mapping |= USETANG;
 						else
-							material->mapping[i].uvCoName = "";
-						material->mapping[i].mapping |= USEUV;
-					}
-					else if(mttmp->texco &TEXCO_NORM)
-						material->mapping[i].mapping |= USENORM;
-					else if(mttmp->texco &TEXCO_TANGENT)
-						material->mapping[i].mapping |= USETANG;
-					else
-						material->mapping[i].mapping |= DISABLE;
-					
-					material->mapping[i].scale[0] = mttmp->size[0];
-					material->mapping[i].scale[1] = mttmp->size[1];
-					material->mapping[i].scale[2] = mttmp->size[2];
-					material->mapping[i].offsets[0] = mttmp->ofs[0];
-					material->mapping[i].offsets[1] = mttmp->ofs[1];
-					material->mapping[i].offsets[2] = mttmp->ofs[2];
+							material->mapping[i].mapping |= DISABLE;
 
-					material->mapping[i].projplane[0] = mttmp->projx;
-					material->mapping[i].projplane[1] = mttmp->projy;
-					material->mapping[i].projplane[2] = mttmp->projz;
+						material->mapping[i].scale[0] = mttmp->size[0];
+						material->mapping[i].scale[1] = mttmp->size[1];
+						material->mapping[i].scale[2] = mttmp->size[2];
+						material->mapping[i].offsets[0] = mttmp->ofs[0];
+						material->mapping[i].offsets[1] = mttmp->ofs[1];
+						material->mapping[i].offsets[2] = mttmp->ofs[2];
+
+						material->mapping[i].projplane[0] = mttmp->projx;
+						material->mapping[i].projplane[1] = mttmp->projy;
+						material->mapping[i].projplane[2] = mttmp->projz;
+					}
 					/// --------------------------------
 					
-					switch( mttmp->blendtype ) {
+					switch (mttmp->blendtype) {
 					case MTEX_BLEND:
 						material->blend_mode[i] = BLEND_MIX;
 						break;
@@ -527,7 +763,7 @@ bool ConvertMaterial(
 
 		// above one tex the switches here
 		// are not used
-		switch(valid_index) {
+		switch (valid_index) {
 		case 0:
 			material->IdMode = DEFAULT_BLENDER;
 			break;
@@ -558,25 +794,31 @@ bool ConvertMaterial(
 
 		material->ras_mode |= (mat->material_type == MA_TYPE_WIRE)? WIRE: 0;
 	}
-	else {
+	else { // No Material
 		int valid = 0;
 
 		// check for tface tex to fallback on
-		if( validface ){
-
-			// no light bugfix
-			if(tface->mode) material->ras_mode |= USE_LIGHT;
-
+		if ( validface ) {
 			material->img[0] = (Image*)(tface->tpage);
 			// ------------------------
-			if(material->img[0]) {
+			if (material->img[0]) {
 				material->texname[0] = material->img[0]->id.name;
 				material->mapping[0].mapping |= ( (material->img[0]->flag & IMA_REFLECT)!=0 )?USEREFL:0;
-				material->flag[0] |= ( tface->transp  &TF_ALPHA	)?USEALPHA:0;
-				material->flag[0] |= ( tface->transp  &TF_ADD	)?CALCALPHA:0;
+
+				/* see if depth of the image is 32bits */
+				if (BKE_image_has_alpha(material->img[0])) {
+					material->flag[0] |= USEALPHA;
+					material->alphablend = GEMAT_ALPHA;
+				}
+				else
+					material->alphablend = GEMAT_SOLID;
+
 				valid++;
 			}
 		}
+		else
+			material->alphablend = GEMAT_SOLID;
+
 		material->SetUsers(-1);
 		material->num_enabled	= valid;
 		material->IdMode		= TEXFACE;
@@ -589,116 +831,43 @@ bool ConvertMaterial(
 		material->matcolor[2]	= 0.5f;
 		material->spec_f		= 0.5f;
 		material->ref			= 0.8f;
+
+		// No material - old default TexFace properties
+		material->ras_mode |= USE_LIGHT;
 	}
-	MT_Point2 uv[4];
-	MT_Point2 uv2[4];
-	const char *uvName = "", *uv2Name = "";
 
-	
-	uv2[0]= uv2[1]= uv2[2]= uv2[3]= MT_Point2(0.0f, 0.0f);
-
-	if( validface ) {
-
-		material->ras_mode |= (tface->mode & TF_INVISIBLE)?0:POLY_VIS;
-
-		material->transp = tface->transp;
+	/* No material, what to do? let's see what is in the UV and set the material accordingly
+	 * light and visible is always on */
+	if ( validface ) {
 		material->tile	= tface->tile;
-		material->mode	= tface->mode;
-			
-		uv[0].setValue(tface->uv[0]);
-		uv[1].setValue(tface->uv[1]);
-		uv[2].setValue(tface->uv[2]);
-
-		if (mface->v4) 
-			uv[3].setValue(tface->uv[3]);
-
-		uvName = tfaceName;
-	} 
+	}
 	else {
 		// nothing at all
-		material->ras_mode |= (POLY_VIS| (validmat?0:USE_LIGHT));
-		material->mode		= default_face_mode;	
-		material->transp	= TF_SOLID;
+		material->alphablend	= GEMAT_SOLID;
 		material->tile		= 0;
-		
-		uv[0]= uv[1]= uv[2]= uv[3]= MT_Point2(0.0f, 0.0f);
+	}
+
+	if (validmat && validface) {
+		material->alphablend = mat->game.alpha_blend;
 	}
 
 	// with ztransp enabled, enforce alpha blending mode
-	if(validmat && (mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (material->transp == TF_SOLID))
-		material->transp = TF_ALPHA;
+	if (validmat && (mat->mode & MA_TRANSP) && (mat->mode & MA_ZTRANSP) && (material->alphablend == GEMAT_SOLID))
+		material->alphablend = GEMAT_ALPHA;
 
-  	// always zsort alpha + add
-	if((material->transp == TF_ALPHA || material->transp == TF_ADD || texalpha) && (material->transp != TF_CLIP)) {
+	// always zsort alpha + add
+	if ((ELEM3(material->alphablend, GEMAT_ALPHA, GEMAT_ALPHA_SORT, GEMAT_ADD) || texalpha) && (material->alphablend != GEMAT_CLIP )) {
 		material->ras_mode |= ALPHA;
-		material->ras_mode |= (material->mode & TF_ALPHASORT)? ZSORT: 0;
+		material->ras_mode |= (mat && (mat->game.alpha_blend & GEMAT_ALPHA_SORT))? ZSORT: 0;
 	}
 
-	// collider or not?
-	material->ras_mode |= (material->mode & TF_DYNAMIC)? COLLIDER: 0;
-
-	// these flags are irrelevant at this point, remove so they
-	// don't hurt material bucketing 
-	material->mode &= ~(TF_DYNAMIC|TF_ALPHASORT|TF_TEX);
-
-	// get uv sets
-	if(validmat) 
-	{
-		bool isFirstSet = true;
-
-		// only two sets implemented, but any of the eight 
-		// sets can make up the two layers
-		for (int vind = 0; vind<material->num_enabled; vind++)
-		{
-			BL_Mapping &map = material->mapping[vind];
-
-			if (map.uvCoName.IsEmpty())
-				isFirstSet = false;
-			else
-			{
-				for (int lay=0; lay<MAX_MTFACE; lay++)
-				{
-					MTF_localLayer& layer = layers[lay];
-					if (layer.face == 0) break;
-
-					if (strcmp(map.uvCoName.ReadPtr(), layer.name)==0)
-					{
-						MT_Point2 uvSet[4];
-
-						uvSet[0].setValue(layer.face->uv[0]);
-						uvSet[1].setValue(layer.face->uv[1]);
-						uvSet[2].setValue(layer.face->uv[2]);
-
-						if (mface->v4) 
-							uvSet[3].setValue(layer.face->uv[3]);
-						else
-							uvSet[3].setValue(0.0f, 0.0f);
-
-						if (isFirstSet)
-						{
-							uv[0] = uvSet[0]; uv[1] = uvSet[1];
-							uv[2] = uvSet[2]; uv[3] = uvSet[3];
-							isFirstSet = false;
-							uvName = layer.name;
-						}
-						else if(strcmp(layer.name, uvName) != 0)
-						{
-							uv2[0] = uvSet[0]; uv2[1] = uvSet[1];
-							uv2[2] = uvSet[2]; uv2[3] = uvSet[3];
-							map.mapping |= USECUSTOMUV;
-							uv2Name = layer.name;
-						}
-					}
-				}
-			}
-		}
-	}
-
+	// XXX The RGB values here were meant to be temporary storage for the conversion process,
+	// but fonts now make use of them too, so we leave them in for now.
 	unsigned int rgb[4];
-	GetRGB(type,mface,mmcol,mat,rgb[0],rgb[1],rgb[2], rgb[3]);
+	GetRGB(use_vcol, mface, mmcol, mat, rgb);
 
-	// swap the material color, so MCol on TF_BMFONT works
-	if (validmat && type==1 && (tface && tface->mode & TF_BMFONT))
+	// swap the material color, so MCol on bitmap font works
+	if (validmat && (use_vcol == false) && (mat->game.flag & GEMAT_TEXT))
 	{
 		rgb[0] = KX_rgbaint2uint_new(rgb[0]);
 		rgb[1] = KX_rgbaint2uint_new(rgb[1]);
@@ -706,20 +875,203 @@ bool ConvertMaterial(
 		rgb[3] = KX_rgbaint2uint_new(rgb[3]);
 	}
 
-	material->SetConversionRGB(rgb);
-	material->SetConversionUV(uvName, uv);
-	material->SetConversionUV2(uv2Name, uv2);
-
-	if(validmat)
+	if (validmat)
 		material->matname	=(mat->id.name);
 
-	material->tface		= tface;
+	if (tface) {
+		material->tface		= *tface;
+	}
+	else {
+		memset(&material->tface, 0, sizeof(material->tface));
+	}
 	material->material	= mat;
 	return true;
 }
 
+static RAS_MaterialBucket *material_from_mesh(Material *ma, MFace *mface, MTFace *tface, MCol *mcol, MTF_localLayer *layers, int lightlayer, unsigned int *rgb, MT_Point2 uvs[4][RAS_TexVert::MAX_UNIT], const char *tfaceName, KX_Scene* scene, KX_BlenderSceneConverter *converter)
+{
+	RAS_IPolyMaterial* polymat = converter->FindCachedPolyMaterial(ma);
+	BL_Material* bl_mat = converter->FindCachedBlenderMaterial(ma);
+	KX_BlenderMaterial* kx_blmat = NULL;
+	KX_PolygonMaterial* kx_polymat = NULL;
+		
+	if (converter->GetMaterials()) {
+		/* do Blender Multitexture and Blender GLSL materials */
+
+		/* first is the BL_Material */
+		if (!bl_mat)
+		{
+			bl_mat = new BL_Material();
+
+			ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol,
+				converter->GetGLSLMaterials());
+
+			if (ma && (ma->mode & MA_FACETEXTURE) == 0)
+				converter->CacheBlenderMaterial(ma, bl_mat);
+		}
+
+		const bool use_vcol = GetMaterialUseVColor(ma, bl_mat->glslmat);
+		GetRGB(use_vcol, mface, mcol, ma, rgb);
+
+		GetUVs(bl_mat, layers, mface, tface, uvs);
+				
+		/* then the KX_BlenderMaterial */
+		if (polymat == NULL)
+		{
+			kx_blmat = new KX_BlenderMaterial();
+
+			kx_blmat->Initialize(scene, bl_mat, (ma?&ma->game:NULL), lightlayer);
+			polymat = static_cast<RAS_IPolyMaterial*>(kx_blmat);
+			if (ma && (ma->mode & MA_FACETEXTURE) == 0)
+				converter->CachePolyMaterial(ma, polymat);
+		}
+	}
+	else {
+		/* do Texture Face materials */
+		Image* bima = (tface)? (Image*)tface->tpage: NULL;
+		STR_String imastr =  (tface)? (bima? (bima)->id.name : "" ) : "";
+		
+		char alpha_blend=0;
+		short tile=0;
+		int	tilexrep=4,tileyrep = 4;
+
+		/* set material properties - old TexFace */
+		if (ma) {
+			alpha_blend = ma->game.alpha_blend;
+			/* Commented out for now. If we ever get rid of
+			 * "Texture Face/Singletexture" we can then think about it */
+
+			/* Texture Face mode ignores texture but requires "Face Textures to be True "*/
+	#if 0
+			if ((ma->mode &MA_FACETEXTURE)==0 && (ma->game.flag &GEMAT_TEXT)==0) {
+				bima = NULL;
+				imastr = "";
+				alpha_blend = GEMAT_SOLID;	 
+			}
+			else {
+				alpha_blend = ma->game.alpha_blend;
+			}
+	#endif
+		}
+		/* check for tface tex to fallback on */
+		else {
+			if (bima) {
+				/* see if depth of the image is 32 */
+				if (BKE_image_has_alpha(bima))
+					alpha_blend = GEMAT_ALPHA;
+				else
+					alpha_blend = GEMAT_SOLID;
+			}
+			else {
+				alpha_blend = GEMAT_SOLID;
+			}
+		}
+
+		if (bima) {
+			tilexrep = bima->xrep;
+			tileyrep = bima->yrep;
+		}
+
+		/* set UV properties */
+		if (tface) {
+			uvs[0][0].setValue(tface->uv[0]);
+			uvs[1][0].setValue(tface->uv[1]);
+			uvs[2][0].setValue(tface->uv[2]);
+	
+			if (mface->v4)
+				uvs[3][0].setValue(tface->uv[3]);
+
+			tile = tface->tile;
+		} 
+		else {
+			/* no texfaces */
+			tile = 0;
+		}
+
+		/* get vertex colors */
+		if (mcol) {
+			/* we have vertex colors */
+			rgb[0] = KX_Mcol2uint_new(mcol[0]);
+			rgb[1] = KX_Mcol2uint_new(mcol[1]);
+			rgb[2] = KX_Mcol2uint_new(mcol[2]);
+					
+			if (mface->v4)
+				rgb[3] = KX_Mcol2uint_new(mcol[3]);
+		}
+		else {
+			/* no vertex colors, take from material, otherwise white */
+			unsigned int color = 0xFFFFFFFFL;
+
+			if (ma)
+			{
+				union
+				{
+					unsigned char cp[4];
+					unsigned int integer;
+				} col_converter;
+						
+				col_converter.cp[3] = (unsigned char) (ma->r*255.0);
+				col_converter.cp[2] = (unsigned char) (ma->g*255.0);
+				col_converter.cp[1] = (unsigned char) (ma->b*255.0);
+				col_converter.cp[0] = (unsigned char) (ma->alpha*255.0);
+						
+				color = col_converter.integer;
+			}
+
+			rgb[0] = KX_rgbaint2uint_new(color);
+			rgb[1] = KX_rgbaint2uint_new(color);
+			rgb[2] = KX_rgbaint2uint_new(color);	
+					
+			if (mface->v4)
+				rgb[3] = KX_rgbaint2uint_new(color);
+		}
+
+		// only zsort alpha + add
+		const bool alpha = ELEM3(alpha_blend, GEMAT_ALPHA, GEMAT_ADD, GEMAT_ALPHA_SORT);
+		const bool zsort = (alpha_blend == GEMAT_ALPHA_SORT);
+		const bool light = (ma)?(ma->mode & MA_SHLESS)==0:default_light_mode;
+
+		// don't need zort anymore, deal as if it it's alpha blend
+		if (alpha_blend == GEMAT_ALPHA_SORT) alpha_blend = GEMAT_ALPHA;
+
+		if (polymat == NULL)
+		{
+			kx_polymat = new KX_PolygonMaterial();
+			kx_polymat->Initialize(imastr, ma, (int)mface->mat_nr,
+				tile, tilexrep, tileyrep, 
+				alpha_blend, alpha, zsort, light, lightlayer, tface, (unsigned int*)mcol);
+			polymat = static_cast<RAS_IPolyMaterial*>(kx_polymat);
+	
+			if (ma) {
+				polymat->m_specular = MT_Vector3(ma->specr, ma->specg, ma->specb)*ma->spec;
+				polymat->m_shininess = (float)ma->har/4.0f; // 0 < ma->har <= 512
+				polymat->m_diffuse = MT_Vector3(ma->r, ma->g, ma->b)*(ma->emit + ma->ref);
+			}
+			else {
+				polymat->m_specular.setValue(0.0f,0.0f,0.0f);
+				polymat->m_shininess = 35.0;
+			}
+
+			converter->CachePolyMaterial(ma, polymat);
+		}
+	}
+	
+	// see if a bucket was reused or a new one was created
+	// this way only one KX_BlenderMaterial object has to exist per bucket
+	bool bucketCreated; 
+	RAS_MaterialBucket* bucket = scene->FindBucket(polymat, bucketCreated);
+	if (bucketCreated) {
+		// this is needed to free up memory afterwards
+		converter->RegisterPolyMaterial(polymat);
+		if (converter->GetMaterials())
+			converter->RegisterBlenderMaterial(bl_mat);
+	}
+
+	return bucket;
+}
+
 /* blenderobj can be NULL, make sure its checked for */
-RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, KX_BlenderSceneConverter *converter)
+RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, KX_BlenderSceneConverter *converter, bool libloading)
 {
 	RAS_MeshObject *meshobj;
 	int lightlayer = blenderobj ? blenderobj->lay:(1<<20)-1; // all layers if no object.
@@ -728,20 +1080,21 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 		return meshobj;
 	// Get DerivedMesh data
 	DerivedMesh *dm = CDDM_from_mesh(mesh, blenderobj);
+	DM_ensure_tessface(dm);
 
 	MVert *mvert = dm->getVertArray(dm);
 	int totvert = dm->getNumVerts(dm);
 
-	MFace *mface = dm->getFaceArray(dm);
-	MTFace *tface = static_cast<MTFace*>(dm->getFaceDataArray(dm, CD_MTFACE));
-	MCol *mcol = static_cast<MCol*>(dm->getFaceDataArray(dm, CD_MCOL));
+	MFace *mface = dm->getTessFaceArray(dm);
+	MTFace *tface = static_cast<MTFace*>(dm->getTessFaceDataArray(dm, CD_MTFACE));
+	MCol *mcol = static_cast<MCol*>(dm->getTessFaceDataArray(dm, CD_MCOL));
 	float (*tangent)[4] = NULL;
-	int totface = dm->getNumFaces(dm);
+	int totface = dm->getNumTessFaces(dm);
 	const char *tfaceName = "";
 
-	if(tface) {
+	if (tface) {
 		DM_add_tangent_layer(dm);
-		tangent = (float(*)[4])dm->getFaceDataArray(dm, CD_TANGENT);
+		tangent = (float(*)[4])dm->getTessFaceDataArray(dm, CD_TANGENT);
 	}
 
 	meshobj = new RAS_MeshObject(mesh);
@@ -758,11 +1111,14 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	{
 		if (dm->faceData.layers[i].type == CD_MTFACE)
 		{
-			assert(validLayers <= 8);
+			if (validLayers >= MAX_MTFACE) {
+				printf("%s: corrupted mesh %s - too many CD_MTFACE layers\n", __func__, mesh->id.name);
+				break;
+			}
 
 			layers[validLayers].face = (MTFace*)(dm->faceData.layers[i].data);
 			layers[validLayers].name = dm->faceData.layers[i].name;
-			if(tface == layers[validLayers].face)
+			if (tface == layers[validLayers].face)
 				tfaceName = layers[validLayers].name;
 			validLayers++;
 		}
@@ -770,235 +1126,107 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 
 	meshobj->SetName(mesh->id.name + 2);
 	meshobj->m_sharedvertex_map.resize(totvert);
-	RAS_IPolyMaterial* polymat = NULL;
-	STR_String imastr;
-	// These pointers will hold persistent material structure during the conversion
-	// to avoid countless allocation/deallocation of memory.
-	BL_Material* bl_mat = NULL;
-	KX_BlenderMaterial* kx_blmat = NULL;
-	KX_PolygonMaterial* kx_polymat = NULL;
+
+	Material* ma = 0;
+	bool collider = true;
+	MT_Point2 uvs[4][RAS_TexVert::MAX_UNIT];
+	unsigned int rgb[4] = {0};
+
+	MT_Point3 pt[4];
+	MT_Vector3 no[4];
+	MT_Vector4 tan[4];
+
+	/* ugh, if there is a less annoying way to do this please use that.
+	 * since these are converted from floats to floats, theres no real
+	 * advantage to use MT_ types - campbell */
+	for (unsigned int i = 0; i < 4; i++) {
+		const float zero_vec[4] = {0.0f};
+		pt[i].setValue(zero_vec);
+		no[i].setValue(zero_vec);
+		tan[i].setValue(zero_vec);
+	}
+
+	/* we need to manually initialize the uvs (MoTo doesn't do that) [#34550] */
+	for (unsigned int i = 0; i < RAS_TexVert::MAX_UNIT; i++) {
+		uvs[0][i] = uvs[1][i] = uvs[2][i] = uvs[3][i] = MT_Point2(0.f, 0.f);
+	}
 
 	for (int f=0;f<totface;f++,mface++)
 	{
-		Material* ma = 0;
-		bool collider = true;
-		MT_Point2 uv0(0.0,0.0),uv1(0.0,0.0),uv2(0.0,0.0),uv3(0.0,0.0);
-		MT_Point2 uv20(0.0,0.0),uv21(0.0,0.0),uv22(0.0,0.0),uv23(0.0,0.0);
-		unsigned int rgb0,rgb1,rgb2,rgb3 = 0;
-
-		MT_Point3 pt0, pt1, pt2, pt3;
-		MT_Vector3 no0(0,0,0), no1(0,0,0), no2(0,0,0), no3(0,0,0);
-		MT_Vector4 tan0(0,0,0,0), tan1(0,0,0,0), tan2(0,0,0,0), tan3(0,0,0,0);
-
 		/* get coordinates, normals and tangents */
-		pt0.setValue(mvert[mface->v1].co);
-		pt1.setValue(mvert[mface->v2].co);
-		pt2.setValue(mvert[mface->v3].co);
-		if (mface->v4) pt3.setValue(mvert[mface->v4].co);
+		pt[0].setValue(mvert[mface->v1].co);
+		pt[1].setValue(mvert[mface->v2].co);
+		pt[2].setValue(mvert[mface->v3].co);
+		if (mface->v4) pt[3].setValue(mvert[mface->v4].co);
 
-		if(mface->flag & ME_SMOOTH) {
+		if (mface->flag & ME_SMOOTH) {
 			float n0[3], n1[3], n2[3], n3[3];
 
 			normal_short_to_float_v3(n0, mvert[mface->v1].no);
 			normal_short_to_float_v3(n1, mvert[mface->v2].no);
 			normal_short_to_float_v3(n2, mvert[mface->v3].no);
-			no0 = n0;
-			no1 = n1;
-			no2 = n2;
+			no[0] = n0;
+			no[1] = n1;
+			no[2] = n2;
 
-			if(mface->v4) {
+			if (mface->v4) {
 				normal_short_to_float_v3(n3, mvert[mface->v4].no);
-				no3 = n3;
+				no[3] = n3;
 			}
 		}
 		else {
 			float fno[3];
 
-			if(mface->v4)
-				normal_quad_v3( fno,mvert[mface->v1].co, mvert[mface->v2].co, mvert[mface->v3].co, mvert[mface->v4].co);
+			if (mface->v4)
+				normal_quad_v3(fno,mvert[mface->v1].co, mvert[mface->v2].co, mvert[mface->v3].co, mvert[mface->v4].co);
 			else
-				normal_tri_v3( fno,mvert[mface->v1].co, mvert[mface->v2].co, mvert[mface->v3].co);
+				normal_tri_v3(fno,mvert[mface->v1].co, mvert[mface->v2].co, mvert[mface->v3].co);
 
-			no0 = no1 = no2 = no3 = MT_Vector3(fno);
+			no[0] = no[1] = no[2] = no[3] = MT_Vector3(fno);
 		}
 
-		if(tangent) {
-			tan0 = tangent[f*4 + 0];
-			tan1 = tangent[f*4 + 1];
-			tan2 = tangent[f*4 + 2];
+		if (tangent) {
+			tan[0] = tangent[f*4 + 0];
+			tan[1] = tangent[f*4 + 1];
+			tan[2] = tangent[f*4 + 2];
 
 			if (mface->v4)
-				tan3 = tangent[f*4 + 3];
+				tan[3] = tangent[f*4 + 3];
 		}
-		if(blenderobj)
+		if (blenderobj)
 			ma = give_current_material(blenderobj, mface->mat_nr+1);
 		else
 			ma = mesh->mat ? mesh->mat[mface->mat_nr]:NULL;
+
+		/* ckeck for texface since texface _only_ is used as a fallback */
+		if (ma == NULL && tface == NULL) {
+			ma= &defmaterial;
+		}
 
 		{
 			bool visible = true;
 			bool twoside = false;
 
-			if(converter->GetMaterials()) {
-				/* do Blender Multitexture and Blender GLSL materials */
-				unsigned int rgb[4];
-				MT_Point2 uv[4];
+			RAS_MaterialBucket* bucket = material_from_mesh(ma, mface, tface, mcol, layers, lightlayer, rgb, uvs, tfaceName, scene, converter);
 
-				/* first is the BL_Material */
-				if (!bl_mat)
-					bl_mat = new BL_Material();
-				ConvertMaterial(bl_mat, ma, tface, tfaceName, mface, mcol,
-					layers, converter->GetGLSLMaterials());
-
-				visible = ((bl_mat->ras_mode & POLY_VIS)!=0);
-				collider = ((bl_mat->ras_mode & COLLIDER)!=0);
-				twoside = ((bl_mat->mode & TF_TWOSIDE)!=0);
-
-				/* vertex colors and uv's were stored in bl_mat temporarily */
-				bl_mat->GetConversionRGB(rgb);
-				rgb0 = rgb[0]; rgb1 = rgb[1];
-				rgb2 = rgb[2]; rgb3 = rgb[3];
-
-				bl_mat->GetConversionUV(uv);
-				uv0 = uv[0]; uv1 = uv[1];
-				uv2 = uv[2]; uv3 = uv[3];
-
-				bl_mat->GetConversionUV2(uv);
-				uv20 = uv[0]; uv21 = uv[1];
-				uv22 = uv[2]; uv23 = uv[3];
-				
-				/* then the KX_BlenderMaterial */
-				if (kx_blmat == NULL)
-					kx_blmat = new KX_BlenderMaterial();
-
-				kx_blmat->Initialize(scene, bl_mat);
-				polymat = static_cast<RAS_IPolyMaterial*>(kx_blmat);
+			// set render flags
+			if (ma)
+			{
+				visible = ((ma->game.flag & GEMAT_INVISIBLE)==0);
+				twoside = ((ma->game.flag  & GEMAT_BACKCULL)==0);
+				collider = ((ma->game.flag & GEMAT_NOPHYSICS)==0);
 			}
 			else {
-				/* do Texture Face materials */
-				Image* bima = (tface)? (Image*)tface->tpage: NULL;
-				imastr =  (tface)? (bima? (bima)->id.name : "" ) : "";
-		
-				char transp=0;
-				short mode=0, tile=0;
-				int	tilexrep=4,tileyrep = 4;
-				
-				if (bima) {
-					tilexrep = bima->xrep;
-					tileyrep = bima->yrep;
-				}
-
-				/* get tface properties if available */
-				if(tface) {
-					/* TF_DYNAMIC means the polygon is a collision face */
-					collider = ((tface->mode & TF_DYNAMIC) != 0);
-					transp = tface->transp;
-					tile = tface->tile;
-					mode = tface->mode;
-					
-					visible = !(tface->mode & TF_INVISIBLE);
-					twoside = ((tface->mode & TF_TWOSIDE)!=0);
-					
-					uv0.setValue(tface->uv[0]);
-					uv1.setValue(tface->uv[1]);
-					uv2.setValue(tface->uv[2]);
-	
-					if (mface->v4)
-						uv3.setValue(tface->uv[3]);
-				} 
-				else {
-					/* no texfaces, set COLLSION true and everything else FALSE */
-					mode = default_face_mode;	
-					transp = TF_SOLID;
-					tile = 0;
-				}
-
-				/* get vertex colors */
-				if (mcol) {
-					/* we have vertex colors */
-					rgb0 = KX_Mcol2uint_new(mcol[0]);
-					rgb1 = KX_Mcol2uint_new(mcol[1]);
-					rgb2 = KX_Mcol2uint_new(mcol[2]);
-					
-					if (mface->v4)
-						rgb3 = KX_Mcol2uint_new(mcol[3]);
-				}
-				else {
-					/* no vertex colors, take from material, otherwise white */
-					unsigned int color = 0xFFFFFFFFL;
-
-					if (ma)
-					{
-						union
-						{
-							unsigned char cp[4];
-							unsigned int integer;
-						} col_converter;
-						
-						col_converter.cp[3] = (unsigned char) (ma->r*255.0);
-						col_converter.cp[2] = (unsigned char) (ma->g*255.0);
-						col_converter.cp[1] = (unsigned char) (ma->b*255.0);
-						col_converter.cp[0] = (unsigned char) (ma->alpha*255.0);
-						
-						color = col_converter.integer;
-					}
-
-					rgb0 = KX_rgbaint2uint_new(color);
-					rgb1 = KX_rgbaint2uint_new(color);
-					rgb2 = KX_rgbaint2uint_new(color);	
-					
-					if (mface->v4)
-						rgb3 = KX_rgbaint2uint_new(color);
-				}
-				
-				// only zsort alpha + add
-				bool alpha = (transp == TF_ALPHA || transp == TF_ADD);
-				bool zsort = (mode & TF_ALPHASORT)? alpha: 0;
-
-				if (kx_polymat == NULL)
-					kx_polymat = new KX_PolygonMaterial();
-				kx_polymat->Initialize(imastr, ma, (int)mface->mat_nr,
-					tile, tilexrep, tileyrep, 
-					mode, transp, alpha, zsort, lightlayer, tface, (unsigned int*)mcol);
-				polymat = static_cast<RAS_IPolyMaterial*>(kx_polymat);
-	
-				if (ma) {
-					polymat->m_specular = MT_Vector3(ma->specr, ma->specg, ma->specb)*ma->spec;
-					polymat->m_shininess = (float)ma->har/4.0f; // 0 < ma->har <= 512
-					polymat->m_diffuse = MT_Vector3(ma->r, ma->g, ma->b)*(ma->emit + ma->ref);
-				}
-				else {
-					polymat->m_specular.setValue(0.0f,0.0f,0.0f);
-					polymat->m_shininess = 35.0;
-				}
+				visible = true;
+				twoside = false;
+				collider = true;
 			}
 
 			/* mark face as flat, so vertices are split */
 			bool flat = (mface->flag & ME_SMOOTH) == 0;
-
-			// see if a bucket was reused or a new one was created
-			// this way only one KX_BlenderMaterial object has to exist per bucket
-			bool bucketCreated; 
-			RAS_MaterialBucket* bucket = scene->FindBucket(polymat, bucketCreated);
-			if (bucketCreated) {
-				// this is needed to free up memory afterwards
-				converter->RegisterPolyMaterial(polymat);
-				if(converter->GetMaterials()) {
-					converter->RegisterBlenderMaterial(bl_mat);
-					// the poly material has been stored in the bucket, next time we must create a new one
-					bl_mat = NULL;
-					kx_blmat = NULL;
-				} else {
-					// the poly material has been stored in the bucket, next time we must create a new one
-					kx_polymat = NULL;
-				}
-			} else {
-				// from now on, use the polygon material from the material bucket
-				polymat = bucket->GetPolyMaterial();
-				// keep the material pointers, they will be reused for next face
-			}
-						 
+				
 			int nverts = (mface->v4)? 4: 3;
+
 			RAS_Polygon *poly = meshobj->AddPolygon(bucket, nverts);
 
 			poly->SetVisible(visible);
@@ -1006,12 +1234,12 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 			poly->SetTwoside(twoside);
 			//poly->SetEdgeCode(mface->edcode);
 
-			meshobj->AddVertex(poly,0,pt0,uv0,uv20,tan0,rgb0,no0,flat,mface->v1);
-			meshobj->AddVertex(poly,1,pt1,uv1,uv21,tan1,rgb1,no1,flat,mface->v2);
-			meshobj->AddVertex(poly,2,pt2,uv2,uv22,tan2,rgb2,no2,flat,mface->v3);
+			meshobj->AddVertex(poly,0,pt[0],uvs[0],tan[0],rgb[0],no[0],flat,mface->v1);
+			meshobj->AddVertex(poly,1,pt[1],uvs[1],tan[1],rgb[1],no[1],flat,mface->v2);
+			meshobj->AddVertex(poly,2,pt[2],uvs[2],tan[2],rgb[2],no[2],flat,mface->v3);
 
 			if (nverts==4)
-				meshobj->AddVertex(poly,3,pt3,uv3,uv23,tan3,rgb3,no3,flat,mface->v4);
+				meshobj->AddVertex(poly,3,pt[3],uvs[3],tan[3],rgb[3],no[3],flat,mface->v4);
 		}
 
 		if (tface) 
@@ -1033,22 +1261,19 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, KX_Scene* scene, 
 	meshobj->EndConversion();
 
 	// pre calculate texture generation
-	for(list<RAS_MeshMaterial>::iterator mit = meshobj->GetFirstMaterial();
-		mit != meshobj->GetLastMaterial(); ++ mit) {
-		mit->m_bucket->GetPolyMaterial()->OnConstruction(lightlayer);
+	// However, we want to delay this if we're libloading so we can make sure we have the right scene.
+	if (!libloading) {
+		for (list<RAS_MeshMaterial>::iterator mit = meshobj->GetFirstMaterial();
+			mit != meshobj->GetLastMaterial(); ++ mit) {
+			mit->m_bucket->GetPolyMaterial()->OnConstruction();
+		}
 	}
 
 	if (layers)
 		delete []layers;
 	
 	dm->release(dm);
-	// cleanup material
-	if (bl_mat)
-		delete bl_mat;
-	if (kx_blmat)
-		delete kx_blmat;
-	if (kx_polymat)
-		delete kx_polymat;
+
 	converter->RegisterGameMesh(meshobj, mesh);
 	return meshobj;
 }
@@ -1061,7 +1286,7 @@ static PHY_MaterialProps *CreateMaterialFromBlenderObject(struct Object* blender
 	
 	MT_assert(materialProps && "Create physics material properties failed");
 		
-	Material* blendermat = give_current_material(blenderobject, 0);
+	Material* blendermat = give_current_material(blenderobject, 1);
 		
 	if (blendermat)
 	{
@@ -1105,8 +1330,8 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 	MT_assert(0.0f <= blenderobject->damping && blenderobject->damping <= 1.0f);
 	MT_assert(0.0f <= blenderobject->rdamping && blenderobject->rdamping <= 1.0f);
 	
-	shapeProps->m_lin_drag = 1.0 - blenderobject->damping;
-	shapeProps->m_ang_drag = 1.0 - blenderobject->rdamping;
+	shapeProps->m_lin_drag = 1.0f - blenderobject->damping;
+	shapeProps->m_ang_drag = 1.0f - blenderobject->rdamping;
 	
 	shapeProps->m_friction_scaling[0] = blenderobject->anisotropicFriction[0]; 
 	shapeProps->m_friction_scaling[1] = blenderobject->anisotropicFriction[1];
@@ -1119,6 +1344,11 @@ static PHY_ShapeProps *CreateShapePropsFromBlenderObject(struct Object* blendero
 //	velocity clamping XXX
 	shapeProps->m_clamp_vel_min = blenderobject->min_vel;
 	shapeProps->m_clamp_vel_max = blenderobject->max_vel;
+	
+//  Character physics properties
+	shapeProps->m_step_height = blenderobject->step_height;
+	shapeProps->m_jump_speed = blenderobject->jump_speed;
+	shapeProps->m_fall_speed = blenderobject->fall_speed;
 	
 	return shapeProps;
 }
@@ -1140,7 +1370,9 @@ static float my_boundbox_mesh(Mesh *me, float *loc, float *size)
 	float radius=0.0f, vert_radius, *co;
 	int a;
 	
-	if(me->bb==0) me->bb= (struct BoundBox *)MEM_callocN(sizeof(BoundBox), "boundbox");
+	if (me->bb==0) {
+		me->bb = BKE_boundbox_alloc_unit();
+	}
 	bb= me->bb;
 	
 	INIT_MINMAX(min, max);
@@ -1149,93 +1381,92 @@ static float my_boundbox_mesh(Mesh *me, float *loc, float *size)
 	if (!size) size= msize;
 	
 	mvert= me->mvert;
-	for(a=0; a<me->totvert; a++, mvert++) {
-		co= mvert->co;
+	for (a = 0; a<me->totvert; a++, mvert++) {
+		co = mvert->co;
 		
 		/* bounds */
-		DO_MINMAX(co, min, max);
+		minmax_v3v3_v3(min, max, co);
 		
 		/* radius */
-		vert_radius= co[0]*co[0] + co[1]*co[1] + co[2]*co[2];
+
+		vert_radius = len_squared_v3(co);
 		if (vert_radius > radius)
-			radius= vert_radius;
+			radius = vert_radius;
 	}
 		
-	if(me->totvert) {
-		loc[0]= (min[0]+max[0])/2.0f;
-		loc[1]= (min[1]+max[1])/2.0f;
-		loc[2]= (min[2]+max[2])/2.0f;
+	if (me->totvert) {
+		loc[0] = (min[0] + max[0]) / 2.0f;
+		loc[1] = (min[1] + max[1]) / 2.0f;
+		loc[2] = (min[2] + max[2]) / 2.0f;
 		
-		size[0]= (max[0]-min[0])/2.0f;
-		size[1]= (max[1]-min[1])/2.0f;
-		size[2]= (max[2]-min[2])/2.0f;
+		size[0] = (max[0] - min[0]) / 2.0f;
+		size[1] = (max[1] - min[1]) / 2.0f;
+		size[2] = (max[2] - min[2]) / 2.0f;
 	}
 	else {
-		loc[0]= loc[1]= loc[2]= 0.0f;
-		size[0]= size[1]= size[2]= 0.0f;
+		loc[0] = loc[1] = loc[2] = 0.0f;
+		size[0] = size[1] = size[2] = 0.0f;
 	}
 		
-	bb->vec[0][0]=bb->vec[1][0]=bb->vec[2][0]=bb->vec[3][0]= loc[0]-size[0];
-	bb->vec[4][0]=bb->vec[5][0]=bb->vec[6][0]=bb->vec[7][0]= loc[0]+size[0];
+	bb->vec[0][0] = bb->vec[1][0] = bb->vec[2][0] = bb->vec[3][0] = loc[0]-size[0];
+	bb->vec[4][0] = bb->vec[5][0] = bb->vec[6][0] = bb->vec[7][0] = loc[0]+size[0];
 		
-	bb->vec[0][1]=bb->vec[1][1]=bb->vec[4][1]=bb->vec[5][1]= loc[1]-size[1];
-	bb->vec[2][1]=bb->vec[3][1]=bb->vec[6][1]=bb->vec[7][1]= loc[1]+size[1];
+	bb->vec[0][1] = bb->vec[1][1] = bb->vec[4][1] = bb->vec[5][1] = loc[1]-size[1];
+	bb->vec[2][1] = bb->vec[3][1] = bb->vec[6][1] = bb->vec[7][1] = loc[1]+size[1];
 
-	bb->vec[0][2]=bb->vec[3][2]=bb->vec[4][2]=bb->vec[7][2]= loc[2]-size[2];
-	bb->vec[1][2]=bb->vec[2][2]=bb->vec[5][2]=bb->vec[6][2]= loc[2]+size[2];
+	bb->vec[0][2] = bb->vec[3][2] = bb->vec[4][2] = bb->vec[7][2] = loc[2]-size[2];
+	bb->vec[1][2] = bb->vec[2][2] = bb->vec[5][2] = bb->vec[6][2] = loc[2]+size[2];
 
 	return sqrt(radius);
 }
-		
-
 
 
 static void my_tex_space_mesh(Mesh *me)
-		{
+{
 	KeyBlock *kb;
 	float *fp, loc[3], size[3], min[3], max[3];
 	int a;
 
 	my_boundbox_mesh(me, loc, size);
 	
-	if(me->texflag & AUTOSPACE) {
-		if(me->key) {
+	if (me->texflag & ME_AUTOSPACE) {
+		if (me->key) {
 			kb= me->key->refkey;
 			if (kb) {
-	
+
 				INIT_MINMAX(min, max);
-		
+
 				fp= (float *)kb->data;
-				for(a=0; a<kb->totelem; a++, fp+=3) {	
-					DO_MINMAX(fp, min, max);
+				for (a=0; a<kb->totelem; a++, fp += 3) {
+					minmax_v3v3_v3(min, max, fp);
 				}
-				if(kb->totelem) {
-					loc[0]= (min[0]+max[0])/2.0f; loc[1]= (min[1]+max[1])/2.0f; loc[2]= (min[2]+max[2])/2.0f;
-					size[0]= (max[0]-min[0])/2.0f; size[1]= (max[1]-min[1])/2.0f; size[2]= (max[2]-min[2])/2.0f;
-	} 
-	else {
-					loc[0]= loc[1]= loc[2]= 0.0;
-					size[0]= size[1]= size[2]= 0.0;
+				if (kb->totelem) {
+					loc[0] = (min[0]+max[0])/2.0f; loc[1] = (min[1]+max[1])/2.0f; loc[2] = (min[2]+max[2])/2.0f;
+					size[0] = (max[0]-min[0])/2.0f; size[1] = (max[1]-min[1])/2.0f; size[2] = (max[2]-min[2])/2.0f;
+				}
+				else {
+					loc[0] = loc[1] = loc[2] = 0.0;
+					size[0] = size[1] = size[2] = 0.0;
 				}
 				
 			}
-				}
-	
-		VECCOPY(me->loc, loc);
-		VECCOPY(me->size, size);
-		me->rot[0]= me->rot[1]= me->rot[2]= 0.0f;
-	
-		if(me->size[0]==0.0) me->size[0]= 1.0f;
-		else if(me->size[0]>0.0 && me->size[0]< 0.00001f) me->size[0]= 0.00001f;
-		else if(me->size[0]<0.0 && me->size[0]> -0.00001f) me->size[0]= -0.00001f;
-	
-		if(me->size[1]==0.0) me->size[1]= 1.0f;
-		else if(me->size[1]>0.0 && me->size[1]< 0.00001f) me->size[1]= 0.00001f;
-		else if(me->size[1]<0.0 && me->size[1]> -0.00001f) me->size[1]= -0.00001f;
-						
-		if(me->size[2]==0.0) me->size[2]= 1.0f;
-		else if(me->size[2]>0.0 && me->size[2]< 0.00001f) me->size[2]= 0.00001f;
-		else if(me->size[2]<0.0 && me->size[2]> -0.00001f) me->size[2]= -0.00001f;
+		}
+
+		copy_v3_v3(me->loc, loc);
+		copy_v3_v3(me->size, size);
+		me->rot[0] = me->rot[1] = me->rot[2] = 0.0f;
+
+		if (me->size[0] == 0.0f) me->size[0] = 1.0f;
+		else if (me->size[0] > 0.0f && me->size[0]< 0.00001f) me->size[0] = 0.00001f;
+		else if (me->size[0] < 0.0f && me->size[0]> -0.00001f) me->size[0] = -0.00001f;
+
+		if (me->size[1] == 0.0f) me->size[1] = 1.0f;
+		else if (me->size[1] > 0.0f && me->size[1]< 0.00001f) me->size[1] = 0.00001f;
+		else if (me->size[1] < 0.0f && me->size[1]> -0.00001f) me->size[1] = -0.00001f;
+
+		if (me->size[2] == 0.0f) me->size[2] = 1.0f;
+		else if (me->size[2] > 0.0f && me->size[2]< 0.00001f) me->size[2] = 0.00001f;
+		else if (me->size[2] < 0.0f && me->size[2]> -0.00001f) me->size[2] = -0.00001f;
 	}
 	
 }
@@ -1252,18 +1483,18 @@ static void my_get_local_bounds(Object *ob, DerivedMesh *dm, float *center, floa
 				float min_r[3], max_r[3];
 				INIT_MINMAX(min_r, max_r);
 				dm->getMinMax(dm, min_r, max_r);
-				size[0]= 0.5f*fabsf(max_r[0] - min_r[0]);
-				size[1]= 0.5f*fabsf(max_r[1] - min_r[1]);
-				size[2]= 0.5f*fabsf(max_r[2] - min_r[2]);
+				size[0] = 0.5f * fabsf(max_r[0] - min_r[0]);
+				size[1] = 0.5f * fabsf(max_r[1] - min_r[1]);
+				size[2] = 0.5f * fabsf(max_r[2] - min_r[2]);
 					
-				center[0]= 0.5f*(max_r[0] + min_r[0]);
-				center[1]= 0.5f*(max_r[1] + min_r[1]);
-				center[2]= 0.5f*(max_r[2] + min_r[2]);
+				center[0] = 0.5f * (max_r[0] + min_r[0]);
+				center[1] = 0.5f * (max_r[1] + min_r[1]);
+				center[2] = 0.5f * (max_r[2] + min_r[2]);
 				return;
 			} else
 			{
 				bb= ( (Mesh *)ob->data )->bb;
-				if(bb==0) 
+				if (bb==0) 
 				{
 					my_tex_space_mesh((struct Mesh *)ob->data);
 					bb= ( (Mesh *)ob->data )->bb;
@@ -1272,11 +1503,11 @@ static void my_get_local_bounds(Object *ob, DerivedMesh *dm, float *center, floa
 			break;
 		case OB_CURVE:
 		case OB_SURF:
-			center[0]= center[1]= center[2]= 0.0;
+			center[0] = center[1] = center[2] = 0.0;
 			size[0]  = size[1]=size[2]=0.0;
 			break;
 		case OB_FONT:
-			center[0]= center[1]= center[2]= 0.0;
+			center[0] = center[1] = center[2] = 0.0;
 			size[0]  = size[1]=size[2]=1.0;
 			break;
 		case OB_MBALL:
@@ -1284,20 +1515,20 @@ static void my_get_local_bounds(Object *ob, DerivedMesh *dm, float *center, floa
 			break;
 	}
 	
-	if(bb==NULL) 
+	if (bb==NULL) 
 	{
-		center[0]= center[1]= center[2]= 0.0;
-		size[0] = size[1]=size[2]=1.0;
+		center[0] = center[1] = center[2] = 0.0;
+		size[0] = size[1] = size[2] = 1.0;
 	}
 	else 
 	{
-		size[0]= 0.5f*fabs(bb->vec[0][0] - bb->vec[4][0]);
-		size[1]= 0.5f*fabs(bb->vec[0][1] - bb->vec[2][1]);
-		size[2]= 0.5f*fabs(bb->vec[0][2] - bb->vec[1][2]);
-					
-		center[0]= 0.5f*(bb->vec[0][0] + bb->vec[4][0]);
-		center[1]= 0.5f*(bb->vec[0][1] + bb->vec[2][1]);
-		center[2]= 0.5f*(bb->vec[0][2] + bb->vec[1][2]);
+		size[0] = 0.5f * fabsf(bb->vec[0][0] - bb->vec[4][0]);
+		size[1] = 0.5f * fabsf(bb->vec[0][1] - bb->vec[2][1]);
+		size[2] = 0.5f * fabsf(bb->vec[0][2] - bb->vec[1][2]);
+
+		center[0] = 0.5f * (bb->vec[0][0] + bb->vec[4][0]);
+		center[1] = 0.5f * (bb->vec[0][1] + bb->vec[2][1]);
+		center[2] = 0.5f * (bb->vec[0][2] + bb->vec[1][2]);
 	}
 }
 	
@@ -1307,18 +1538,18 @@ static void my_get_local_bounds(Object *ob, DerivedMesh *dm, float *center, floa
 //////////////////////////////////////////////////////
 
 
-void BL_CreateGraphicObjectNew(KX_GameObject* gameobj,
-							   const MT_Point3& localAabbMin,
-							   const MT_Point3& localAabbMax,
-							   KX_Scene* kxscene,
-							   bool isActive,
-							   e_PhysicsEngine physics_engine)
+static void BL_CreateGraphicObjectNew(KX_GameObject* gameobj,
+                                      const MT_Point3& localAabbMin,
+                                      const MT_Point3& localAabbMax,
+                                      KX_Scene* kxscene,
+                                      bool isActive,
+                                      e_PhysicsEngine physics_engine)
 {
-	if (gameobj->GetMeshCount() > 0) 
+	if (gameobj->GetMeshCount() > 0)
 	{
 		switch (physics_engine)
 		{
-#ifdef USE_BULLET
+#ifdef WITH_BULLET
 		case UseBullet:
 			{
 				CcdPhysicsEnvironment* env = (CcdPhysicsEnvironment*)kxscene->GetPhysicsEnvironment();
@@ -1346,28 +1577,36 @@ void BL_CreateGraphicObjectNew(KX_GameObject* gameobj,
 	}
 }
 
-void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
-						 struct Object* blenderobject,
-						 RAS_MeshObject* meshobj,
-						 KX_Scene* kxscene,
-						 int activeLayerBitInfo,
-						 e_PhysicsEngine	physics_engine,
-						 KX_BlenderSceneConverter *converter,
-						 bool processCompoundChildren
-						 )
-					
+static void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
+                                      struct Object* blenderobject,
+                                      RAS_MeshObject* meshobj,
+                                      KX_Scene* kxscene,
+                                      int activeLayerBitInfo,
+                                      e_PhysicsEngine	physics_engine,
+                                      KX_BlenderSceneConverter *converter,
+                                      bool processCompoundChildren
+                                      )
+
 {
 	//SYS_SystemHandle syshandle = SYS_GetSystem(); /*unused*/
 	//int userigidbody = SYS_GetCommandLineInt(syshandle,"norigidbody",0);
 	//bool bRigidBody = (userigidbody == 0);
 
 	// object has physics representation?
-	if (!(blenderobject->gameflag & OB_COLLISION))
+	if (!(blenderobject->gameflag & OB_COLLISION)) {
+		// Respond to all collisions so that Near sensors work on No Collision
+		// objects.
+		gameobj->SetUserCollisionGroup(0xff);
+		gameobj->SetUserCollisionMask(0xff);
 		return;
+	}
+
+	gameobj->SetUserCollisionGroup(blenderobject->col_group);
+	gameobj->SetUserCollisionMask(blenderobject->col_mask);
 
 	// get Root Parent of blenderobject
 	struct Object* parent= blenderobject->parent;
-	while(parent && parent->parent) {
+	while (parent && parent->parent) {
 		parent= parent->parent;
 	}
 
@@ -1411,6 +1650,7 @@ void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	objprop.m_dyna = (blenderobject->gameflag & OB_DYNAMIC) != 0;
 	objprop.m_softbody = (blenderobject->gameflag & OB_SOFT_BODY) != 0;
 	objprop.m_angular_rigidbody = (blenderobject->gameflag & OB_RIGID_BODY) != 0;
+	objprop.m_character = (blenderobject->gameflag & OB_CHARACTER) != 0;
 	
 	///contact processing threshold is only for rigid bodies and static geometry, not 'dynamic'
 	if (objprop.m_angular_rigidbody || !objprop.m_dyna )
@@ -1465,14 +1705,14 @@ void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 			objprop.m_soft_numclusteriterations= blenderobject->bsoft->numclusteriterations;	/* number of iterations to refine collision clusters*/
 			//objprop.m_soft_welding = blenderobject->bsoft->welding;		/* welding */
 			/* disable welding: it doesn't bring any additional stability and it breaks the relation between soft body collision shape and graphic mesh */
-			objprop.m_soft_welding = 0.f;		
+			objprop.m_soft_welding = 0.f;
 			objprop.m_margin = blenderobject->bsoft->margin;
 			objprop.m_contactProcessingThreshold = 0.f;
 		} else
 		{
 			objprop.m_gamesoftFlag = OB_BSB_BENDING_CONSTRAINTS | OB_BSB_SHAPE_MATCHING | OB_BSB_AERO_VPOINT;
 			
-			objprop.m_soft_linStiff = 0.5;;
+			objprop.m_soft_linStiff = 0.5;
 			objprop.m_soft_angStiff = 1.f;		/* angular stiffness 0..1 */
 			objprop.m_soft_volume= 1.f;			/* volume preservation 0..1 */
 
@@ -1527,6 +1767,11 @@ void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 		objprop.m_boundclass = KX_BOUNDMESH;
 	}
 
+	if ((blenderobject->gameflag & OB_CHARACTER) && !(blenderobject->gameflag & OB_BOUNDS))
+	{
+		objprop.m_boundclass = KX_BOUNDSPHERE;
+	}
+
 	KX_BoxBounds bb;
 	DerivedMesh* dm = NULL;
 	if (gameobj->GetDeformer())
@@ -1534,7 +1779,7 @@ void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	my_get_local_bounds(blenderobject,dm,objprop.m_boundobject.box.m_center,bb.m_extends);
 	if (blenderobject->gameflag & OB_BOUNDS)
 	{
-		switch (blenderobject->boundtype)
+		switch (blenderobject->collision_boundtype)
 		{
 			case OB_BOUND_BOX:
 				objprop.m_boundclass = KX_BOUNDBOX;
@@ -1543,15 +1788,15 @@ void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 				objprop.m_boundobject.box.m_extends[1]=2.f*bb.m_extends[1];
 				objprop.m_boundobject.box.m_extends[2]=2.f*bb.m_extends[2];
 				break;
-			case OB_BOUND_POLYT:
+			case OB_BOUND_CONVEX_HULL:
 				if (blenderobject->type == OB_MESH)
 				{
 					objprop.m_boundclass = KX_BOUNDPOLYTOPE;
 					break;
 				}
-				// Object is not a mesh... fall through OB_BOUND_POLYH to 
+				// Object is not a mesh... fall through OB_BOUND_TRIANGLE_MESH to
 				// OB_BOUND_SPHERE
-			case OB_BOUND_POLYH:
+			case OB_BOUND_TRIANGLE_MESH:
 				if (blenderobject->type == OB_MESH)
 				{
 					objprop.m_boundclass = KX_BOUNDMESH;
@@ -1603,20 +1848,16 @@ void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 	}
 
 	
-	objprop.m_concave = (blenderobject->boundtype & 4) != 0;
+	objprop.m_concave = (blenderobject->collision_boundtype == OB_BOUND_TRIANGLE_MESH);
 	
 	switch (physics_engine)
 	{
-#ifdef USE_BULLET
+#ifdef WITH_BULLET
 		case UseBullet:
 			KX_ConvertBulletObject(gameobj, meshobj, dm, kxscene, shapeprops, smmaterial, &objprop);
 			break;
 
 #endif
-		case UseDynamo:
-			//KX_ConvertDynamoObject(gameobj,meshobj,kxscene,shapeprops,	smmaterial,	&objprop);
-			break;
-			
 		case UseNone:
 		default:
 			break;
@@ -1633,7 +1874,8 @@ void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 
 
 
-static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_IRenderTools *rendertools, KX_BlenderSceneConverter *converter) {
+static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_IRenderTools *rendertools, KX_BlenderSceneConverter *converter)
+{
 	RAS_LightObject lightobj;
 	KX_LightObject *gamelight;
 	
@@ -1654,7 +1896,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	bool glslmat = converter->GetGLSLMaterials();
 
 	// in GLSL NEGATIVE LAMP is handled inside the lamp update function
-	if(glslmat==0) {
+	if (glslmat==0) {
 		if (la->mode & LA_NEG)
 		{
 			lightobj.m_red = -lightobj.m_red;
@@ -1673,21 +1915,18 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 
 	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rendertools,
 		lightobj, glslmat);
-
-	BL_ConvertLampIpos(la, gamelight, converter);
 	
 	return gamelight;
 }
 
-static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, KX_BlenderSceneConverter *converter) {
+static KX_Camera *gamecamera_from_bcamera(Object *ob, KX_Scene *kxscene, KX_BlenderSceneConverter *converter)
+{
 	Camera* ca = static_cast<Camera*>(ob->data);
-	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
+	RAS_CameraData camdata(ca->lens, ca->ortho_scale, ca->sensor_x, ca->sensor_y, ca->sensor_fit, ca->clipsta, ca->clipend, ca->type == CAM_PERSP, ca->YF_dofdist);
 	KX_Camera *gamecamera;
 	
 	gamecamera= new KX_Camera(kxscene, KX_Scene::m_callbacks, camdata);
 	gamecamera->SetName(ca->id.name + 2);
-	
-	BL_ConvertCameraIpos(ca, gamecamera, converter);
 	
 	return gamecamera;
 }
@@ -1696,19 +1935,23 @@ static KX_GameObject *gameobject_from_blenderobject(
 								Object *ob, 
 								KX_Scene *kxscene, 
 								RAS_IRenderTools *rendertools, 
-								KX_BlenderSceneConverter *converter) 
+								KX_BlenderSceneConverter *converter,
+								bool libloading) 
 {
 	KX_GameObject *gameobj = NULL;
+	Scene *blenderscene = kxscene->GetBlenderScene();
 	
-	switch(ob->type)
-	{
+	switch (ob->type) {
 	case OB_LAMP:
 	{
-		KX_LightObject* gamelight= gamelight_from_blamp(ob, static_cast<Lamp*>(ob->data), ob->lay, kxscene, rendertools, converter);
+		KX_LightObject* gamelight = gamelight_from_blamp(ob, static_cast<Lamp*>(ob->data), ob->lay, kxscene, rendertools, converter);
 		gameobj = gamelight;
 		
-		gamelight->AddRef();
-		kxscene->GetLightList()->Add(gamelight);
+		if (blenderscene->lay & ob->lay)
+		{
+			gamelight->AddRef();
+			kxscene->GetLightList()->Add(gamelight);
+		}
 
 		break;
 	}
@@ -1730,11 +1973,18 @@ static KX_GameObject *gameobject_from_blenderobject(
 		Mesh* mesh = static_cast<Mesh*>(ob->data);
 		float center[3], extents[3];
 		float radius = my_boundbox_mesh((Mesh*) ob->data, center, extents);
-		RAS_MeshObject* meshobj = BL_ConvertMesh(mesh,ob,kxscene,converter);
+		RAS_MeshObject* meshobj = BL_ConvertMesh(mesh,ob,kxscene,converter, libloading);
 		
 		// needed for python scripting
 		kxscene->GetLogicManager()->RegisterMeshName(meshobj->GetName(),meshobj);
-	
+
+		if (ob->gameflag & OB_NAVMESH)
+		{
+			gameobj = new KX_NavMeshObject(kxscene,KX_Scene::m_callbacks);
+			gameobj->AddMesh(meshobj);
+			break;
+		}
+
 		gameobj = new BL_DeformableGameObject(ob,kxscene,KX_Scene::m_callbacks);
 	
 		// set transformation
@@ -1746,6 +1996,22 @@ static KX_GameObject *gameobject_from_blenderobject(
 			((ob->gameflag2 & OB_NEVER_DO_ACTIVITY_CULLING)!=0);
 		gameobj->SetIgnoreActivityCulling(ignoreActivityCulling);
 		gameobj->SetOccluder((ob->gameflag & OB_OCCLUDER) != 0, false);
+
+		// we only want obcolor used if there is a material in the mesh
+		// that requires it
+		Material *mat= NULL;
+		bool bUseObjectColor=false;
+		
+		for (int i=0;i<mesh->totcol;i++) {
+			mat=mesh->mat[i];
+			if (!mat) break;
+			if ((mat->shade_flag & MA_OBCOLOR)) {
+				bUseObjectColor = true;
+				break;
+			}
+		}
+		if (bUseObjectColor)
+			gameobj->SetObjectColor(ob->col);
 	
 		// two options exists for deform: shape keys and armature
 		// only support relative shape key
@@ -1753,7 +2019,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		bool bHasDvert = mesh->dvert != NULL && ob->defbase.first;
 		bool bHasArmature = (BL_ModifierDeformer::HasArmatureDeformer(ob) && ob->parent && ob->parent->type == OB_ARMATURE && bHasDvert);
 		bool bHasModifier = BL_ModifierDeformer::HasCompatibleDeformer(ob);
-#ifdef USE_BULLET
+#ifdef WITH_BULLET
 		bool bHasSoftBody = (!ob->parent && (ob->gameflag & OB_SOFT_BODY));
 #endif
 		if (bHasModifier) {
@@ -1780,7 +2046,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 			BL_MeshDeformer *dcont = new BL_MeshDeformer((BL_DeformableGameObject*)gameobj,
 														  ob, meshobj);
 			((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
-#ifdef USE_BULLET
+#ifdef WITH_BULLET
 		} else if (bHasSoftBody) {
 			KX_SoftBodyDeformer *dcont = new KX_SoftBodyDeformer(meshobj, (BL_DeformableGameObject*)gameobj);
 			((BL_DeformableGameObject*)gameobj)->SetDeformer(dcont);
@@ -1798,11 +2064,13 @@ static KX_GameObject *gameobject_from_blenderobject(
 	
 	case OB_ARMATURE:
 	{
+		bArmature *arm = (bArmature*)ob->data;
 		gameobj = new BL_ArmatureObject(
 			kxscene,
 			KX_Scene::m_callbacks,
 			ob,
-			kxscene->GetBlenderScene() // handle
+			kxscene->GetBlenderScene(), // handle
+			arm->gevertdeformer
 		);
 		/* Get the current pose from the armature object and apply it as the rest pose */
 		break;
@@ -1821,7 +2089,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		gameobj = new KX_FontObject(kxscene,KX_Scene::m_callbacks, rendertools, ob);
 
 		/* add to the list only the visible fonts */
-		if((ob->lay & kxscene->GetBlenderScene()->lay) != 0)
+		if ((ob->lay & kxscene->GetBlenderScene()->lay) != 0)
 			kxscene->AddFont(static_cast<KX_FontObject*>(gameobj));
 		break;
 	}
@@ -1832,7 +2100,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		gameobj->SetLayer(ob->lay);
 		gameobj->SetBlenderObject(ob);
 		/* set the visibility state based on the objects render option in the outliner */
-		if(ob->restrictflag & OB_RESTRICT_RENDER) gameobj->SetVisible(0, 0);
+		if (ob->restrictflag & OB_RESTRICT_RENDER) gameobj->SetVisible(0, 0);
 	}
 	return gameobj;
 }
@@ -1845,21 +2113,21 @@ struct parentChildLink {
 #include "DNA_constraint_types.h"
 //XXX #include "BIF_editconstraint.h"
 
-bPoseChannel *get_active_posechannel2 (Object *ob)
+static bPoseChannel *get_active_posechannel2(Object *ob)
 {
 	bArmature *arm= (bArmature*)ob->data;
 	bPoseChannel *pchan;
 	
 	/* find active */
-	for(pchan= (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan= pchan->next) {
-		if(pchan->bone && (pchan->bone == arm->act_bone) && (pchan->bone->layer & arm->layer))
+	for (pchan= (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan= pchan->next) {
+		if (pchan->bone && (pchan->bone == arm->act_bone) && (pchan->bone->layer & arm->layer))
 			return pchan;
 	}
 	
 	return NULL;
 }
 
-ListBase *get_active_constraints2(Object *ob)
+static ListBase *get_active_constraints2(Object *ob)
 {
 	if (!ob)
 		return NULL;
@@ -1878,8 +2146,7 @@ ListBase *get_active_constraints2(Object *ob)
 	return NULL;
 }
 
-
-void RBJconstraints(Object *ob)//not used
+static void UNUSED_FUNCTION(RBJconstraints)(Object *ob)//not used
 {
 	ListBase *conlist;
 	bConstraint *curcon;
@@ -1887,7 +2154,7 @@ void RBJconstraints(Object *ob)//not used
 	conlist = get_active_constraints2(ob);
 
 	if (conlist) {
-		for (curcon = (bConstraint *)conlist->first; curcon; curcon=(bConstraint *)curcon->next) {
+		for (curcon = (bConstraint *)conlist->first; curcon; curcon = (bConstraint *)curcon->next) {
 
 			printf("%i\n",curcon->type);
 		}
@@ -1900,31 +2167,191 @@ void RBJconstraints(Object *ob)//not used
 #include "KX_IPhysicsController.h"
 #include "PHY_DynamicTypes.h"
 
-KX_IPhysicsController* getPhId(CListValue* sumolist,STR_String busc){//not used
+#if 0  /* UNUSED */
+static KX_IPhysicsController* getPhId(CListValue* sumolist,STR_String busc) {//not used
 
-    for (int j=0;j<sumolist->GetCount();j++)
+	for (int j=0;j<sumolist->GetCount();j++)
 	{
-	    KX_GameObject* gameobje = (KX_GameObject*) sumolist->GetValue(j);
-	    if (gameobje->GetName()==busc)
-            return gameobje->GetPhysicsController();
+		KX_GameObject* gameobje = (KX_GameObject*) sumolist->GetValue(j);
+		if (gameobje->GetName()==busc)
+			return gameobje->GetPhysicsController();
 	}
 
 	return 0;
-
 }
+#endif
 
-KX_GameObject* getGameOb(STR_String busc,CListValue* sumolist){
+static KX_GameObject* getGameOb(STR_String busc,CListValue* sumolist)
+{
 
-    for (int j=0;j<sumolist->GetCount();j++)
+	for (int j=0;j<sumolist->GetCount();j++)
 	{
-	    KX_GameObject* gameobje = (KX_GameObject*) sumolist->GetValue(j);
-	    if (gameobje->GetName()==busc)
-            return gameobje;
+		KX_GameObject* gameobje = (KX_GameObject*) sumolist->GetValue(j);
+		if (gameobje->GetName()==busc)
+			return gameobje;
 	}
 	
 	return 0;
 
 }
+
+/* helper for BL_ConvertBlenderObjects, avoids code duplication
+ * note: all var names match args are passed from the caller */
+static void bl_ConvertBlenderObject_Single(
+        KX_BlenderSceneConverter *converter,
+        Scene *blenderscene, Object *blenderobject,
+        vector<MT_Vector3> &inivel, vector<MT_Vector3> &iniang,
+        vector<parentChildLink> &vec_parent_child,
+        CListValue* logicbrick_conversionlist,
+        CListValue* objectlist, CListValue* inactivelist, CListValue*	sumolist,
+        KX_Scene* kxscene, KX_GameObject* gameobj,
+        SCA_LogicManager* logicmgr, SCA_TimeEventManager* timemgr,
+        bool isInActiveLayer
+        )
+{
+	MT_Point3 posPrev;
+	MT_Matrix3x3 angor;
+	if (converter->addInitFromFrame) blenderscene->r.cfra=blenderscene->r.sfra;
+
+	MT_Point3 pos(
+		blenderobject->loc[0]+blenderobject->dloc[0],
+		blenderobject->loc[1]+blenderobject->dloc[1],
+		blenderobject->loc[2]+blenderobject->dloc[2]
+	);
+
+	MT_Matrix3x3 rotation;
+	float rotmat[3][3];
+	BKE_object_rot_to_mat3(blenderobject, rotmat, FALSE);
+	rotation.setValue3x3((float*)rotmat);
+
+	MT_Vector3 scale(blenderobject->size);
+
+	if (converter->addInitFromFrame) {//rcruiz
+		blenderscene->r.cfra=blenderscene->r.sfra-1;
+		//XXX update_for_newframe();
+		MT_Vector3 tmp=pos-MT_Point3(blenderobject->loc[0]+blenderobject->dloc[0],
+		                             blenderobject->loc[1]+blenderobject->dloc[1],
+		                             blenderobject->loc[2]+blenderobject->dloc[2]
+		                             );
+
+		float rotmatPrev[3][3];
+		BKE_object_rot_to_mat3(blenderobject, rotmatPrev, FALSE);
+
+		float eulxyz[3], eulxyzPrev[3];
+		mat3_to_eul(eulxyz, rotmat);
+		mat3_to_eul(eulxyzPrev, rotmatPrev);
+
+		double fps = (double) blenderscene->r.frs_sec/
+		        (double) blenderscene->r.frs_sec_base;
+
+		tmp.scale(fps, fps, fps);
+		inivel.push_back(tmp);
+		tmp[0]=eulxyz[0]-eulxyzPrev[0];
+		tmp[1]=eulxyz[1]-eulxyzPrev[1];
+		tmp[2]=eulxyz[2]-eulxyzPrev[2];
+		tmp.scale(fps, fps, fps);
+		iniang.push_back(tmp);
+		blenderscene->r.cfra=blenderscene->r.sfra;
+		//XXX update_for_newframe();
+	}
+
+	gameobj->NodeSetLocalPosition(pos);
+	gameobj->NodeSetLocalOrientation(rotation);
+	gameobj->NodeSetLocalScale(scale);
+	gameobj->NodeUpdateGS(0);
+
+	sumolist->Add(gameobj->AddRef());
+
+	BL_ConvertProperties(blenderobject,gameobj,timemgr,kxscene,isInActiveLayer);
+
+	gameobj->SetName(blenderobject->id.name + 2);
+
+	// update children/parent hierarchy
+	if ((blenderobject->parent != 0)&&(!converter->addInitFromFrame))
+	{
+		// blender has an additional 'parentinverse' offset in each object
+		SG_Callbacks callback(NULL,NULL,NULL,KX_Scene::KX_ScenegraphUpdateFunc,KX_Scene::KX_ScenegraphRescheduleFunc);
+		SG_Node* parentinversenode = new SG_Node(NULL,kxscene,callback);
+
+		// define a normal parent relationship for this node.
+		KX_NormalParentRelation * parent_relation = KX_NormalParentRelation::New();
+		parentinversenode->SetParentRelation(parent_relation);
+
+		parentChildLink pclink;
+		pclink.m_blenderchild = blenderobject;
+		pclink.m_gamechildnode = parentinversenode;
+		vec_parent_child.push_back(pclink);
+
+		float* fl = (float*) blenderobject->parentinv;
+		MT_Transform parinvtrans(fl);
+		parentinversenode->SetLocalPosition(parinvtrans.getOrigin());
+		// problem here: the parent inverse transform combines scaling and rotation
+		// in the basis but the scenegraph needs separate rotation and scaling.
+		// This is not important for OpenGL (it uses 4x4 matrix) but it is important
+		// for the physic engine that needs a separate scaling
+		//parentinversenode->SetLocalOrientation(parinvtrans.getBasis());
+
+		// Extract the rotation and the scaling from the basis
+		MT_Matrix3x3 ori(parinvtrans.getBasis());
+		MT_Vector3 x(ori.getColumn(0));
+		MT_Vector3 y(ori.getColumn(1));
+		MT_Vector3 z(ori.getColumn(2));
+		MT_Vector3 parscale(x.length(), y.length(), z.length());
+		if (!MT_fuzzyZero(parscale[0]))
+			x /= parscale[0];
+		if (!MT_fuzzyZero(parscale[1]))
+			y /= parscale[1];
+		if (!MT_fuzzyZero(parscale[2]))
+			z /= parscale[2];
+		ori.setColumn(0, x);
+		ori.setColumn(1, y);
+		ori.setColumn(2, z);
+		parentinversenode->SetLocalOrientation(ori);
+		parentinversenode->SetLocalScale(parscale);
+
+		parentinversenode->AddChild(gameobj->GetSGNode());
+	}
+
+	// needed for python scripting
+	logicmgr->RegisterGameObjectName(gameobj->GetName(),gameobj);
+
+	// needed for group duplication
+	logicmgr->RegisterGameObj(blenderobject, gameobj);
+	for (int i = 0; i < gameobj->GetMeshCount(); i++)
+		logicmgr->RegisterGameMeshName(gameobj->GetMesh(i)->GetName(), blenderobject);
+
+	converter->RegisterGameObject(gameobj, blenderobject);
+	// this was put in rapidly, needs to be looked at more closely
+	// only draw/use objects in active 'blender' layers
+
+	logicbrick_conversionlist->Add(gameobj->AddRef());
+
+	if (converter->addInitFromFrame) {
+		posPrev=gameobj->NodeGetWorldPosition();
+		angor=gameobj->NodeGetWorldOrientation();
+	}
+	if (isInActiveLayer)
+	{
+		objectlist->Add(gameobj->AddRef());
+		//tf.Add(gameobj->GetSGNode());
+
+		gameobj->NodeUpdateGS(0);
+		gameobj->AddMeshUser();
+
+	}
+	else
+	{
+		//we must store this object otherwise it will be deleted
+		//at the end of this function if it is not a root object
+		inactivelist->Add(gameobj->AddRef());
+	}
+
+	if (converter->addInitFromFrame) {
+		gameobj->NodeSetLocalPosition(posPrev);
+		gameobj->NodeSetLocalOrientation(angor);
+	}
+}
+
 
 // convert blender objects into ketsji gameobjects
 void BL_ConvertBlenderObjects(struct Main* maggie,
@@ -1934,9 +2361,24 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							  RAS_IRenderTools* rendertools,
 							  RAS_ICanvas* canvas,
 							  KX_BlenderSceneConverter* converter,
-							  bool alwaysUseExpandFraming
+							  bool alwaysUseExpandFraming,
+							  bool libloading
 							  )
-{	
+{
+
+#define BL_CONVERTBLENDEROBJECT_SINGLE                                 \
+	bl_ConvertBlenderObject_Single(converter,                          \
+	                               blenderscene, blenderobject,        \
+	                               inivel, iniang,                     \
+	                               vec_parent_child,                   \
+	                               logicbrick_conversionlist,          \
+	                               objectlist, inactivelist, sumolist, \
+	                               kxscene, gameobj,                   \
+	                               logicmgr, timemgr,                  \
+	                               isInActiveLayer                     \
+	                               )
+
+
 
 	Scene *blenderscene = kxscene->GetBlenderScene();
 	// for SETLOOPER
@@ -1954,6 +2396,10 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	set<Object*> allblobj;	// all objects converted
 	set<Object*> groupobj;	// objects from groups (never in active layer)
 
+	// This is bad, but we use this to make sure the first time this is called
+	// is not in a separate thread.
+	BL_Texture::GetMaxUnits();
+
 	if (alwaysUseExpandFraming) {
 		frame_type = RAS_FrameSettings::e_frame_extend;
 		aspect_width = canvas->GetWidth();
@@ -1967,8 +2413,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			frame_type = RAS_FrameSettings::e_frame_scale;
 		}
 		
-		aspect_width = blenderscene->gm.xsch;
-		aspect_height = blenderscene->gm.ysch;
+		aspect_width  = (int)(blenderscene->r.xsch * blenderscene->r.xasp);
+		aspect_height = (int)(blenderscene->r.ysch * blenderscene->r.yasp);
 	}
 	
 	RAS_FrameSettings frame_settings(
@@ -2016,7 +2462,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		logicmgr->RegisterActionName(curAct->id.name + 2, curAct);
 	}
 
-	SetDefaultFaceType(blenderscene);
+	SetDefaultLightMode(blenderscene);
 	// Let's support scene set.
 	// Beware of name conflict in linked data, it will not crash but will create confusion
 	// in Python scripting and in certain actuators (replace mesh). Linked scene *should* have
@@ -2030,7 +2476,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 										base->object, 
 										kxscene, 
 										rendertools, 
-										converter);
+										converter,
+										libloading);
 										
 		bool isInActiveLayer = (blenderobject->lay & activeLayerBitInfo) !=0;
 		bool addobj=true;
@@ -2039,156 +2486,27 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			if (!isInActiveLayer)
 				addobj=false;
 
-		if (gameobj&&addobj)
-		{
-			MT_Point3 posPrev;			
-			MT_Matrix3x3 angor;			
-			if (converter->addInitFromFrame) blenderscene->r.cfra=blenderscene->r.sfra;
-			
-			MT_Point3 pos;
-			pos.setValue(
-				blenderobject->loc[0]+blenderobject->dloc[0],
-				blenderobject->loc[1]+blenderobject->dloc[1],
-				blenderobject->loc[2]+blenderobject->dloc[2]
-			);
-			MT_Vector3 eulxyz(blenderobject->rot);
-			MT_Vector3 scale(blenderobject->size);
-			if (converter->addInitFromFrame){//rcruiz
-				float eulxyzPrev[3];
-				blenderscene->r.cfra=blenderscene->r.sfra-1;
-				//XXX update_for_newframe();
-				MT_Vector3 tmp=pos-MT_Point3(blenderobject->loc[0]+blenderobject->dloc[0],
-											blenderobject->loc[1]+blenderobject->dloc[1],
-											blenderobject->loc[2]+blenderobject->dloc[2]
-									);
-				eulxyzPrev[0]=blenderobject->rot[0];
-				eulxyzPrev[1]=blenderobject->rot[1];
-				eulxyzPrev[2]=blenderobject->rot[2];
-
-				double fps = (double) blenderscene->r.frs_sec/
-					(double) blenderscene->r.frs_sec_base;
-
-				tmp.scale(fps, fps, fps);
-				inivel.push_back(tmp);
-				tmp=eulxyz-eulxyzPrev;
-				tmp.scale(fps, fps, fps);
-				iniang.push_back(tmp);
-				blenderscene->r.cfra=blenderscene->r.sfra;
-				//XXX update_for_newframe();
-			}		
-						
-			gameobj->NodeSetLocalPosition(pos);
-			gameobj->NodeSetLocalOrientation(MT_Matrix3x3(eulxyz));
-			gameobj->NodeSetLocalScale(scale);
-			gameobj->NodeUpdateGS(0);
-			
-			BL_ConvertIpos(blenderobject,gameobj,converter);
-			BL_ConvertMaterialIpos(blenderobject, gameobj, converter);
-			
-			sumolist->Add(gameobj->AddRef());
-			
-			BL_ConvertProperties(blenderobject,gameobj,timemgr,kxscene,isInActiveLayer);
-			
-			gameobj->SetName(blenderobject->id.name + 2);
-	
-			// update children/parent hierarchy
-			if ((blenderobject->parent != 0)&&(!converter->addInitFromFrame))
-			{
-				// blender has an additional 'parentinverse' offset in each object
-				SG_Callbacks callback(NULL,NULL,NULL,KX_Scene::KX_ScenegraphUpdateFunc,KX_Scene::KX_ScenegraphRescheduleFunc);
-				SG_Node* parentinversenode = new SG_Node(NULL,kxscene,callback);
-			
-				// define a normal parent relationship for this node.
-				KX_NormalParentRelation * parent_relation = KX_NormalParentRelation::New();
-				parentinversenode->SetParentRelation(parent_relation);
-	
-				parentChildLink pclink;
-				pclink.m_blenderchild = blenderobject;
-				pclink.m_gamechildnode = parentinversenode;
-				vec_parent_child.push_back(pclink);
-
-				float* fl = (float*) blenderobject->parentinv;
-				MT_Transform parinvtrans(fl);
-				parentinversenode->SetLocalPosition(parinvtrans.getOrigin());
-				// problem here: the parent inverse transform combines scaling and rotation 
-				// in the basis but the scenegraph needs separate rotation and scaling.
-				// This is not important for OpenGL (it uses 4x4 matrix) but it is important
-				// for the physic engine that needs a separate scaling
-				//parentinversenode->SetLocalOrientation(parinvtrans.getBasis());
-
-				// Extract the rotation and the scaling from the basis
-				MT_Matrix3x3 ori(parinvtrans.getBasis());
-				MT_Vector3 x(ori.getColumn(0));
-				MT_Vector3 y(ori.getColumn(1));
-				MT_Vector3 z(ori.getColumn(2));
-				MT_Vector3 parscale(x.length(), y.length(), z.length());
-				if (!MT_fuzzyZero(parscale[0]))
-					x /= parscale[0];
-				if (!MT_fuzzyZero(parscale[1]))
-					y /= parscale[1];
-				if (!MT_fuzzyZero(parscale[2]))
-					z /= parscale[2];
-				ori.setColumn(0, x);								
-				ori.setColumn(1, y);								
-				ori.setColumn(2, z);								
-				parentinversenode->SetLocalOrientation(ori);
-				parentinversenode->SetLocalScale(parscale);
-				
-				parentinversenode->AddChild(gameobj->GetSGNode());
-			}
-			
-			// needed for python scripting
-			logicmgr->RegisterGameObjectName(gameobj->GetName(),gameobj);
-
-			// needed for group duplication
-			logicmgr->RegisterGameObj(blenderobject, gameobj);
-			for (int i = 0; i < gameobj->GetMeshCount(); i++)
-				logicmgr->RegisterGameMeshName(gameobj->GetMesh(i)->GetName(), blenderobject);
-	
-			converter->RegisterGameObject(gameobj, blenderobject);	
-			// this was put in rapidly, needs to be looked at more closely
-			// only draw/use objects in active 'blender' layers
-	
-			logicbrick_conversionlist->Add(gameobj->AddRef());
-			
-			if (converter->addInitFromFrame){
-				posPrev=gameobj->NodeGetWorldPosition();
-				angor=gameobj->NodeGetWorldOrientation();
-			}
-			if (isInActiveLayer)
-			{
-				objectlist->Add(gameobj->AddRef());
-				//tf.Add(gameobj->GetSGNode());
-				
-				gameobj->NodeUpdateGS(0);
-				gameobj->AddMeshUser();
-		
-			}
-			else
-			{
-				//we must store this object otherwise it will be deleted 
-				//at the end of this function if it is not a root object
-				inactivelist->Add(gameobj->AddRef());
-			}
-			if (gameobj->IsDupliGroup())
-				grouplist.insert(blenderobject->dup_group);
-			if (converter->addInitFromFrame){
-				gameobj->NodeSetLocalPosition(posPrev);
-				gameobj->NodeSetLocalOrientation(angor);
-			}
-						
-		}
-		/* Note about memory leak issues:
-		   When a CValue derived class is created, m_refcount is initialized to 1
-		   so the class must be released after being used to make sure that it won't 
-		   hang in memory. If the object needs to be stored for a long time, 
-		   use AddRef() so that this Release() does not free the object.
-		   Make sure that for any AddRef() there is a Release()!!!! 
-		   Do the same for any object derived from CValue, CExpression and NG_NetworkMessage
-		 */
 		if (gameobj)
-			gameobj->Release();
+		{
+			if (addobj)
+			{	/* macro calls object conversion funcs */
+				BL_CONVERTBLENDEROBJECT_SINGLE;
 
+				if (gameobj->IsDupliGroup()) {
+					grouplist.insert(blenderobject->dup_group);
+				}
+			}
+
+			/* Note about memory leak issues:
+			 * When a CValue derived class is created, m_refcount is initialized to 1
+			 * so the class must be released after being used to make sure that it won't
+			 * hang in memory. If the object needs to be stored for a long time,
+			 * use AddRef() so that this Release() does not free the object.
+			 * Make sure that for any AddRef() there is a Release()!!!!
+			 * Do the same for any object derived from CValue, CExpression and NG_NetworkMessage
+			 */
+			gameobj->Release();
+		}
 	}
 
 	if (!grouplist.empty())
@@ -2207,7 +2525,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			{
 				Group* group = *git;
 				GroupObject* go;
-				for(go=(GroupObject*)group->gobject.first; go; go=(GroupObject*)go->next) 
+				for (go=(GroupObject*)group->gobject.first; go; go=(GroupObject*)go->next)
 				{
 					Object* blenderobject = go->ob;
 					if (converter->FindGameObject(blenderobject) == NULL)
@@ -2218,7 +2536,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 														blenderobject, 
 														kxscene, 
 														rendertools, 
-														converter);
+														converter,
+														libloading);
 										
 						// this code is copied from above except that
 						// object from groups are never in active layer
@@ -2228,148 +2547,26 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 						if (converter->addInitFromFrame)
 							if (!isInActiveLayer)
 								addobj=false;
-														
-						if (gameobj&&addobj)
+
+						if (gameobj)
 						{
-							MT_Point3 posPrev;			
-							MT_Matrix3x3 angor;			
-							if (converter->addInitFromFrame) 
-								blenderscene->r.cfra=blenderscene->r.sfra;
-							
-							MT_Point3 pos(
-								blenderobject->loc[0]+blenderobject->dloc[0],
-								blenderobject->loc[1]+blenderobject->dloc[1],
-								blenderobject->loc[2]+blenderobject->dloc[2]
-							);
-							MT_Vector3 eulxyz(blenderobject->rot);
-							MT_Vector3 scale(blenderobject->size);
-							if (converter->addInitFromFrame){//rcruiz
-								float eulxyzPrev[3];
-								blenderscene->r.cfra=blenderscene->r.sfra-1;
-								//XXX update_for_newframe();
-								MT_Vector3 tmp=pos-MT_Point3(blenderobject->loc[0]+blenderobject->dloc[0],
-															blenderobject->loc[1]+blenderobject->dloc[1],
-															blenderobject->loc[2]+blenderobject->dloc[2]
-													);
-								eulxyzPrev[0]=blenderobject->rot[0];
-								eulxyzPrev[1]=blenderobject->rot[1];
-								eulxyzPrev[2]=blenderobject->rot[2];
-
-								double fps = (double) blenderscene->r.frs_sec/
-									(double) blenderscene->r.frs_sec_base;
-
-								tmp.scale(fps, fps, fps);
-								inivel.push_back(tmp);
-								tmp=eulxyz-eulxyzPrev;
-								tmp.scale(fps, fps, fps);
-								iniang.push_back(tmp);
-								blenderscene->r.cfra=blenderscene->r.sfra;
-								//XXX update_for_newframe();
-							}		
-										
-							gameobj->NodeSetLocalPosition(pos);
-							gameobj->NodeSetLocalOrientation(MT_Matrix3x3(eulxyz));
-							gameobj->NodeSetLocalScale(scale);
-							gameobj->NodeUpdateGS(0);
-							
-							BL_ConvertIpos(blenderobject,gameobj,converter);
-							BL_ConvertMaterialIpos(blenderobject,gameobj, converter);	
-					
-							sumolist->Add(gameobj->AddRef());
-							
-							BL_ConvertProperties(blenderobject,gameobj,timemgr,kxscene,isInActiveLayer);
-							
-					
-							gameobj->SetName(blenderobject->id.name + 2);
-					
-							// update children/parent hierarchy
-							if ((blenderobject->parent != 0)&&(!converter->addInitFromFrame))
-							{
-								// blender has an additional 'parentinverse' offset in each object
-								SG_Callbacks callback(NULL,NULL,NULL,KX_Scene::KX_ScenegraphUpdateFunc,KX_Scene::KX_ScenegraphRescheduleFunc);
-								SG_Node* parentinversenode = new SG_Node(NULL,kxscene,callback);
-							
-								// define a normal parent relationship for this node.
-								KX_NormalParentRelation * parent_relation = KX_NormalParentRelation::New();
-								parentinversenode->SetParentRelation(parent_relation);
-					
-								parentChildLink pclink;
-								pclink.m_blenderchild = blenderobject;
-								pclink.m_gamechildnode = parentinversenode;
-								vec_parent_child.push_back(pclink);
-
-								float* fl = (float*) blenderobject->parentinv;
-								MT_Transform parinvtrans(fl);
-								parentinversenode->SetLocalPosition(parinvtrans.getOrigin());
-
-								// Extract the rotation and the scaling from the basis
-								MT_Matrix3x3 ori(parinvtrans.getBasis());
-								MT_Vector3 x(ori.getColumn(0));
-								MT_Vector3 y(ori.getColumn(1));
-								MT_Vector3 z(ori.getColumn(2));
-								MT_Vector3 localscale(x.length(), y.length(), z.length());
-								if (!MT_fuzzyZero(localscale[0]))
-									x /= localscale[0];
-								if (!MT_fuzzyZero(localscale[1]))
-									y /= localscale[1];
-								if (!MT_fuzzyZero(localscale[2]))
-									z /= localscale[2];
-								ori.setColumn(0, x);								
-								ori.setColumn(1, y);								
-								ori.setColumn(2, z);								
-								parentinversenode->SetLocalOrientation(ori);
-								parentinversenode->SetLocalScale(localscale);
-								
-								parentinversenode->AddChild(gameobj->GetSGNode());
+							if (addobj)
+							{	/* macro calls object conversion funcs */
+								BL_CONVERTBLENDEROBJECT_SINGLE;
 							}
-							
-							// needed for python scripting
-							logicmgr->RegisterGameObjectName(gameobj->GetName(),gameobj);
 
-							// needed for group duplication
-							logicmgr->RegisterGameObj(blenderobject, gameobj);
-							for (int i = 0; i < gameobj->GetMeshCount(); i++)
-								logicmgr->RegisterGameMeshName(gameobj->GetMesh(i)->GetName(), blenderobject);
-					
-							converter->RegisterGameObject(gameobj, blenderobject);	
-							// this was put in rapidly, needs to be looked at more closely
-							// only draw/use objects in active 'blender' layers
-					
-							logicbrick_conversionlist->Add(gameobj->AddRef());
-							
-							if (converter->addInitFromFrame){
-								posPrev=gameobj->NodeGetWorldPosition();
-								angor=gameobj->NodeGetWorldOrientation();
-							}
-							if (isInActiveLayer)
-							{
-								objectlist->Add(gameobj->AddRef());
-								//tf.Add(gameobj->GetSGNode());
-								
-								gameobj->NodeUpdateGS(0);
-								gameobj->AddMeshUser();
-							}
-							else
-							{
-								//we must store this object otherwise it will be deleted 
-								//at the end of this function if it is not a root object
-								inactivelist->Add(gameobj->AddRef());
-
-							}
 							if (gameobj->IsDupliGroup())
 							{
-								// check that the group is not already converted
 								if (allgrouplist.insert(blenderobject->dup_group).second)
+								{
 									grouplist.insert(blenderobject->dup_group);
+								}
 							}
-							if (converter->addInitFromFrame){
-								gameobj->NodeSetLocalPosition(posPrev);
-								gameobj->NodeSetLocalOrientation(angor);
-							}
-										
-						}
-						if (gameobj)
+
+
+							/* see comment above re: mem leaks */
 							gameobj->Release();
+						}
 					}
 				}
 			}
@@ -2380,22 +2577,22 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	if (blenderscene->camera && blenderscene->camera->type == OB_CAMERA) {
 		KX_Camera *gamecamera= (KX_Camera*) converter->FindGameObject(blenderscene->camera);
 		
-		if(gamecamera)
+		if (gamecamera)
 			kxscene->SetActiveCamera(gamecamera);
 	}
 
 	//	Set up armatures
 	set<Object*>::iterator oit;
-	for(oit=allblobj.begin(); oit!=allblobj.end(); oit++)
+	for (oit=allblobj.begin(); oit!=allblobj.end(); oit++)
 	{
 		Object* blenderobj = *oit;
 		if (blenderobj->type==OB_MESH) {
 			Mesh *me = (Mesh*)blenderobj->data;
 	
-			if (me->dvert){
+			if (me->dvert) {
 				BL_DeformableGameObject *obj = (BL_DeformableGameObject*)converter->FindGameObject(blenderobj);
 
-				if (obj && BL_ModifierDeformer::HasArmatureDeformer(blenderobj) && blenderobj->parent && blenderobj->parent->type==OB_ARMATURE){
+				if (obj && BL_ModifierDeformer::HasArmatureDeformer(blenderobj) && blenderobj->parent && blenderobj->parent->type==OB_ARMATURE) {
 					KX_GameObject *par = converter->FindGameObject(blenderobj->parent);
 					if (par && obj->GetDeformer())
 						((BL_SkinDeformer*)obj->GetDeformer())->SetArmature((BL_ArmatureObject*) par);
@@ -2463,13 +2660,13 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 				KX_SlowParentRelation * slow_parent_relation = KX_SlowParentRelation::New(blenderchild->sf);
 				pcit->m_gamechildnode->SetParentRelation(slow_parent_relation);
 				break;
-			}	
+			}
 			case PARBONE:
 			{
 				// parent this to a bone
-				Bone *parent_bone = get_named_bone( (bArmature *)(blenderchild->parent)->data, blenderchild->parsubstr);
+				Bone *parent_bone = BKE_armature_find_bone_name( (bArmature *)(blenderchild->parent)->data, blenderchild->parsubstr);
 
-				if(parent_bone) {
+				if (parent_bone) {
 					KX_BoneParentRelation *bone_parent_relation = KX_BoneParentRelation::New(parent_bone);
 					pcit->m_gamechildnode->SetParentRelation(bone_parent_relation);
 				}
@@ -2581,13 +2778,13 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		for (i=0;i<sumolist->GetCount();i++)
 		{
 			KX_GameObject* gameobj = (KX_GameObject*) sumolist->GetValue(i);
-			if (gameobj->IsDynamic()){
+			if (gameobj->IsDynamic()) {
 				gameobj->setLinearVelocity(inivel[i],false);
 				gameobj->setAngularVelocity(iniang[i],false);
 			}
 		
 		
-		}	
+		}
 
 		// create physics joints
 	for (i=0;i<sumolist->GetCount();i++)
@@ -2598,20 +2795,23 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		bConstraint *curcon;
 		conlist = get_active_constraints2(blenderobject);
 
+		if ((gameobj->GetLayer()&activeLayerBitInfo)==0)
+			continue;
+
 		if (conlist) {
-			for (curcon = (bConstraint *)conlist->first; curcon; curcon=(bConstraint *)curcon->next) {
-				if (curcon->type==CONSTRAINT_TYPE_RIGIDBODYJOINT){
+			for (curcon = (bConstraint *)conlist->first; curcon; curcon = (bConstraint *)curcon->next) {
+				if (curcon->type==CONSTRAINT_TYPE_RIGIDBODYJOINT) {
 
 					bRigidBodyJointConstraint *dat=(bRigidBodyJointConstraint *)curcon->data;
 
-					if (!dat->child){
+					if (!dat->child && !(curcon->flag & CONSTRAINT_OFF)) {
 
 						PHY_IPhysicsController* physctr2 = 0;
 
 						if (dat->tar)
 						{
 							KX_GameObject *gotar=getGameOb(dat->tar->id.name+2,sumolist);
-							if (gotar && gotar->GetPhysicsController())
+							if (gotar && ((gotar->GetLayer()&activeLayerBitInfo)!=0) && gotar->GetPhysicsController())
 								physctr2 = (PHY_IPhysicsController*) gotar->GetPhysicsController()->GetUserData();
 						}
 
@@ -2619,7 +2819,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 						{
 							PHY_IPhysicsController* physctrl = (PHY_IPhysicsController*) gameobj->GetPhysicsController()->GetUserData();
 							//we need to pass a full constraint frame, not just axis
-	                            
+
 							//localConstraintFrameBasis
 							MT_Matrix3x3 localCFrame(MT_Vector3(dat->axX,dat->axY,dat->axZ));
 							MT_Vector3 axis0 = localCFrame.getColumn(0);
@@ -2651,14 +2851,14 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 										dofbit<<=1;
 									}
 								}
-								else if(dat->type == PHY_CONE_TWIST_CONSTRAINT)
+								else if (dat->type == PHY_CONE_TWIST_CONSTRAINT)
 								{
 									int dof;
 									int dofbit = 1<<3; // bitflag use_angular_limit_x
 									
 									for (dof=3;dof<6;dof++)
 									{
-										if(dat->flag & dofbit)
+										if (dat->flag & dofbit)
 										{
 											kxscene->GetPhysicsEnvironment()->setConstraintParam(constraintId,dof,dat->minLimit[dof],dat->maxLimit[dof]);
 										}
@@ -2668,7 +2868,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 											kxscene->GetPhysicsEnvironment()->setConstraintParam(constraintId,dof,1,-1);
 										}
 										dofbit<<=1;
-									}								
+									}
 								}
 								else if (dat->type == PHY_LINEHINGE_CONSTRAINT)
 								{
@@ -2699,6 +2899,46 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	KX_WorldInfo* worldinfo = new BlenderWorldInfo(blenderscene, blenderscene->world);
 	converter->RegisterWorldInfo(worldinfo);
 	kxscene->SetWorldInfo(worldinfo);
+
+	//create object representations for obstacle simulation
+	KX_ObstacleSimulation* obssimulation = kxscene->GetObstacleSimulation();
+	if (obssimulation)
+	{
+		for ( i=0;i<objectlist->GetCount();i++)
+		{
+			KX_GameObject* gameobj = static_cast<KX_GameObject*>(objectlist->GetValue(i));
+			struct Object* blenderobject = gameobj->GetBlenderObject();
+			if (blenderobject->gameflag & OB_HASOBSTACLE)
+			{
+				obssimulation->AddObstacleForObj(gameobj);
+			}
+		}
+	}
+
+	//process navigation mesh objects
+	for ( i=0; i<objectlist->GetCount();i++)
+	{
+		KX_GameObject* gameobj = static_cast<KX_GameObject*>(objectlist->GetValue(i));
+		struct Object* blenderobject = gameobj->GetBlenderObject();
+		if (blenderobject->type==OB_MESH && (blenderobject->gameflag & OB_NAVMESH))
+		{
+			KX_NavMeshObject* navmesh = static_cast<KX_NavMeshObject*>(gameobj);
+			navmesh->SetVisible(0, true);
+			navmesh->BuildNavMesh();
+			if (obssimulation)
+				obssimulation->AddObstaclesForNavMesh(navmesh);
+		}
+	}
+	for ( i=0; i<inactivelist->GetCount();i++)
+	{
+		KX_GameObject* gameobj = static_cast<KX_GameObject*>(inactivelist->GetValue(i));
+		struct Object* blenderobject = gameobj->GetBlenderObject();
+		if (blenderobject->type==OB_MESH && (blenderobject->gameflag & OB_NAVMESH))
+		{
+			KX_NavMeshObject* navmesh = static_cast<KX_NavMeshObject*>(gameobj);
+			navmesh->SetVisible(0, true);
+		}
+	}
 
 #define CONVERT_LOGIC
 #ifdef CONVERT_LOGIC
@@ -2762,4 +3002,9 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	MT_Scalar distance = (activecam)? activecam->GetCameraFar() - activecam->GetCameraNear(): 100.0f;
 	RAS_BucketManager *bucketmanager = kxscene->GetBucketManager();
 	bucketmanager->OptimizeBuckets(distance);
+}
+
+SCA_IInputDevice::KX_EnumInputs ConvertKeyCode(int key_code)
+{
+	return gReverseKeyTranslateTable[key_code];
 }

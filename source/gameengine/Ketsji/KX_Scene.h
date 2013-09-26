@@ -1,6 +1,4 @@
 /*
- * $Id: KX_Scene.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_SCENE_H
-#define __KX_SCENE_H
+#ifndef __KX_SCENE_H__
+#define __KX_SCENE_H__
 
 
 #include "KX_PhysicsEngineEnums.h"
@@ -41,8 +39,8 @@
 #include <set>
 #include <list>
 
-#include "GEN_Map.h"
-#include "GEN_HashedPtr.h"
+#include "CTR_Map.h"
+#include "CTR_HashedPtr.h"
 #include "SG_IObject.h"
 #include "SCA_IScene.h"
 #include "MT_Transform.h"
@@ -55,13 +53,13 @@
 #include "RAS_2DFilterManager.h"
 
 /**
- * @section Forward declarations
+ * \section Forward declarations
  */
 struct SM_MaterialProps;
 struct SM_ShapeProps;
 struct Scene;
 
-class GEN_HashedPtr;
+class CTR_HashedPtr;
 class CListValue;
 class CValue;
 class SCA_LogicManager;
@@ -88,6 +86,7 @@ class SCA_JoystickManager;
 class btCollisionShape;
 class KX_BlenderSceneConverter;
 struct KX_ClientObjectInfo;
+class KX_ObstacleSimulation;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -102,7 +101,7 @@ struct KX_ClientObjectInfo;
  * */
 class KX_Scene : public PyObjectPlus, public SCA_IScene
 {
-	Py_Header;
+	Py_Header
 
 #ifdef WITH_PYTHON
 	PyObject*	m_attr_dict;
@@ -130,6 +129,7 @@ protected:
 	CListValue*			m_parentlist; // all 'root' parents
 	CListValue*			m_lightlist;
 	CListValue*			m_inactivelist;	// all objects that are not in the active layer
+	CListValue*			m_animatedlist; // all animated objects
 	
 	SG_QList			m_sghead;		// list of nodes that needs scenegraph update
 										// the Dlist is not object that must be updated
@@ -140,12 +140,12 @@ protected:
 	/**
 	 * The set of cameras for this scene
 	 */
-	list<class KX_Camera*>       m_cameras;
+	std::list<class KX_Camera*>       m_cameras;
 
 	/**
 	 * The set of fonts for this scene
 	 */
-	list<class KX_FontObject*>       m_fonts;
+	std::list<class KX_FontObject*>   m_fonts;
 
 
 	/**
@@ -160,8 +160,8 @@ protected:
 	// Used to deregister objects that are deleted
 	class KX_BlenderSceneConverter*		m_sceneConverter;
 	/**
-	* physics engine abstraction
-	*/
+	 * physics engine abstraction
+	 */
 	//e_PhysicsEngine m_physicsEngine; //who needs this ?
 	class PHY_IPhysicsEnvironment*		m_physicsEnvironment;
 
@@ -176,12 +176,12 @@ protected:
 	STR_String	m_sceneName;
 	
 	/**
-	 * stores the worldsettings for a scene
+	 * stores the world-settings for a scene
 	 */
 	KX_WorldInfo* m_worldinfo;
 
 	/**
-	 * @section Different scenes, linked to ketsji scene
+	 * \section Different scenes, linked to ketsji scene
 	 */
 
 	/**
@@ -191,7 +191,7 @@ protected:
 	NG_NetworkScene* m_networkScene;
 
 	/**
-	 * A temoprary variable used to parent objects together on
+	 * A temporary variable used to parent objects together on
 	 * replication. Don't get confused by the name it is not
 	 * the scene's root node!
 	 */
@@ -207,7 +207,7 @@ protected:
 	 * used in AddReplicaObject to map game objects to their
 	 * replicas so pointers can be updated.
 	 */
-	GEN_Map	<GEN_HashedPtr, void*> m_map_gameobject_to_replica;
+	CTR_Map	<CTR_HashedPtr, void*> m_map_gameobject_to_replica;
 
 	/**
 	 * Another temporary variable outstaying its welcome
@@ -237,7 +237,7 @@ protected:
 
 	/**
 	 * The execution priority of replicated object actuators?
-	 */	
+	 */
 	int	m_ueberExecutionPriority;
 
 	/**
@@ -292,7 +292,10 @@ protected:
 	struct Scene* m_blenderScene;
 
 	RAS_2DFilterManager m_filtermanager;
-public:	
+
+	KX_ObstacleSimulation* m_obstacleSimulation;
+
+public:
 	KX_Scene(class SCA_IInputDevice* keyboarddevice,
 		class SCA_IInputDevice* mousedevice,
 		class NG_NetworkDeviceInterface* ndi,
@@ -300,14 +303,14 @@ public:
 		struct Scene* scene,
 		class RAS_ICanvas* canvas);
 
-	virtual	
+	virtual
 	~KX_Scene();
 
 	RAS_BucketManager* GetBucketManager();
 	RAS_MaterialBucket*	FindBucket(RAS_IPolyMaterial* polymat, bool &bucketCreated);
 	void RenderBuckets(const MT_Transform& cameratransform,
-						RAS_IRasterizer* rasty,
-						RAS_IRenderTools* rendertools);
+	                   RAS_IRasterizer* rasty,
+	                   RAS_IRenderTools* rendertools);
 
 	/**
 	 * Update all transforms according to the scenegraph.
@@ -322,30 +325,34 @@ public:
 				m_groupGameObjects.find(gameobj) != m_groupGameObjects.end());
 	}
 	SCA_IObject* AddReplicaObject(CValue* gameobj,
-								  CValue* locationobj,
-								  int lifespan=0);
+	                              CValue* locationobj,
+	                              int lifespan=0);
 	KX_GameObject* AddNodeReplicaObject(SG_IObject* node,
-										CValue* gameobj);
+	                                    CValue* gameobj);
 	void RemoveNodeDestructObject(SG_IObject* node,
-								  CValue* gameobj);
+	                              CValue* gameobj);
 	void RemoveObject(CValue* gameobj);
 	void DelayedRemoveObject(CValue* gameobj);
 	
 	int NewRemoveObject(CValue* gameobj);
 	void ReplaceMesh(CValue* gameobj,
-					 void* meshob, bool use_gfx, bool use_phys);
+	                 void* meshob, bool use_gfx, bool use_phys);
+
+	void AddAnimatedObject(CValue* gameobj);
+
 	/**
-	 * @section Logic stuff
+	 * \section Logic stuff
 	 * Initiate an update of the logic system.
 	 */
 	void LogicBeginFrame(double curtime);
 	void LogicUpdateFrame(double curtime, bool frame);
+	void UpdateAnimations(double curtime);
 
-		void						
+		void
 	LogicEndFrame(
 	);
 
-		CListValue*				
+		CListValue*
 	GetTempObjectList(
 	);
 
@@ -353,31 +360,27 @@ public:
 	GetObjectList(
 	);
 
-		CListValue*				
+		CListValue*
 	GetInactiveList(
 	);
 
-		CListValue*				
+		CListValue*
 	GetRootParentList(
 	);
 
-		CListValue*				
+		CListValue*
 	GetLightList(
 	);
 
-		SCA_LogicManager*		
+		SCA_LogicManager *
 	GetLogicManager(
 	);
 
-		SCA_TimeEventManager*	
+		SCA_TimeEventManager *
 	GetTimeEventManager(
 	);
 
 	/** Font Routines */
-		
-		list<class KX_FontObject*>*
-	GetFonts(
-	);
 
 	/** Find a font in the scene by pointer. */
 		KX_FontObject*              
@@ -391,10 +394,14 @@ public:
 		KX_FontObject*
 	);
 
+	/** Render the fonts in this scene. */
+		void
+	RenderFonts(
+	);
 
 	/** Camera Routines */
 
-		list<class KX_Camera*>*
+		std::list<class KX_Camera*>*
 	GetCameras(
 	);
  
@@ -418,7 +425,7 @@ public:
 	);
 
 	/** Find the currently active camera. */
-		KX_Camera*				
+		KX_Camera*
 	GetActiveCamera(
 	);
 
@@ -427,7 +434,7 @@ public:
 	 * camera is not present in the camera list, it will be added
 	 */
 
-		void					
+		void
 	SetActiveCamera(
 		class KX_Camera*
 	);
@@ -443,34 +450,34 @@ public:
 
 	/**
 	 * Activates new desired canvas width set at design time.
-	 * @param width	The new desired width.
+	 * \param width	The new desired width.
 	 */
-		void					
+		void
 	SetCanvasDesignWidth(
 		unsigned int width
 	);
 	/**
 	 * Activates new desired canvas height set at design time.
-	 * @param width	The new desired height.
+	 * \param width	The new desired height.
 	 */
-		void					
+		void
 	SetCanvasDesignHeight(
 		unsigned int height
 	);
 	/**
 	 * Returns the current desired canvas width set at design time.
-	 * @return The desired width.
+	 * \return The desired width.
 	 */
-		unsigned int			
+		unsigned int
 	GetCanvasDesignWidth(
 		void
 	) const;
 
 	/**
 	 * Returns the current desired canvas height set at design time.
-	 * @return The desired height.
+	 * \return The desired height.
 	 */
-		unsigned int			
+		unsigned int
 	GetCanvasDesignHeight(
 		void
 	) const;
@@ -487,7 +494,7 @@ public:
 	/**
 	 * Return a const reference to the framing 
 	 * type set by the above call.
-	 * The contents are not guarenteed to be sensible
+	 * The contents are not guaranteed to be sensible
 	 * if you don't call the above function.
 	 */
 
@@ -510,7 +517,7 @@ public:
 	const RAS_Rect& GetSceneViewport() const;
 	
 	/**
-	 * @section Accessors to different scenes of this scene
+	 * \section Accessors to different scenes of this scene
 	 */
 	void SetNetworkDeviceInterface(NG_NetworkDeviceInterface* newInterface);
 	void SetNetworkScene(NG_NetworkScene *newScene);
@@ -550,10 +557,10 @@ public:
 	bool IsClearingZBuffer();
 	void EnableZBufferClearing(bool isclearingZbuffer);
 	// use of DBVT tree for camera culling
-	void SetDbvtCulling(bool b) { m_dbvt_culling = b; };
-	bool GetDbvtCulling() { return m_dbvt_culling; };
-	void SetDbvtOcclusionRes(int i) { m_dbvt_occlusion_res = i; };
-	int GetDbvtOcclusionRes() { return m_dbvt_occlusion_res; };
+	void SetDbvtCulling(bool b) { m_dbvt_culling = b; }
+	bool GetDbvtCulling() { return m_dbvt_culling; }
+	void SetDbvtOcclusionRes(int i) { m_dbvt_occlusion_res = i; }
+	int GetDbvtOcclusionRes() { return m_dbvt_occlusion_res; }
 	
 	void SetSceneConverter(class KX_BlenderSceneConverter* sceneConverter);
 
@@ -565,6 +572,9 @@ public:
 	void SetPhysicsEnvironment(class PHY_IPhysicsEnvironment*	physEnv);
 
 	void	SetGravity(const MT_Vector3& gravity);
+	MT_Vector3 GetGravity();
+
+	short GetAnimationFPS();
 	
 	/**
 	 * Sets the node tree for this scene.
@@ -572,10 +582,12 @@ public:
 	void SetNodeTree(SG_Tree* root);
 
 	/**
-	* 2D Filters
-	*/
-	void Update2DFilter(vector<STR_String>& propNames, void* gameObj, RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, int pass, STR_String& text);
+	 * 2D Filters
+	 */
+	void Update2DFilter(std::vector<STR_String>& propNames, void* gameObj, RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, int pass, STR_String& text);
 	void Render2DFilters(RAS_ICanvas* canvas);
+
+	KX_ObstacleSimulation* GetObstacleSimulation() { return m_obstacleSimulation; }
 
 #ifdef WITH_PYTHON
 	/* --------------------------------------------------------------------- */
@@ -589,6 +601,8 @@ public:
 	KX_PYMETHOD_DOC(KX_Scene, suspend);
 	KX_PYMETHOD_DOC(KX_Scene, resume);
 	KX_PYMETHOD_DOC(KX_Scene, get);
+	KX_PYMETHOD_DOC(KX_Scene, drawObstacleSimulation);
+
 
 	/* attributes */
 	static PyObject*	pyattr_get_name(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
@@ -602,8 +616,10 @@ public:
 	static int			pyattr_set_drawing_callback_pre(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_drawing_callback_post(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_drawing_callback_post(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_gravity(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_gravity(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	virtual PyObject* py_repr(void) { return PyUnicode_FromString(GetName().ReadPtr()); }
+	virtual PyObject *py_repr(void) { return PyUnicode_From_STR_String(GetName()); }
 	
 	/* getitem/setitem */
 	static PyMappingMethods	Mapping;
@@ -612,10 +628,10 @@ public:
 	/**
 	 * Run the registered python drawing functions.
 	 */
-	void RunDrawingCallbacks(PyObject* cb_list);
+	void RunDrawingCallbacks(PyObject *cb_list);
 	
-	PyObject* GetPreDrawCB() { return m_draw_call_pre; };
-	PyObject* GetPostDrawCB() { return m_draw_call_post; };
+	PyObject *GetPreDrawCB() { return m_draw_call_pre; }
+	PyObject *GetPostDrawCB() { return m_draw_call_post; }
 #endif
 
 	/**
@@ -651,5 +667,4 @@ public:
 
 typedef std::vector<KX_Scene*> KX_SceneList;
 
-#endif //__KX_SCENE_H
-
+#endif  /* __KX_SCENE_H__ */

@@ -1,6 +1,4 @@
 /*
- * $Id: wm_event_system.h 35179 2011-02-25 14:04:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,14 +28,14 @@
  *  \ingroup wm
  */
 
-#ifndef WM_EVENT_SYSTEM_H
-#define WM_EVENT_SYSTEM_H
+#ifndef __WM_EVENT_SYSTEM_H__
+#define __WM_EVENT_SYSTEM_H__
 
 /* return value of handler-operator call */
-#define WM_HANDLER_CONTINUE	0
-#define WM_HANDLER_BREAK	1
-#define WM_HANDLER_HANDLED	2
-#define WM_HANDLER_MODAL	4 /* MODAL|BREAK means unhandled */
+#define WM_HANDLER_CONTINUE  0
+#define WM_HANDLER_BREAK     1
+#define WM_HANDLER_HANDLED   2
+#define WM_HANDLER_MODAL     4 /* MODAL|BREAK means unhandled */
 
 struct ScrArea;
 struct ARegion;
@@ -46,40 +44,34 @@ struct ARegion;
 
 typedef struct wmEventHandler {
 	struct wmEventHandler *next, *prev;
-	
-	int type, flag;				/* type default=0, rest is custom */
-	
+
+	int type;                           /* WM_HANDLER_DEFAULT, ... */
+	int flag;                           /* WM_HANDLER_BLOCKING, ... */
+
 	/* keymap handler */
-	wmKeyMap *keymap;			/* pointer to builtin/custom keymaps */
-	rcti *bblocal, *bbwin;		/* optional local and windowspace bb */
-	
+	wmKeyMap *keymap;                   /* pointer to builtin/custom keymaps */
+	rcti *bblocal, *bbwin;              /* optional local and windowspace bb */
+
 	/* modal operator handler */
-	wmOperator *op;						/* for derived/modal handlers */
-	struct ScrArea *op_area;			/* for derived/modal handlers */
-	struct ARegion *op_region;			/* for derived/modal handlers */
+	wmOperator *op;                     /* for derived/modal handlers */
+	struct ScrArea *op_area;            /* for derived/modal handlers */
+	struct ARegion *op_region;          /* for derived/modal handlers */
 
 	/* ui handler */
-	wmUIHandlerFunc ui_handle;  		/* callback receiving events */
-	wmUIHandlerRemoveFunc ui_remove;	/* callback when handler is removed */
-	void *ui_userdata;					/* user data pointer */
-	struct ScrArea *ui_area;			/* for derived/modal handlers */
-	struct ARegion *ui_region;			/* for derived/modal handlers */
-	struct ARegion *ui_menu;			/* for derived/modal handlers */
-	
+	wmUIHandlerFunc ui_handle;          /* callback receiving events */
+	wmUIHandlerRemoveFunc ui_remove;    /* callback when handler is removed */
+	void *ui_userdata;                  /* user data pointer */
+	struct ScrArea *ui_area;            /* for derived/modal handlers */
+	struct ARegion *ui_region;          /* for derived/modal handlers */
+	struct ARegion *ui_menu;            /* for derived/modal handlers */
+
 	/* fileselect handler re-uses modal operator data */
-	struct bScreen *filescreen;			/* screen it started in, to validate exec */
-	
+	struct bScreen *filescreen;         /* screen it started in, to validate exec */
+
 	/* drop box handler */
 	ListBase *dropboxes;
-	
+
 } wmEventHandler;
-
-
-/* handler flag */
-		/* after this handler all others are ignored */
-#define WM_HANDLER_BLOCKING		1
-
-
 
 /* custom types for handlers, for signalling, freeing */
 enum {
@@ -87,25 +79,30 @@ enum {
 	WM_HANDLER_FILESELECT
 };
 
+/* handler flag */
+enum {
+	WM_HANDLER_BLOCKING    = 1,  /* after this handler all others are ignored */
+	WM_HANDLER_DO_FREE     = 2   /* handler tagged to be freed in wm_handlers_do() */
+};
 
 /* wm_event_system.c */
-void		wm_event_free_all		(wmWindow *win);
-void		wm_event_free			(wmEvent *event);
-void		wm_event_free_handler	(wmEventHandler *handler);
+void        wm_event_free_all       (wmWindow *win);
+void        wm_event_free           (wmEvent *event);
+void        wm_event_free_handler   (wmEventHandler *handler);
 
-			/* goes over entire hierarchy:  events -> window -> screen -> area -> region */
-void		wm_event_do_handlers	(bContext *C);
+            /* goes over entire hierarchy:  events -> window -> screen -> area -> region */
+void        wm_event_do_handlers    (bContext *C);
 
-void		wm_event_add_ghostevent	(wmWindowManager *wm, wmWindow *win, int type, int time, void *customdata);
+void        wm_event_add_ghostevent (wmWindowManager *wm, wmWindow *win, int type, int time, void *customdata);
 
-void		wm_event_do_notifiers	(bContext *C);
+void        wm_event_do_notifiers   (bContext *C);
 
 /* wm_keymap.c */
 
 /* wm_dropbox.c */
-void		wm_dropbox_free(void);
-void		wm_drags_check_ops(bContext *C, wmEvent *event);
-void		wm_drags_draw(bContext *C, wmWindow *win, rcti *rect);
+void        wm_dropbox_free(void);
+void        wm_drags_check_ops(bContext *C, wmEvent *event);
+void        wm_drags_draw(bContext *C, wmWindow *win, rcti *rect);
 
-#endif /* WM_EVENT_SYSTEM_H */
+#endif /* __WM_EVENT_SYSTEM_H__ */
 

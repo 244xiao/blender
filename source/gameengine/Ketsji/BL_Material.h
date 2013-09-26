@@ -8,6 +8,7 @@
 
 #include "STR_String.h"
 #include "MT_Point2.h"
+#include "DNA_meshdata_types.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -24,11 +25,11 @@ struct EnvMap;
 // --
 
 /** max units
-	this will default to users available units
-	to build with more available, just increment this value
-	although the more you add the slower the search time will be.
-	we will go for eight, which should be enough
-*/
+ * this will default to users available units
+ * to build with more available, just increment this value
+ * although the more you add the slower the search time will be.
+ * we will go for eight, which should be enough
+ */
 #define MAXTEX			8	//match in RAS_TexVert & RAS_OpenGLRasterizer
 
 // different mapping modes
@@ -68,7 +69,7 @@ public:
 
 	float matcolor[4];
 	float speccolor[3];
-	short transp, pad;
+	short alphablend, pad;
 
 	float hard, spec_f;
 	float alpha, emit, color_blend[MAXTEX], ref;
@@ -76,7 +77,6 @@ public:
 
 	int blend_mode[MAXTEX];
 
-	int	 mode;
 	int num_enabled;
 	
 	BL_Mapping	mapping[MAXTEX];
@@ -84,25 +84,11 @@ public:
 
 
 	Material*			material;
-	MTFace*				tface;
+	MTFace				tface; /* copy of the derived meshes tface */
 	Image*				img[MAXTEX];
 	EnvMap*				cubemap[MAXTEX];
 
 	unsigned int rgb[4];
-	MT_Point2 uv[4];
-	MT_Point2 uv2[4];
-
-	STR_String uvName;
-	STR_String uv2Name;
-
-	void SetConversionRGB(unsigned int *rgb);
-	void GetConversionRGB(unsigned int *rgb);
-
-	void SetConversionUV(const STR_String& name, MT_Point2 *uv);
-	void GetConversionUV(MT_Point2 *uv);
-
-	void SetConversionUV2(const STR_String& name, MT_Point2 *uv);
-	void GetConversionUV2(MT_Point2 *uv);
 
 	void SetSharedMaterial(bool v);
 	bool IsShared();
@@ -110,9 +96,7 @@ public:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:BL_Material"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_Material")
 #endif
 };
 
@@ -144,20 +128,23 @@ enum BL_flag
 	USEALPHA=4,		// use actual alpha channel
 	TEXALPHA=8,		// use alpha combiner functions
 	TEXNEG=16,		// negate blending
-	HASIPO=32,
+	/*HASIPO=32,*/	// unused, commeted for now.
 	USENEGALPHA=64
 };
 
 // BL_Material::ras_mode
 enum BL_ras_mode
 {
-	POLY_VIS=1,
+	// POLY_VIS=1,
 	COLLIDER=2,
 	ZSORT=4,
 	ALPHA=8,
 	// TRIANGLE=16,
 	USE_LIGHT=32,
-	WIRE=64
+	WIRE=64,
+	CAST_SHADOW=128,
+	TEX=256,
+	TWOSIDED=512
 };
 
 // -------------------------------------
@@ -187,8 +174,7 @@ enum BL_MappingProj
 
 // ------------------------------------
 //extern void initBL_Material(BL_Material* mat);
-extern MTex* getImageFromMaterial(Material *mat, int index);
-extern int  getNumTexChannels( Material *mat );
+extern MTex* getMTexFromMaterial(Material *mat, int index);
 // ------------------------------------
 
 #endif

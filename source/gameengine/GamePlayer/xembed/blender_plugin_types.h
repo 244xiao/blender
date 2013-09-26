@@ -1,6 +1,4 @@
 /*
- * $Id: blender_plugin_types.h 35106 2011-02-23 10:52:22Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -28,8 +26,8 @@
  * Plugin-instance related data
  */
 
-#ifndef BLENDER_PLUGIN_TYPES_H
-#define BLENDER_PLUGIN_TYPES_H
+#ifndef __BLENDER_PLUGIN_TYPES_H__
+#define __BLENDER_PLUGIN_TYPES_H__
 
 #include <stdio.h>
 
@@ -55,8 +53,7 @@ extern "C" {
 
 	struct netscape_plugin_Plugin;
 	
-	typedef struct _BlenderPluginInstance
-	{
+	typedef struct _BlenderPluginInstance {
 		/** reach back to the browser: needed for file
 		 * streaming */
 		NPP browser_instance;

@@ -1,6 +1,4 @@
 /*
- * $Id: ED_keyframing.h 35016 2011-02-21 07:25:24Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -29,13 +27,14 @@
  *  \ingroup editors
  */
 
-#ifndef ED_KEYFRAMING_H
-#define ED_KEYFRAMING_H
+#ifndef __ED_KEYFRAMING_H__
+#define __ED_KEYFRAMING_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+struct Main;
 struct ListBase;
 struct ID;
 struct Scene;
@@ -76,20 +75,21 @@ struct bAction *verify_adt_action(struct ID *id, short add);
 /* Get (or add relevant data to be able to do so) F-Curve from the given Action. 
  * This assumes that all the destinations are valid.
  */
-struct FCurve *verify_fcurve(struct bAction *act, const char group[], const char rna_path[], const int array_index, short add);
+struct FCurve *verify_fcurve(struct bAction *act, const char group[], struct PointerRNA *ptr,
+                             const char rna_path[], const int array_index, short add);
 
 /* -------- */
 
 /* Lesser Keyframing API call:
- *	Use this when validation of necessary animation data isn't necessary as it already
- * 	exists, and there is a beztriple that can be directly copied into the array.
+ *  Use this when validation of necessary animation data isn't necessary as it already
+ *  exists, and there is a beztriple that can be directly copied into the array.
  */
 int insert_bezt_fcurve(struct FCurve *fcu, struct BezTriple *bezt, short flag);
 
 /* Main Keyframing API call: 
- *	Use this when validation of necessary animation data isn't necessary as it
- *	already exists. It will insert a keyframe using the current value being keyframed.
- * 	Returns the index at which a keyframe was added (or -1 if failed)
+ *  Use this when validation of necessary animation data isn't necessary as it
+ *  already exists. It will insert a keyframe using the current value being keyframed.
+ *  Returns the index at which a keyframe was added (or -1 if failed)
  */
 int insert_vert_fcurve(struct FCurve *fcu, float x, float y, short flag);
 
@@ -110,7 +110,7 @@ short insert_keyframe_direct(struct ReportList *reports, struct PointerRNA ptr, 
 short insert_keyframe(struct ReportList *reports, struct ID *id, struct bAction *act, const char group[], const char rna_path[], int array_index, float cfra, short flag);
 
 /* Main Keyframing API call: 
- * 	Use this to delete keyframe on current frame for relevant channel. Will perform checks just in case.
+ *  Use this to delete keyframe on current frame for relevant channel. Will perform checks just in case.
  */
 short delete_keyframe(struct ReportList *reports, struct ID *id, struct bAction *act, const char group[], const char rna_path[], int array_index, float cfra, short flag);
 
@@ -133,24 +133,26 @@ typedef struct KeyingSetInfo {
 	struct KeyingSetInfo *next, *prev;
 	
 	/* info */
-		/* identifier so that user can hook this up to a KeyingSet */
-	char name[64];
-		/* identifier used for class name, which KeyingSet instances reference as "Typeinfo Name" */
+	/* identifier used for class name, which KeyingSet instances reference as "Typeinfo Name" */
 	char idname[64];
-		/* keying settings */
+	/* identifier so that user can hook this up to a KeyingSet (used as label). */
+	char name[64];
+	/* short help/description. */
+	char description[240]; /* RNA_DYN_DESCR_MAX */
+	/* keying settings */
 	short keyingflag;
 	
 	/* polling callbacks */
-		/* callback for polling the context for whether the right data is available */
+	/* callback for polling the context for whether the right data is available */
 	cbKeyingSet_Poll poll;
 	
 	/* generate callbacks */
-		/* iterator to use to go through collections of data in context
-		 *	- this callback is separate from the 'adding' stage, allowing 
-		 *	  BuiltIn KeyingSets to be manually specified to use 
-		 */
+	/* iterator to use to go through collections of data in context
+	 *  - this callback is separate from the 'adding' stage, allowing
+	 *    BuiltIn KeyingSets to be manually specified to use
+	 */
 	cbKeyingSet_Iterator iter;
-		/* generator to use to add properties based on the data found by iterator */
+	/* generator to use to add properties based on the data found by iterator */
 	cbKeyingSet_Generate generate;
 	
 	/* RNA integration */
@@ -171,11 +173,14 @@ typedef enum eModifyKey_Modes {
 
 /* return codes for errors (with Relative KeyingSets) */
 typedef enum eModifyKey_Returns {
-		/* context info was invalid for using the Keying Set */
+	/* context info was invalid for using the Keying Set */
 	MODIFYKEY_INVALID_CONTEXT = -1,
-		/* there isn't any typeinfo for generating paths from context */
+	/* there isn't any typeinfo for generating paths from context */
 	MODIFYKEY_MISSING_TYPEINFO = -2,
 } eModifyKey_Returns;
+
+/* poll the current KeyingSet, updating it's set of paths (if "builtin"/"relative") for context changes */
+short ANIM_validate_keyingset(struct bContext *C, ListBase *dsources, struct KeyingSet *ks);
 
 /* use the specified KeyingSet to add/remove various Keyframes on the specified frame */
 int ANIM_apply_keyingset(struct bContext *C, ListBase *dsources, struct bAction *act, struct KeyingSet *ks, short mode, float cfra);
@@ -186,11 +191,11 @@ int ANIM_apply_keyingset(struct bContext *C, ListBase *dsources, struct bAction 
 struct KeyingSet *ANIM_builtin_keyingset_get_named(struct KeyingSet *prevKS, const char name[]);
 
 /* Find KeyingSet type info given a name */
-KeyingSetInfo *ANIM_keyingset_info_find_named(const char name[]);
+KeyingSetInfo *ANIM_keyingset_info_find_name(const char name[]);
 
 /* for RNA type registrations... */
 void ANIM_keyingset_info_register(KeyingSetInfo *ksi);
-void ANIM_keyingset_info_unregister(const struct bContext *C, KeyingSetInfo *ksi);
+void ANIM_keyingset_info_unregister(struct Main *bmain, KeyingSetInfo *ksi);
 
 /* cleanup on exit */
 void ANIM_keyingset_infos_exit(void);
@@ -206,11 +211,8 @@ int ANIM_scene_get_keyingset_index(struct Scene *scene, struct KeyingSet *ks);
 /* Get Keying Set to use for Auto-Keyframing some transforms */
 struct KeyingSet *ANIM_get_keyingset_for_autokeying(struct Scene *scene, const char *tranformKSName);
 
-/* Create (and show) a menu containing all the Keying Sets which can be used in the current context */
-void ANIM_keying_sets_menu_setup(struct bContext *C, const char title[], const char op_name[]);
-
 /* Dynamically populate an enum of Keying Sets */
-struct EnumPropertyItem *ANIM_keying_sets_enum_itemf(struct bContext *C, struct PointerRNA *ptr, int *free);
+struct EnumPropertyItem *ANIM_keying_sets_enum_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, int *free);
 
 /* Check if KeyingSet can be used in the current context */
 short ANIM_keyingset_context_ok_poll(struct bContext *C, struct KeyingSet *ks);
@@ -219,8 +221,15 @@ short ANIM_keyingset_context_ok_poll(struct bContext *C, struct KeyingSet *ks);
 
 /* Flags for use by driver creation calls */
 typedef enum eCreateDriverFlags {
-	CREATEDRIVER_WITH_DEFAULT_DVAR 	= (1<<0),	/* create drivers with a default variable for nicer UI */
+	CREATEDRIVER_WITH_DEFAULT_DVAR  = (1 << 0),   /* create drivers with a default variable for nicer UI */
 } eCreateDriverFlags;
+
+/* -------- */
+
+/* Low-level call to add a new driver F-Curve. This shouldn't be used directly for most tools,
+ * although there are special cases where this approach is preferable.
+ */
+struct FCurve *verify_driver_fcurve(struct ID *id, const char rna_path[], const int array_index, short add);
 
 /* -------- */
 
@@ -228,22 +237,22 @@ typedef enum eCreateDriverFlags {
 short ANIM_driver_can_paste(void);
 
 /* Main Driver Management API calls:
- * 	Add a new driver for the specified property on the given ID block
+ *  Add a new driver for the specified property on the given ID block
  */
 short ANIM_add_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag, int type);
 
 /* Main Driver Management API calls:
- * 	Remove the driver for the specified property on the given ID block (if available)
+ *  Remove the driver for the specified property on the given ID block (if available)
  */
 short ANIM_remove_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag);
 
 /* Main Driver Management API calls:
- * 	Make a copy of the driver for the specified property on the given ID block
+ *  Make a copy of the driver for the specified property on the given ID block
  */
 short ANIM_copy_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag);
 
 /* Main Driver Management API calls:
- * 	Add a new driver for the specified property on the given ID block or replace an existing one
+ *  Add a new driver for the specified property on the given ID block or replace an existing one
  *	with the driver + driver-curve data from the buffer 
  */
 short ANIM_paste_driver(struct ReportList *reports, struct ID *id, const char rna_path[], int array_index, short flag);
@@ -251,21 +260,21 @@ short ANIM_paste_driver(struct ReportList *reports, struct ID *id, const char rn
 /* ************ Auto-Keyframing ********************** */
 /* Notes:
  * - All the defines for this (User-Pref settings and Per-Scene settings)
- * 	are defined in DNA_userdef_types.h
+ *  are defined in DNA_userdef_types.h
  * - Scene settings take presidence over those for userprefs, with old files
- * 	inheriting userpref settings for the scene settings
+ *  inheriting userpref settings for the scene settings
  * - "On/Off + Mode" are stored per Scene, but "settings" are currently stored
- * 	as userprefs
+ *  as userprefs
  */
 
 /* Auto-Keying macros for use by various tools */
-	/* check if auto-keyframing is enabled (per scene takes presidence) */
-#define IS_AUTOKEY_ON(scene)	((scene) ? (scene->toolsettings->autokey_mode & AUTOKEY_ON) : (U.autokey_mode & AUTOKEY_ON))
-	/* check the mode for auto-keyframing (per scene takes presidence)  */
-#define IS_AUTOKEY_MODE(scene, mode) 	((scene) ? (scene->toolsettings->autokey_mode == AUTOKEY_MODE_##mode) : (U.autokey_mode == AUTOKEY_MODE_##mode))
-	/* check if a flag is set for auto-keyframing (per scene takes presidence) */
+/* check if auto-keyframing is enabled (per scene takes presidence) */
+#define IS_AUTOKEY_ON(scene)  ((scene) ? (scene->toolsettings->autokey_mode & AUTOKEY_ON) : (U.autokey_mode & AUTOKEY_ON))
+/* check the mode for auto-keyframing (per scene takes presidence)  */
+#define IS_AUTOKEY_MODE(scene, mode)  ((scene) ? (scene->toolsettings->autokey_mode == AUTOKEY_MODE_##mode) : (U.autokey_mode == AUTOKEY_MODE_##mode))
+/* check if a flag is set for auto-keyframing (per scene takes presidence) */
 #define IS_AUTOKEY_FLAG(scene, flag) \
-	((scene)? \
+	((scene) ? \
 		((scene->toolsettings->autokey_flag & AUTOKEY_FLAG_##flag) || (U.autokey_flag & AUTOKEY_FLAG_##flag)) \
 	 : \
 		(U.autokey_flag & AUTOKEY_FLAG_##flag))
@@ -283,8 +292,8 @@ short fcurve_frame_has_keyframe(struct FCurve *fcu, float frame, short filter);
 /* Main Keyframe Checking API call:
  * Checks whether a keyframe exists for the given ID-block one the given frame.
  *  - It is recommended to call this method over the other keyframe-checkers directly,
- * 	  in case some detail of the implementation changes...
- *	- frame: the value of this is quite often result of BKE_curframe()
+ *    in case some detail of the implementation changes...
+ *	- frame: the value of this is quite often result of BKE_scene_frame_get()
  */
 short id_frame_has_keyframe(struct ID *id, float frame, short filter);
 
@@ -294,18 +303,31 @@ short id_frame_has_keyframe(struct ID *id, float frame, short filter);
  *	(for v3d->keyflags)
  */
 typedef enum eAnimFilterFlags {
-		/* general */
-	ANIMFILTER_KEYS_LOCAL	= (1<<0),		/* only include locally available anim data */
-	ANIMFILTER_KEYS_MUTED	= (1<<1),		/* include muted elements */
-	ANIMFILTER_KEYS_ACTIVE	= (1<<2),		/* only include active-subelements */
-	
-		/* object specific */
-	ANIMFILTER_KEYS_NOMAT		= (1<<9),		/* don't include material keyframes */
-	ANIMFILTER_KEYS_NOSKEY		= (1<<10),		/* don't include shape keys (for geometry) */
+	/* general */
+	ANIMFILTER_KEYS_LOCAL   = (1 << 0),       /* only include locally available anim data */
+	ANIMFILTER_KEYS_MUTED   = (1 << 1),       /* include muted elements */
+	ANIMFILTER_KEYS_ACTIVE  = (1 << 2),       /* only include active-subelements */
+
+	/* object specific */
+	ANIMFILTER_KEYS_NOMAT   = (1 << 9),   /* don't include material keyframes */
+	ANIMFILTER_KEYS_NOSKEY  = (1 << 10),  /* don't include shape keys (for geometry) */
 } eAnimFilterFlags;
+
+/* utility funcs for auto keyframe */
+int ED_autokeyframe_object(struct bContext *C, struct Scene *scene, struct Object *ob, struct KeyingSet *ks);
+int ED_autokeyframe_pchan(struct bContext *C, struct Scene *scene, struct Object *ob, struct bPoseChannel *pchan, struct KeyingSet *ks);
+
+/* Names for builtin keying sets so we don't confuse these with labels/text,
+ * defined in python script: keyingsets_builtins.py */
+#define ANIM_KS_LOCATION_ID         "Location"
+#define ANIM_KS_ROTATION_ID         "Rotation"
+#define ANIM_KS_SCALING_ID          "Scaling"
+#define ANIM_KS_LOC_ROT_SCALE_ID    "LocRotScale"
+#define ANIM_KS_AVAILABLE_ID        "Available"
+#define ANIM_KS_WHOLE_CHARACTER_ID  "WholeCharacter"
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /*  ED_KEYFRAMING_H */
+#endif /*  __ED_KEYFRAMING_H__ */

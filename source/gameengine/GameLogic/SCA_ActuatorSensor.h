@@ -1,8 +1,4 @@
 /*
- * Actuator sensor
- *
- * $Id: SCA_ActuatorSensor.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -29,19 +25,19 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#ifndef __SCA_ACTUATORSENSOR_H__
+#define __SCA_ACTUATORSENSOR_H__
+
 /** \file SCA_ActuatorSensor.h
  *  \ingroup gamelogic
  */
-
-#ifndef __KX_ACTUATORSENSOR
-#define __KX_ACTUATORSENSOR
 
 #include "SCA_ISensor.h"
 #include "SCA_IActuator.h"
 
 class SCA_ActuatorSensor : public SCA_ISensor
 {
-	Py_Header;
+	Py_Header
 	STR_String		m_checkactname;
 	bool			m_lastresult;
 	bool			m_midresult;
@@ -68,8 +64,7 @@ public:
 
 	static int CheckActuator(void *self, const PyAttributeDef*);
 	
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 };
 
-#endif
-
+#endif  /* __SCA_ACTUATORSENSOR_H__ */

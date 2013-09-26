@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_LogicManager.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -28,22 +26,22 @@
  */
 /** \file SCA_IController.h
  *  \ingroup gamelogic
- *  \brief Regulates the top-level logic behaviour for one scene.
+ *  \brief Regulates the top-level logic behavior for one scene.
  */
-#ifndef __KX_LOGICMANAGER
-#define __KX_LOGICMANAGER
+#ifndef __SCA_LOGICMANAGER_H__
+#define __SCA_LOGICMANAGER_H__
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable:4786)
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)
 #endif 
 
 #include <vector>
-//#include "GEN_Map.h"
+//#include "CTR_Map.h"
 #include <set>
 #include <map>
 #include <list>
 
-#include "GEN_Map.h"
+#include "CTR_Map.h"
 #include "STR_HashedString.h"
 #include "Value.h"
 #include "SG_QList.h"
@@ -54,7 +52,7 @@ using namespace std;
 typedef std::list<class SCA_IController*> controllerlist;
 typedef std::map<class SCA_ISensor*,controllerlist > sensormap_t;
 
-/** 
+/**
  * This manager handles sensor, controllers and actuators.
  * logic executes each frame the following way:
  * find triggering sensors
@@ -65,7 +63,7 @@ typedef std::map<class SCA_ISensor*,controllerlist > sensormap_t;
  * clear triggering sensors
  * clear triggered controllers
  * (actuators may be active during a longer timeframe)
-*/
+ */
 
 #include "SCA_ILogicBrick.h"
 #include "SCA_IActuator.h"
@@ -85,12 +83,12 @@ class SCA_LogicManager
 
 	// need to find better way for this
 	// also known as FactoryManager...
-	GEN_Map<STR_HashedString,CValue*>	m_mapStringToGameObjects;
-	GEN_Map<STR_HashedString,void*>		m_mapStringToMeshes;
-	GEN_Map<STR_HashedString,void*>		m_mapStringToActions;
+	CTR_Map<STR_HashedString,CValue*>	m_mapStringToGameObjects;
+	CTR_Map<STR_HashedString,void*>		m_mapStringToMeshes;
+	CTR_Map<STR_HashedString,void*>		m_mapStringToActions;
 
-	GEN_Map<STR_HashedString,void*>		m_map_gamemeshname_to_blendobj;
-	GEN_Map<CHashedPtr,void*>			m_map_blendobj_to_gameobj;
+	CTR_Map<STR_HashedString,void*>		m_map_gamemeshname_to_blendobj;
+	CTR_Map<CHashedPtr,void*>			m_map_blendobj_to_gameobj;
 public:
 	SCA_LogicManager();
 	virtual ~SCA_LogicManager();
@@ -119,8 +117,8 @@ public:
 	void	RemoveGameObject(const STR_String& gameobjname);
 
 	/**
-	* remove Logic Bricks from the running logicmanager
-	*/
+	 * remove Logic Bricks from the running logicmanager
+	 */
 	void	RemoveSensor(SCA_ISensor* sensor);
 	void	RemoveController(SCA_IController* controller);
 	void	RemoveActuator(SCA_IActuator* actuator);
@@ -129,8 +127,8 @@ public:
 	// for the scripting... needs a FactoryManager later (if we would have time... ;)
 	void	RegisterMeshName(const STR_String& meshname,void* mesh);
 	void	UnregisterMeshName(const STR_String& meshname,void* mesh);
-	GEN_Map<STR_HashedString,void*>&	GetMeshMap() { return m_mapStringToMeshes; };
-	GEN_Map<STR_HashedString,void*>&	GetActionMap() { return m_mapStringToActions; };
+	CTR_Map<STR_HashedString,void*>&	GetMeshMap() { return m_mapStringToMeshes; }
+	CTR_Map<STR_HashedString,void*>&	GetActionMap() { return m_mapStringToActions; }
 	
 	void	RegisterActionName(const STR_String& actname,void* action);
 
@@ -149,11 +147,8 @@ public:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SCA_LogicManager"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_LogicManager")
 #endif
 };
 
-#endif //__KX_LOGICMANAGER
-
+#endif  /* __SCA_LOGICMANAGER_H__ */

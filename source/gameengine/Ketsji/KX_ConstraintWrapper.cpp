@@ -1,6 +1,4 @@
 /*
- * $Id: KX_ConstraintWrapper.cpp 35171 2011-02-25 13:35:59Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -52,13 +50,13 @@ KX_ConstraintWrapper::~KX_ConstraintWrapper()
 
 #ifdef WITH_PYTHON
 
-PyObject* KX_ConstraintWrapper::PyGetConstraintId()
+PyObject *KX_ConstraintWrapper::PyGetConstraintId()
 {
-	return PyLong_FromSsize_t(m_constraintId);
+	return PyLong_FromLong(m_constraintId);
 }
 
 
-PyObject* KX_ConstraintWrapper::PyGetParam(PyObject* args, PyObject* kwds)
+PyObject *KX_ConstraintWrapper::PyGetParam(PyObject *args, PyObject *kwds)
 {
 	int dof;
 	float value;
@@ -71,7 +69,7 @@ PyObject* KX_ConstraintWrapper::PyGetParam(PyObject* args, PyObject* kwds)
 	
 }
 
-PyObject* KX_ConstraintWrapper::PySetParam(PyObject* args, PyObject* kwds)
+PyObject *KX_ConstraintWrapper::PySetParam(PyObject *args, PyObject *kwds)
 {
 	int dof;
 	float minLimit,maxLimit;
@@ -119,9 +117,9 @@ PyAttributeDef KX_ConstraintWrapper::Attributes[] = {
 	{ NULL }	//Sentinel
 };
 
-PyObject* KX_ConstraintWrapper::pyattr_get_constraintId(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ConstraintWrapper::pyattr_get_constraintId(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_ConstraintWrapper* self= static_cast<KX_ConstraintWrapper*>(self_v);
+	KX_ConstraintWrapper* self = static_cast<KX_ConstraintWrapper*>(self_v);
 	return self->PyGetConstraintId();
 }
 

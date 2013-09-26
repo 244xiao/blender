@@ -1,5 +1,4 @@
 /*
- * $Id: KX_BlenderMouseDevice.cpp 35166 2011-02-25 13:29:48Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,10 +29,9 @@
  *  \ingroup blroutines
  */
 
-
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-// annoying warnings about truncated STL debug info
-#pragma warning (disable :4786)
+#ifdef _MSC_VER
+   /* annoying warnings about truncated STL debug info */
+#  pragma warning (disable:4786)
 #endif 
 
 #include "KX_BlenderMouseDevice.h"
@@ -48,8 +46,8 @@ KX_BlenderMouseDevice::~KX_BlenderMouseDevice()
 }
 
 /**
-	IsPressed gives boolean information about mouse status, true if pressed, false if not
-*/
+ * IsPressed gives boolean information about mouse status, true if pressed, false if not
+ */
 
 bool KX_BlenderMouseDevice::IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode)
 {
@@ -64,11 +62,11 @@ bool KX_BlenderMouseDevice::IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode)
 }
 */
 
-/** 
-	NextFrame toggles currentTable with previousTable,
-	and copy relevant event information from previous to current
-	(pressed keys need to be remembered)
-*/
+/**
+ * NextFrame toggles currentTable with previousTable,
+ * and copy relevant event information from previous to current
+ * (pressed keys need to be remembered)
+ */
 void	KX_BlenderMouseDevice::NextFrame()
 {
 	SCA_IInputDevice::NextFrame();
@@ -99,20 +97,18 @@ void	KX_BlenderMouseDevice::NextFrame()
 			if (oldevent.m_status == SCA_InputEvent::KX_JUSTRELEASED)
 			{
 				
-				m_eventStatusTables[m_currentTable][mousemove].m_status = SCA_InputEvent::KX_NO_INPUTSTATUS ;
+				m_eventStatusTables[m_currentTable][mousemove].m_status = SCA_InputEvent::KX_NO_INPUTSTATUS;
 			}
 		}
 	}
 }
 
 
-/** 
-	ConvertBlenderEvent translates blender mouse events into ketsji kbd events
-	extra event information is stored, like ramp-mode (just released/pressed)
-*/
-
-
-bool	KX_BlenderMouseDevice::ConvertBlenderEvent(unsigned short incode,short val)
+/**
+ * ConvertBlenderEvent translates blender mouse events into ketsji kbd events
+ * extra event information is stored, like ramp-mode (just released/pressed)
+ */
+bool KX_BlenderMouseDevice::ConvertBlenderEvent(unsigned short incode, short val)
 {
 	bool result = false;
 	
@@ -123,7 +119,7 @@ bool	KX_BlenderMouseDevice::ConvertBlenderEvent(unsigned short incode,short val)
 	// only process it, if it's a key
 	if (kxevent > KX_BEGINMOUSE && kxevent < KX_ENDMOUSEBUTTONS)
 	{
-		if (val == KM_PRESS)
+		if (val == KM_PRESS || val == KM_DBL_CLICK)
 		{
 			m_eventStatusTables[m_currentTable][kxevent].m_eventval = val ; //???
 

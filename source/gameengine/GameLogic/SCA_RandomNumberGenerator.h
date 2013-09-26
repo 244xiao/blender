@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_RandomNumberGenerator.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -34,8 +32,8 @@
  * on a per-generator basis.
  */
 
-#ifndef __KX_RANDOMNUMBERGENERATOR
-#define __KX_RANDOMNUMBERGENERATOR
+#ifndef __SCA_RANDOMNUMBERGENERATOR_H__
+#define __SCA_RANDOMNUMBERGENERATOR_H__
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -54,8 +52,8 @@ class SCA_RandomNumberGenerator {
 	/* unsigned long mt[N]; */
 	unsigned long mt[624];
 
-	/** mti==N+1 means mt[KX_MT_VectorLenght] is not initialized */
-	int mti; /* initialised in the cpp file */
+	/** mti==N+1 means mt[KX_MT_VectorLength] is not initialized */
+	int mti; /* initialized in the cpp file */
 
 	/** Calculate a start vector */
 	void SetStartVector(void);
@@ -79,11 +77,9 @@ class SCA_RandomNumberGenerator {
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SCA_RandomNumberGenerator"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_RandomNumberGenerator")
 #endif
 };
 
-#endif /* __KX_RANDOMNUMBERGENERATOR */
+#endif /* __SCA_RANDOMNUMBERGENERATOR_H__ */
 

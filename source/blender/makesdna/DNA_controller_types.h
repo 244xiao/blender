@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_controller_types.h 34941 2011-02-17 20:48:12Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,12 +24,15 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_CONTROLLER_TYPES_H
-#define DNA_CONTROLLER_TYPES_H
 
 /** \file DNA_controller_types.h
  *  \ingroup DNA
+ *
+ * #bController type is specifically for use by Object logic-bricks in the game-engine.
  */
+
+#ifndef __DNA_CONTROLLER_TYPES_H__
+#define __DNA_CONTROLLER_TYPES_H__
 
 struct bActuator;
 struct Text;
@@ -55,7 +56,7 @@ typedef struct bController {
 	short type, flag, inputs, totlinks;
 	short otype, totslinks, pad2, pad3;
 	
-	char name[32];
+	char name[64];
 	void *data;
 	
 	struct bActuator **links;
@@ -90,5 +91,4 @@ typedef struct bController {
 #define CONT_PY_SCRIPT	0
 #define CONT_PY_MODULE	1
 
-#endif
-
+#endif  /* __DNA_CONTROLLER_TYPES_H__ */

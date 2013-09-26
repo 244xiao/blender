@@ -1,6 +1,4 @@
 /*
- * $Id: GPG_System.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,12 +30,12 @@
  *  \brief Blender Player system on GHOST.
  */
 
-#ifndef _GPG_SYSTEM_H_
-#define _GPG_SYSTEM_H_
+#ifndef __GPG_SYSTEM_H__
+#define __GPG_SYSTEM_H__
 
 #ifdef WIN32
 #pragma warning (disable:4786) // suppress stl-MSVC debug info warning
-#endif // WIN32
+#endif  /* WIN32 */
 
 #include "GPC_System.h"
 
@@ -53,5 +51,4 @@ public:
 	virtual double GetTimeInSeconds();
 };
 
-#endif // _GPG_SYSTEM_H_
-
+#endif  /* __GPG_SYSTEM_H__ */

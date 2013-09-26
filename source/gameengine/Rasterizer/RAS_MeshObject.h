@@ -1,6 +1,4 @@
 /*
- * $Id: RAS_MeshObject.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,12 +29,12 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_MESHOBJECT
-#define __RAS_MESHOBJECT
+#ifndef __RAS_MESHOBJECT_H__
+#define __RAS_MESHOBJECT_H__
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-// disable the STL warnings ("debug information length > 255")
-#pragma warning (disable:4786)
+#ifdef _MSC_VER
+   /* disable the STL warnings ("debug information length > 255") */
+#  pragma warning (disable:4786)
 #endif
 
 #include <vector>
@@ -47,7 +45,7 @@
 #include "RAS_MaterialBucket.h"
 #include "MT_Transform.h"
 
-#include "GEN_HashedPtr.h"
+#include "CTR_HashedPtr.h"
 
 struct Mesh;
 class RAS_Deformer;
@@ -59,7 +57,7 @@ class RAS_Deformer;
 class RAS_MeshObject
 {
 private:
-	unsigned int				m_debugcolor;
+	/* unsigned int				m_debugcolor; */ /* UNUSED */
 
 	bool						m_bModified;
 	bool						m_bMeshModified;
@@ -108,7 +106,7 @@ public:
 
 	/* modification state */
 	bool				MeshModified();
-	void				SetMeshModified(bool v){m_bMeshModified = v;}
+	void				SetMeshModified(bool v) { m_bMeshModified = v; }
 
 	/* original blender mesh */
 	Mesh*				GetMesh() { return m_mesh; }
@@ -118,8 +116,7 @@ public:
 	virtual RAS_Polygon*	AddPolygon(RAS_MaterialBucket *bucket, int numverts);
 	virtual void			AddVertex(RAS_Polygon *poly, int i,
 							const MT_Point3& xyz,
-							const MT_Point2& uv,
-							const MT_Point2& uv2,
+							const MT_Point2 uvs[RAS_TexVert::MAX_UNIT],
 							const MT_Vector4& tangent,
 							const unsigned int rgbacolor,
 							const MT_Vector3& normal,
@@ -172,14 +169,11 @@ public:
 	};
 
 	vector<vector<SharedVertex> >	m_sharedvertex_map;
-	
-	
+
+
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_MeshObject"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MeshObject")
 #endif
 };
 
-#endif //__RAS_MESHOBJECT
-
+#endif  /* __RAS_MESHOBJECT_H__ */

@@ -1,6 +1,4 @@
 /*
- * $Id: BLI_math_base.h 34970 2011-02-18 14:50:49Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -25,19 +23,23 @@
  * ***** END GPL LICENSE BLOCK *****
  * */
 
-#ifndef BLI_MATH_BASE_H
-#define BLI_MATH_BASE_H
+#ifndef __BLI_MATH_BASE_H__
+#define __BLI_MATH_BASE_H__
 
 /** \file BLI_math_base.h
  *  \ingroup bli
  */
 
-#ifdef WIN32
-#define _USE_MATH_DEFINES
+#ifdef _MSC_VER
+#  define _USE_MATH_DEFINES
 #endif
 
 #include <math.h>
 #include "BLI_math_inline.h"
+
+#ifdef __sun__
+#include <ieeefp.h> /* for finite() */
+#endif
 
 #ifndef M_PI
 #define M_PI        3.14159265358979323846
@@ -50,6 +52,9 @@
 #endif
 #ifndef M_SQRT1_2
 #define M_SQRT1_2   0.70710678118654752440
+#endif
+#ifndef M_SQRT3
+#define M_SQRT3   1.7320508075688772
 #endif
 #ifndef M_1_PI
 #define M_1_PI      0.318309886183790671538
@@ -74,6 +79,9 @@
 #ifndef MAXFLOAT
 #define MAXFLOAT  ((float)3.40282347e+38)
 #endif
+
+/* do not redefine functions from C99 or POSIX.1-2001 */
+#if !(defined(_ISOC99_SOURCE) || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L))
 
 #ifndef sqrtf
 #define sqrtf(a) ((float)sqrt(a))
@@ -124,24 +132,56 @@
 #define hypotf(a, b) ((float)hypot(a, b))
 #endif
 
+#endif  /* C99 or POSIX.1-2001 */
+
 #ifdef WIN32
-#ifndef FREE_WINDOWS
-#define isnan(n) _isnan(n)
-#define finite _finite
-#define hypot _hypot
+#  ifndef FREE_WINDOWS
+#    define isnan(n) _isnan(n)
+#    define finite _finite
+#    define hypot _hypot
+#  endif
+#endif
+
+/* Causes warning:
+ * incompatible types when assigning to type 'Foo' from type 'Bar'
+ * ... the compiler optimizes away the temp var */
+#ifndef CHECK_TYPE
+#ifdef __GNUC__
+#define CHECK_TYPE(var, type)  {  \
+	__typeof(var) *__tmp;         \
+	__tmp = (type *)NULL;         \
+	(void)__tmp;                  \
+} (void)0
+#else
+#define CHECK_TYPE(var, type)
 #endif
 #endif
 
 #ifndef SWAP
-#define SWAP(type, a, b)	{ type sw_ap; sw_ap=(a); (a)=(b); (b)=sw_ap; }
+#  define SWAP(type, a, b)  {  \
+	type sw_ap;                \
+	CHECK_TYPE(a, type);       \
+	CHECK_TYPE(b, type);       \
+	sw_ap = (a);               \
+	(a) = (b);                 \
+	(b) = sw_ap;               \
+} (void)0
 #endif
 
 #ifndef CLAMP
-#define CLAMP(a, b, c)		if((a)<(b)) (a)=(b); else if((a)>(c)) (a)=(c)
+#  define CLAMP(a, b, c)  {         \
+	if ((a) < (b)) (a) = (b);       \
+	else if ((a) > (c)) (a) = (c);  \
+} (void)0
 #endif
 
-#ifdef BLI_MATH_INLINE_H
+#if BLI_MATH_DO_INLINE
 #include "intern/math_base_inline.c"
+#endif
+
+#ifdef BLI_MATH_GCC_WARN_PRAGMA
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wredundant-decls"
 #endif
 
 /******************************* Float ******************************/
@@ -158,14 +198,24 @@ MINLINE float sasqrt(float fac);
 
 MINLINE float interpf(float a, float b, float t);
 
-MINLINE float minf(float a, float b);
-MINLINE float maxf(float a, float b);
+MINLINE float min_ff(float a, float b);
+MINLINE float max_ff(float a, float b);
+
+MINLINE int min_ii(int a, int b);
+MINLINE int max_ii(int a, int b);
 
 MINLINE float signf(float f);
 
 MINLINE float power_of_2(float f);
 
-MINLINE float shell_angle_to_dist(float angle);
+/* these don't really fit anywhere but were being copied about a lot */
+MINLINE int is_power_of_2_i(int n);
+MINLINE int power_of_2_max_i(int n);
+MINLINE int power_of_2_min_i(int n);
+
+MINLINE int divide_round_i(int a, int b);
+
+MINLINE float shell_angle_to_dist(const float angle);
 
 #if (defined(WIN32) || defined(WIN64)) && !defined(FREE_WINDOWS)
 extern double copysign(double x, double y);
@@ -174,5 +224,40 @@ extern double round(double x);
 
 double double_round(double x, int ndigits);
 
-#endif /* BLI_MATH_BASE_H */
+#ifdef BLI_MATH_GCC_WARN_PRAGMA
+#  pragma GCC diagnostic pop
+#endif
 
+/* asserts, some math functions expect normalized inputs
+ * check the vector is unit length, or zero length (which can't be helped in some cases).
+ */
+#ifdef DEBUG
+/* note: 0.0001 is too small becaues normals may be converted from short's: see [#34322] */
+#  define BLI_ASSERT_UNIT_EPSILON 0.0002f
+#  define BLI_ASSERT_UNIT_V3(v)  {                                            \
+	const float _test_unit = len_squared_v3(v);                               \
+	BLI_assert((fabsf(_test_unit - 1.0f) < BLI_ASSERT_UNIT_EPSILON) ||        \
+	           (fabsf(_test_unit)        < BLI_ASSERT_UNIT_EPSILON));         \
+} (void)0
+
+#  define BLI_ASSERT_UNIT_V2(v)  {                                            \
+	const float _test_unit = len_squared_v2(v);                               \
+	BLI_assert((fabsf(_test_unit - 1.0f) < BLI_ASSERT_UNIT_EPSILON) ||        \
+	           (fabsf(_test_unit)        < BLI_ASSERT_UNIT_EPSILON));         \
+} (void)0
+
+#  define BLI_ASSERT_ZERO_M3(m)  {                                            \
+	BLI_assert(dot_vn_vn((const float *)m, (const float *)m, 9) != 0.0);     \
+} (void)0
+
+#  define BLI_ASSERT_ZERO_M4(m)  {                                            \
+	BLI_assert(dot_vn_vn((const float *)m, (const float *)m, 16) != 0.0);     \
+} (void)0
+#else
+#  define BLI_ASSERT_UNIT_V2(v) (void)(v)
+#  define BLI_ASSERT_UNIT_V3(v) (void)(v)
+#  define BLI_ASSERT_ZERO_M3(m) (void)(m)
+#  define BLI_ASSERT_ZERO_M4(m) (void)(m)
+#endif
+
+#endif /* __BLI_MATH_BASE_H__ */

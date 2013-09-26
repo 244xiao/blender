@@ -1,6 +1,4 @@
 /*
- * $Id: ED_fileselect.h 35543 2011-03-14 19:56:13Z elubie $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,13 +28,14 @@
  *  \ingroup editors
  */
 
-#ifndef ED_FILES_H
-#define ED_FILES_H
+#ifndef __ED_FILESELECT_H__
+#define __ED_FILESELECT_H__
 
-struct SpaceFile;
 struct ARegion;
 struct FileSelectParams;
+struct SpaceFile;
 struct bContext;
+struct wmWindowManager;
 
 #define FILE_LAYOUT_HOR 1
 #define FILE_LAYOUT_VER 2
@@ -54,8 +53,7 @@ typedef enum FileListColumns {
 	COLUMN_OWNER
 } FileListColumns;
 
-typedef struct FileLayout
-{
+typedef struct FileLayout {
 	/* view settings - XXX - move into own struct */
 	int prv_w;
 	int prv_h;
@@ -82,7 +80,7 @@ typedef struct FileSelection {
 
 struct rcti;
 
-struct FileSelectParams* ED_fileselect_get_params(struct SpaceFile *sfile);
+struct FileSelectParams *ED_fileselect_get_params(struct SpaceFile *sfile);
 
 short ED_fileselect_set_params(struct SpaceFile *sfile);
 
@@ -92,21 +90,21 @@ void ED_fileselect_reset_params(struct SpaceFile *sfile);
 void ED_fileselect_init_layout(struct SpaceFile *sfile, struct ARegion *ar);
 
 
-FileLayout* ED_fileselect_get_layout(struct SpaceFile *sfile, struct ARegion *ar);
+FileLayout *ED_fileselect_get_layout(struct SpaceFile *sfile, struct ARegion *ar);
 
-int ED_fileselect_layout_numfiles(FileLayout* layout, struct ARegion *ar);
-int ED_fileselect_layout_offset(FileLayout* layout, int x, int y);
-FileSelection ED_fileselect_layout_offset_rect(FileLayout* layout, const struct rcti* rect);
+int ED_fileselect_layout_numfiles(FileLayout *layout, struct ARegion *ar);
+int ED_fileselect_layout_offset(FileLayout *layout, int x, int y);
+FileSelection ED_fileselect_layout_offset_rect(FileLayout *layout, const struct rcti *rect);
 
-void ED_fileselect_layout_tilepos(FileLayout* layout, int tile, int *x, int *y);
+void ED_fileselect_layout_tilepos(FileLayout *layout, int tile, int *x, int *y);
 
 void ED_operatormacros_file(void);
 
-void ED_fileselect_clear(struct bContext *C, struct SpaceFile *sfile);
+void ED_fileselect_clear(struct wmWindowManager *wm, struct SpaceFile *sfile);
 
-void ED_fileselect_exit(struct bContext *C, struct SpaceFile *sfile);
+void ED_fileselect_exit(struct wmWindowManager *wm, struct SpaceFile *sfile);
 
-int ED_file_extension_icon(char *relname);
+int ED_file_extension_icon(const char *relname);
 
-#endif /* ED_FILES_H */
+#endif /* __ED_FILESELECT_H__ */
 

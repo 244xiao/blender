@@ -1,5 +1,4 @@
 /*
- * $Id: KX_ConvertControllers.cpp 35167 2011-02-25 13:30:41Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -70,7 +69,7 @@
 	static void
 LinkControllerToActuators(
 	SCA_IController *game_controller,
-	bController* bcontr,	
+	bController* bcontr,
 	SCA_LogicManager* logicmgr,
 	KX_BlenderSceneConverter* converter
 ) {
@@ -111,8 +110,7 @@ void BL_ConvertControllers(
 	while (bcontr)
 	{
 		SCA_IController* gamecontroller = NULL;
-		switch(bcontr->type)
-		{
+		switch (bcontr->type) {
 			case CONT_LOGIC_AND:
 			{
 				gamecontroller = new SCA_ANDController(gameobj);
@@ -159,10 +157,10 @@ void BL_ConvertControllers(
 				SCA_PythonController* pyctrl = new SCA_PythonController(gameobj, pycont->mode);
 				gamecontroller = pyctrl;
 #ifdef WITH_PYTHON
-
+				PyGILState_STATE gstate = PyGILState_Ensure();
 				pyctrl->SetNamespace(converter->GetPyNamespace());
 				
-				if(pycont->mode==SCA_PythonController::SCA_PYEXEC_SCRIPT) {
+				if (pycont->mode==SCA_PythonController::SCA_PYEXEC_SCRIPT) {
 					if (pycont->text)
 					{
 						char *buf;
@@ -182,12 +180,13 @@ void BL_ConvertControllers(
 					pyctrl->SetScriptText(STR_String(pycont->module)); 
 					pyctrl->SetScriptName(pycont->module); /* will be something like module.func so using it as the name is OK */
 
-					if(pycont->flag & CONT_PY_DEBUG) {
+					if (pycont->flag & CONT_PY_DEBUG) {
 						printf("\nDebuging \"%s\", module for object %s\n\texpect worse performance.\n", pycont->module, blenderobject->id.name+2);
 						pyctrl->SetDebug(true);
 					}
 				}
 				
+				PyGILState_Release(gstate);
 #endif // WITH_PYTHON
 
 				break;
@@ -210,26 +209,33 @@ void BL_ConvertControllers(
 			CIntValue* uniqueval = new CIntValue(uniqueint);
 			uniquename += uniqueval->GetText();
 			uniqueval->Release();
-			gamecontroller->SetName(uniquename);
+			//unique name was never implemented for sensors and actuators, only for controllers
+			//and it's producing difference in the keys for the lists: obj.controllers/sensors/actuators
+			//at some point it should either be implemented globally (and saved as a separate var) or removed.
+			//gamecontroller->SetName(uniquename);
+			gamecontroller->SetName(bcontr->name);
 			gameobj->AddController(gamecontroller);
 			
 			converter->RegisterGameController(gamecontroller, bcontr);
 
 #ifdef WITH_PYTHON
+			PyGILState_STATE gstate = PyGILState_Ensure();
 			if (bcontr->type==CONT_PYTHON) {
 				SCA_PythonController *pyctrl= static_cast<SCA_PythonController*>(gamecontroller);
 				/* not strictly needed but gives syntax errors early on and
 				 * gives more predictable performance for larger scripts */
-				if(pyctrl->m_mode==SCA_PythonController::SCA_PYEXEC_SCRIPT)
+				if (pyctrl->m_mode==SCA_PythonController::SCA_PYEXEC_SCRIPT)
 					pyctrl->Compile();
 				else {
 					/* We cant do this because importing runs the script which could end up accessing
 					 * internal BGE functions, this is unstable while we're converting the scene.
-					 * This is a pitty because its useful to see errors at startup but cant help it */
+					 * This is a pity because its useful to see errors at startup but cant help it */
 					
 					// pyctrl->Import();
 				}
 			}
+
+			PyGILState_Release(gstate);
 #endif // WITH_PYTHON
 
 			//done with gamecontroller

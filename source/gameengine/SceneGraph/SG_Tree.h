@@ -1,6 +1,4 @@
 /*
- * $Id: SG_Tree.h 35082 2011-02-22 19:30:37Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -83,8 +81,8 @@ public:
 	/**
 	 * Gets the eight corners of this treenode's bounding box,
 	 * in world coordinates.
-	 * @param box: an array of 8 MT_Point3
-	 * @example MT_Point3 box[8];
+	 * \param box: an array of 8 MT_Point3
+	 * \example MT_Point3 box[8];
 	 *          treenode->get(box);
 	 */
 	void get(MT_Point3 *box) const;
@@ -117,19 +115,17 @@ public:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SG_Tree"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_Tree")
 #endif
 };
 
 
 /**
  *  SG_TreeFactory generates an SG_Tree from a list of SG_Nodes.
- *  It joins pairs of SG_Nodes to minimise the size of the resultant
+ *  It joins pairs of SG_Nodes to minimize the size of the resultant
  *  bounding box.
- *  cf building an optimised Huffman tree.
- *  @warning O(n^3)!!!
+ *  cf building an optimized Huffman tree.
+ *  \warning O(n^3)!!!
  */
 class SG_TreeFactory 
 {
@@ -160,9 +156,7 @@ public:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SG_TreeFactory"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_TreeFactory")
 #endif
 };
 

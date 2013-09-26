@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 14444 2008-04-16 22:40:48Z hos $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -26,15 +25,23 @@
 
 set(INC
 	.
-	../blenlib
 	../blenkernel
-	../blenloader
+	../blenlib
+	../bmesh
 	../imbuf
 	../makesdna
 	../makesrna
+
+	# For node muting stuff...
+	../nodes
+	../nodes/intern
+
 	../../../intern/guardedalloc
 	../../../intern/smoke/extern
-    ${GLEW_INCLUDE_PATH}
+)
+
+set(INC_SYS
+	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -43,17 +50,35 @@ set(SRC
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
 	intern/gpu_material.c
-	intern/gpu_shader_material.glsl.c
-	intern/gpu_shader_vertex.glsl.c
+	intern/gpu_simple_shader.c
 
 	GPU_buffers.h
 	GPU_draw.h
 	GPU_extensions.h
 	GPU_material.h
+	GPU_simple_shader.h
 	intern/gpu_codegen.h
 )
 
+data_to_c_simple(shaders/gpu_shader_material.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_sep_gaussian_blur_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_sep_gaussian_blur_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_simple_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_simple_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_vertex.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_vsm_store_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_vsm_store_vert.glsl SRC)
+
+if(WITH_MOD_SMOKE)
+	add_definitions(-DWITH_SMOKE)
+endif()
+
 add_definitions(-DGLEW_STATIC)
 
-blender_add_lib(bf_gpu "${SRC}" "${INC}")
+if(WITH_IMAGE_DDS)
+	add_definitions(-DWITH_DDS)
+endif()
+
+
+blender_add_lib(bf_gpu "${SRC}" "${INC}" "${INC_SYS}")
 

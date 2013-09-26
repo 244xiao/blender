@@ -1,6 +1,5 @@
 /*
  * EmptyValue.h: interface for the CEmptyValue class.
- * $Id: EmptyValue.h 35063 2011-02-22 10:33:14Z jesterking $
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -17,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#if !defined _EMPTYVALUE_H
-#define _EMPTYVALUE_H
+#ifndef __EMPTYVALUE_H__
+#define __EMPTYVALUE_H__
 
 #include "Value.h"
 
@@ -42,11 +41,8 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:CEmptyValue"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CEmptyValue")
 #endif
 };
 
-#endif // !defined _EMPTYVALUE_H
-
+#endif  /* __EMPTYVALUE_H__ */

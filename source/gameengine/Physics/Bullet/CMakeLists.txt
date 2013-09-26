@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 36024 2011-04-05 23:31:01Z campbellbarton $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -30,19 +29,21 @@ remove_strict_flags()
 set(INC
 	.
 	../common
-	../../../../extern/bullet2/src
-	../../../../intern/moto/include
-	../../../../intern/guardedalloc
-	../../../kernel/gen_system
-	../../../../intern/string
-	../../Rasterizer
-	../../Ketsji
 	../../Expressions
 	../../GameLogic
+	../../Ketsji
+	../../Rasterizer
 	../../SceneGraph
-	../../../../source/blender/makesdna
-	../../../../source/blender/blenlib
-	../../../../source/blender/blenkernel
+	../../../blender/blenkernel
+	../../../blender/blenlib
+	../../../blender/makesdna
+	../../../../intern/container
+	../../../../intern/guardedalloc
+	../../../../intern/string
+)
+
+set(INC_SYS
+	../../../../intern/moto/include
 	${GLEW_INCLUDE_PATH}
 	${PYTHON_INCLUDE_DIRS}
 )
@@ -58,7 +59,10 @@ set(SRC
 )
 
 if(WITH_BULLET)
-	add_definitions(-DUSE_BULLET)
+	list(APPEND INC_SYS
+		${BULLET_INCLUDE_DIRS}
+	)
+	add_definitions(-DWITH_BULLET)
 endif()
 
-blender_add_lib(ge_phys_bullet "${SRC}" "${INC}")
+blender_add_lib(ge_phys_bullet "${SRC}" "${INC}" "${INC_SYS}")

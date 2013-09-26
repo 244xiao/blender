@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_font.h 34962 2011-02-18 13:05:18Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_VFONT_H
-#define BKE_VFONT_H
+#ifndef __BKE_FONT_H__
+#define __BKE_FONT_H__
 
 /** \file BKE_font.h
  *  \ingroup bke
@@ -46,11 +44,12 @@ struct Curve;
 struct objfnt;
 struct TmpFont;
 struct CharInfo;
+struct Main;
 
-struct chartrans {
+struct CharTrans {
 	float xof, yof;
 	float rot;
-	short linenr,charnr;
+	short linenr, charnr;
 	char dobreak;
 };
 
@@ -72,22 +71,17 @@ typedef struct EditFont {
 } EditFont;
 
 
-void BKE_font_register_builtin(void *mem, int size);
+bool BKE_vfont_is_builtin(struct VFont *vfont);
+void BKE_vfont_builtin_register(void *mem, int size);
 
-void free_vfont(struct VFont *sc); 
-void free_ttfont(void);
-struct VFont *get_builtin_font(void);
-struct VFont *load_vfont(const char *name);
-struct TmpFont *vfont_find_tmpfont(struct VFont *vfont);
+void BKE_vfont_free_data(struct VFont *vfont);
+void BKE_vfont_free(struct VFont *sc); 
+struct VFont *BKE_vfont_builtin_get(void);
+struct VFont *BKE_vfont_load(struct Main *bmain, const char *name);
 
-struct chartrans *BKE_text_to_curve(struct Scene *scene, struct Object *ob, int mode);
+struct CharTrans *BKE_vfont_to_curve(struct Main *bmain, struct Scene *scene, struct Object *ob, int mode);
 
-int BKE_font_getselection(struct Object *ob, int *start, int *end);
-
-void chtoutf8(unsigned long c, char *o);
-void wcs2utf8s(char *dst, wchar_t *src);
-int wcsleninu8(wchar_t *src);
-int utf8towchar(wchar_t *w, char *c);
+int BKE_vfont_select_get(struct Object *ob, int *start, int *end);
 
 #ifdef __cplusplus
 }

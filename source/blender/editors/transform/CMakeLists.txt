@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -21,13 +20,18 @@
 
 set(INC
 	../include
+	../../blenfont
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../bmesh
+	../../ikplugin
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -38,7 +42,6 @@ set(SRC
 	transform_generics.c
 	transform_input.c
 	transform_manipulator.c
-	transform_ndofinput.c
 	transform_ops.c
 	transform_orientations.c
 	transform_snap.c
@@ -46,4 +49,8 @@ set(SRC
 	transform.h
 )
 
-blender_add_lib(bf_editor_transform "${SRC}" "${INC}")
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+blender_add_lib(bf_editor_transform "${SRC}" "${INC}" "${INC_SYS}")

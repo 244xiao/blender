@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_view2d_types.h 34941 2011-02-17 20:48:12Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,12 +24,13 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_VIEW2D_TYPES_H
-#define DNA_VIEW2D_TYPES_H
 
 /** \file DNA_view2d_types.h
  *  \ingroup DNA
  */
+
+#ifndef __DNA_VIEW2D_TYPES_H__
+#define __DNA_VIEW2D_TYPES_H__
 
 #include "DNA_vec_types.h"
 
@@ -64,6 +63,11 @@ typedef struct View2D {
 	float *tab_offset;				/* different offset per tab, for buttons */
 	int tab_num;					/* number of tabs stored */
 	int tab_cur;					/* current tab */
+
+	/* animated smooth view */
+	struct SmoothView2DStore *sms;
+	struct wmTimer *smooth_timer;
+
 } View2D;
 
 /* ---------------------------------- */
@@ -100,6 +104,7 @@ typedef struct View2D {
 
 /* general refresh settings (v2d->flag) */
 	/* global view2d horizontal locking (for showing same time interval) */
+	/* TODO: this flag may be set in old files but is not accessible currently, should be exposed from RNA - Campbell */
 #define V2D_VIEWSYNC_SCREEN_TIME	(1<<0)
 	/* within area (i.e. between regions) view2d vertical locking */
 #define V2D_VIEWSYNC_AREA_VERTICAL	(1<<1)
@@ -118,12 +123,12 @@ typedef struct View2D {
 	/* horizontal scrollbar */
 #define V2D_SCROLL_TOP 				(1<<2)
 #define V2D_SCROLL_BOTTOM 			(1<<3)
-	/* special hack for outliner hscroll - prevent hanging older versions of Blender */
-#define V2D_SCROLL_BOTTOM_O   		(1<<4)
-#define V2D_SCROLL_HORIZONTAL  		(V2D_SCROLL_TOP|V2D_SCROLL_BOTTOM|V2D_SCROLL_BOTTOM_O)
+
+/* UNUSED							(1<<4) */
+#define V2D_SCROLL_HORIZONTAL  		(V2D_SCROLL_TOP|V2D_SCROLL_BOTTOM)
 	/* scale markings - vertical */
 #define V2D_SCROLL_SCALE_VERTICAL	(1<<5)
-	/* scale markings - horizontal */	
+	/* scale markings - horizontal */
 #define V2D_SCROLL_SCALE_HORIZONTAL	(1<<6)
 	/* induce hiding of scrollbars - set by region drawing in response to size of region */
 #define V2D_SCROLL_VERTICAL_HIDE	(1<<7)		

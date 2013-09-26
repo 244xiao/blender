@@ -1,6 +1,4 @@
 /*
- * $Id: KX_Light.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_LIGHT
-#define __KX_LIGHT
+#ifndef __KX_LIGHT_H__
+#define __KX_LIGHT_H__
 
 #include "RAS_LightObject.h"
 #include "KX_GameObject.h"
@@ -46,7 +44,7 @@ class MT_Transform;
 
 class KX_LightObject : public KX_GameObject
 {
-	Py_Header;
+	Py_Header
 protected:
 	RAS_LightObject		m_lightobj;
 	class RAS_IRenderTools*	m_rendertools;	//needed for registering and replication of lightobj
@@ -66,8 +64,9 @@ public:
 	struct GPULamp *GetGPULamp();
 	bool HasShadowBuffer();
 	int GetShadowLayer();
-	void BindShadowBuffer(class RAS_IRasterizer *ras, class KX_Camera *cam, class MT_Transform& camtrans);
+	void BindShadowBuffer(class RAS_IRasterizer *ras, class RAS_ICanvas *canvas, class KX_Camera *cam, class MT_Transform& camtrans);
 	void UnbindShadowBuffer(class RAS_IRasterizer *ras);
+	struct Image *GetTextureImage(short texslot);
 	void Update();
 	
 	void UpdateScene(class KX_Scene *kxscene) {m_lightobj.m_scene = (void*)kxscene;}
@@ -77,12 +76,11 @@ public:
 #ifdef WITH_PYTHON
 	/* attributes */
 	static PyObject*	pyattr_get_color(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_color(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject* value);
+	static int			pyattr_set_color(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_typeconst(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_type(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int			pyattr_set_type(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject* value);
+	static int			pyattr_set_type(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 #endif
 };
 
-#endif //__KX_LIGHT
-
+#endif  /* __KX_LIGHT_H__ */

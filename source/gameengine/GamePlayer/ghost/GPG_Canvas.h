@@ -1,6 +1,4 @@
 /*
- * $Id: GPG_Canvas.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,12 +29,12 @@
  *  \ingroup player
  */
 
-#ifndef _GPG_CANVAS_H_
-#define _GPG_CANVAS_H_
+#ifndef __GPG_CANVAS_H__
+#define __GPG_CANVAS_H__
 
 #ifdef WIN32
-#pragma warning (disable : 4786)
-#endif // WIN32
+#pragma warning (disable:4786)
+#endif  /* WIN32 */
 
 #include "GPC_Canvas.h"
 
@@ -57,14 +55,17 @@ public:
 	virtual void SetMousePosition(int x, int y);
 	virtual void SetMouseState(RAS_MouseState mousestate);
 	virtual void SwapBuffers();
-	virtual int GetMouseX(int x){return x;};
-	virtual int GetMouseY(int y){return y;};
+	virtual int GetMouseX(int x) { return x; }
+	virtual int GetMouseY(int y) { return y; }
 	virtual float GetMouseNormalizedX(int x);
 	virtual float GetMouseNormalizedY(int y);
 
-	bool BeginDraw() { return true;};
+	virtual void ResizeWindow(int width, int height);
+	virtual void SetFullScreen(bool enable);
+	virtual bool GetFullScreen();
+
+	bool BeginDraw() { return true; }
 	void EndDraw() {};
 };
 
-#endif // _GPG_CANVAS_H_
-
+#endif  /* __GPG_CANVAS_H__ */

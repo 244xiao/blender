@@ -1,6 +1,4 @@
 /*
- * $Id: IMB_thumbs.h 35239 2011-02-27 20:23:21Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  */
 
 
-#ifndef _IMB_THUMBS_H
-#define _IMB_THUMBS_H
+#ifndef __IMB_THUMBS_H__
+#define __IMB_THUMBS_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,19 +57,22 @@ typedef enum ThumbSource {
 	THB_SOURCE_BLEND
 } ThumbSource;
 
+/* don't generate thumbs for images bigger then this (100mb) */
+#define THUMB_SIZE_MAX (100 * 1024 * 1024)
+
 // IB_metadata
 
 /* create thumbnail for file and returns new imbuf for thumbnail */
-ImBuf* IMB_thumb_create(const char* path, ThumbSize size, ThumbSource source, ImBuf *ibuf);
+ImBuf *IMB_thumb_create(const char *path, ThumbSize size, ThumbSource source, ImBuf *ibuf);
 
 /* read thumbnail for file and returns new imbuf for thumbnail */
-ImBuf* IMB_thumb_read(const char* path, ThumbSize size);
+ImBuf *IMB_thumb_read(const char *path, ThumbSize size);
 
 /* delete all thumbs for the file */
-void IMB_thumb_delete(const char* path, ThumbSize size);
+void IMB_thumb_delete(const char *path, ThumbSize size);
 
 /* return the state of the thumb, needed to determine how to manage the thumb */
-ImBuf* IMB_thumb_manage(const char* path, ThumbSize size, ThumbSource source);
+ImBuf *IMB_thumb_manage(const char *path, ThumbSize size, ThumbSource source);
 
 /* create the necessary dirs to store the thumbnails */
 void IMB_thumb_makedirs(void);
@@ -84,5 +85,5 @@ void IMB_overlayblend_thumb(unsigned int *thumb, int width, int height, float as
 }
 #endif /* __cplusplus */
 
-#endif /* _IMB_THUMBS_H */
+#endif /* __IMB_THUMBS_H__ */
 

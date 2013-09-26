@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_PropertyActuator.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,14 +29,14 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __KX_PROPERTYACTUATOR
-#define __KX_PROPERTYACTUATOR
+#ifndef __SCA_PROPERTYACTUATOR_H__
+#define __SCA_PROPERTYACTUATOR_H__
 
 #include "SCA_IActuator.h"
 
 class SCA_PropertyActuator : public SCA_IActuator
 {
-	Py_Header;
+	Py_Header
 	
 	enum KX_ACT_PROP_MODE {
 		KX_ACT_PROP_NODEF = 0,
@@ -77,7 +75,7 @@ public:
 
 	virtual void ProcessReplica();
 	virtual bool UnlinkObject(SCA_IObject* clientobj);
-	virtual void Relink(GEN_Map<GEN_HashedPtr, void*> *obj_map);
+	virtual void Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map);
 
 	virtual bool 
 	Update();
@@ -88,5 +86,4 @@ public:
 	
 };
 
-#endif //__KX_PROPERTYACTUATOR_DOC
-
+#endif  /* __KX_PROPERTYACTUATOR_DOC */

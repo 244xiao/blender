@@ -1,6 +1,4 @@
 /*
- * $Id: KX_ConvertProperties.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,14 +29,13 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __KX_CONVERTPROPERTIES
-#define __KX_CONVERTPROPERTIES
+#ifndef __KX_CONVERTPROPERTIES_H__
+#define __KX_CONVERTPROPERTIES_H__
 
 void BL_ConvertProperties(struct Object* object,
-  class KX_GameObject* gameobj,
-  class SCA_TimeEventManager* timemgr,
-  class SCA_IScene* scene,
-  bool isInActiveLayer);
+                          class KX_GameObject* gameobj,
+                          class SCA_TimeEventManager* timemgr,
+                          class SCA_IScene* scene,
+                          bool isInActiveLayer);
 
-#endif //__KX_CONVERTPROPERTIES
-
+#endif  /* __KX_CONVERTPROPERTIES_H__ */

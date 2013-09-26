@@ -1,6 +1,4 @@
 /*
- * $Id: rayobject_rtbuild.h 35233 2011-02-27 19:31:27Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup render
  */
 
-#ifndef RE_RAYOBJECT_RTBUILD_H
-#define RE_RAYOBJECT_RTBUILD_H
+#ifndef __RAYOBJECT_RTBUILD_H__
+#define __RAYOBJECT_RTBUILD_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,10 +52,8 @@ extern "C" {
 #define RTBUILD_MAX_CHILDS 32
 
 
-typedef struct RTBuilder
-{
-	struct Object
-	{
+typedef struct RTBuilder {
+	struct Object {
 		RayObject *obj;
 		float cost;
 		float bb[6];
@@ -65,8 +61,7 @@ typedef struct RTBuilder
 	};
 	
 	/* list to all primitives added in this tree */
-	struct
-	{
+	struct {
 		Object *begin, *end;
 		int maxsize;
 	} primitives;
@@ -78,7 +73,7 @@ typedef struct RTBuilder
 	int split_axis;
 	
 	/* child partitions calculated during splitting */
-	int child_offset[RTBUILD_MAX_CHILDS+1];
+	int child_offset[RTBUILD_MAX_CHILDS + 1];
 	
 //	int child_sorted_axis; /* -1 if not sorted */
 	
@@ -87,17 +82,17 @@ typedef struct RTBuilder
 } RTBuilder;
 
 /* used during creation */
-RTBuilder* rtbuild_create(int size);
+RTBuilder *rtbuild_create(int size);
 void rtbuild_free(RTBuilder *b);
 void rtbuild_add(RTBuilder *b, RayObject *o);
 void rtbuild_done(RTBuilder *b, RayObjectControl *c);
-void rtbuild_merge_bb(RTBuilder *b, float *min, float *max);
+void rtbuild_merge_bb(RTBuilder *b, float min[3], float max[3]);
 int rtbuild_size(RTBuilder *b);
 
-RayObject* rtbuild_get_primitive(RTBuilder *b, int offset);
+RayObject *rtbuild_get_primitive(RTBuilder *b, int offset);
 
 /* used during tree reorganization */
-RTBuilder* rtbuild_get_child(RTBuilder *b, int child, RTBuilder *tmp);
+RTBuilder *rtbuild_get_child(RTBuilder *b, int child, RTBuilder *tmp);
 
 /* Calculates child partitions and returns number of efectively needed partitions */
 int rtbuild_get_largest_axis(RTBuilder *b);
@@ -114,13 +109,14 @@ int rtbuild_median_split_largest_axis(RTBuilder *b, int nchilds);
 
 
 /* bb utils */
-float bb_area(float *min, float *max);
-float bb_volume(float *min, float *max);
-int bb_largest_axis(float *min, float *max);
-int bb_fits_inside(float *outer_min, float *outer_max, float *inner_min, float *inner_max); /* only returns 0 if merging inner and outerbox would create a box larger than outer box */
+float bb_area(const float min[3], const float max[3]);
+float bb_volume(const float min[3], const float max[3]);
+int bb_largest_axis(const float min[3], const float max[3]);
+int bb_fits_inside(const float  outer_min[3], const float  outer_max[3],
+                   const float  inner_min[3], const float  inner_max[3]);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif  /* __RAYOBJECT_RTBUILD_H__ */

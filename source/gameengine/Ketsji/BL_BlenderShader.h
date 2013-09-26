@@ -1,6 +1,4 @@
 /*
- * $Id: BL_BlenderShader.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __BL_GPUSHADER_H__
-#define __BL_GPUSHADER_H__
+#ifndef __BL_BLENDERSHADER_H__
+#define __BL_BLENDERSHADER_H__
 
 #include "GPU_material.h"
 
@@ -63,7 +61,7 @@ private:
 	struct Scene	*mBlenderScene;
 	struct Material	*mMat;
 	int				mLightLayer;
-	int				mBlendMode;
+	int				mAlphaBlend;
 	GPUMaterial     *mGPUMat;
 
 	bool			VerifyShader() 
@@ -80,13 +78,13 @@ public:
 		// same as VerifyShared
 		return (NULL != mGPUMat);
 	}
-	void				SetProg(bool enable, double time=0.0);
+	void				SetProg(bool enable, double time=0.0, RAS_IRasterizer* rasty=NULL);
 
 	int GetAttribNum();
 	void SetAttribs(class RAS_IRasterizer* ras, const BL_Material *mat);
 	void Update(const class RAS_MeshSlot & ms, class RAS_IRasterizer* rasty);
 	void ReloadMaterial();
-	int GetBlendMode();
+	int GetAlphaBlend();
 
 	void SetScene(KX_Scene *scene)
 	{
@@ -99,10 +97,8 @@ public:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:BL_BlenderShader"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_BlenderShader")
 #endif
 };
 
-#endif//__BL_GPUSHADER_H__
+#endif /* __BL_BLENDERSHADER_H__ */

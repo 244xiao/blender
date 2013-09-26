@@ -1,6 +1,4 @@
 /*
- * $Id: wm_draw.h 35179 2011-02-25 14:04:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  */
 
 
-#ifndef WM_DRAW_H
-#define WM_DRAW_H
+#ifndef __WM_DRAW_H__
+#define __WM_DRAW_H__
 
 struct bContext;
 struct wmWindow;
@@ -45,5 +43,5 @@ void		wm_draw_region_clear	(struct wmWindow *win, struct ARegion *ar);
 
 void		wm_tag_redraw_overlay	(struct wmWindow *win, struct ARegion *ar);
 
-#endif /* WM_DRAW_H */
+#endif /* __WM_DRAW_H__ */
 

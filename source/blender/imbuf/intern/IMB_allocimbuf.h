@@ -1,8 +1,4 @@
 /*
- * allocimbuf.h
- *
- * $Id: IMB_allocimbuf.h 33468 2010-12-04 13:00:28Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -34,19 +30,13 @@
  * \ingroup imbuf
  * \brief Header file for allocimbuf.c
  */
-#ifndef IMB_ALLOCIMBUF_H
-#define IMB_ALLOCIMBUF_H
+#ifndef __IMB_ALLOCIMBUF_H__
+#define __IMB_ALLOCIMBUF_H__
 
 struct ImBuf;
 
-short imb_addplanesImBuf(struct ImBuf *ibuf);
-
 short imb_addencodedbufferImBuf(struct ImBuf *ibuf);
 short imb_enlargeencodedbufferImBuf(struct ImBuf *ibuf);
-
-void imb_freeplanesImBuf(struct ImBuf *ibuf);
-
-short imb_addcmapImBuf(struct ImBuf *ibuf);
 
 #endif
 

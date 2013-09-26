@@ -1,27 +1,36 @@
-/** \file blender/blenkernel/intern/writeframeserver.c
- *  \ingroup bke
- */
 /*
- * $Id: writeframeserver.c 35247 2011-02-27 20:40:57Z jesterking $
+ * ***** BEGIN GPL LICENSE BLOCK *****
  *
- * Frameserver
- * Makes Blender accessible from TMPGenc directly using VFAPI (you can
- * use firefox too ;-)
- *
- * Copyright (c) 2006 Peter Schlaile
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Copyright (c) 2006 Peter Schlaile
+ *
+ * Contributor(s):
+ *
+ * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/blenkernel/intern/writeframeserver.c
+ *  \ingroup bke
+ *
+ * Frameserver
+ * Makes Blender accessible from TMPGenc directly using VFAPI (you can
+ * use firefox too ;-)
+ */
+
+#ifdef WITH_FRAMESERVER
 
 #include <string.h>
 #include <stdio.h>
@@ -69,7 +78,7 @@ static int render_height;
 static int startup_socket_system(void)
 {
 	WSADATA wsa;
-	return (WSAStartup(MAKEWORD(2,0),&wsa) == 0);
+	return (WSAStartup(MAKEWORD(2, 0), &wsa) == 0);
 }
 
 static void shutdown_socket_system(void)
@@ -101,7 +110,7 @@ static int closesocket(int fd)
 }
 #endif
 
-int start_frameserver(struct Scene *scene, RenderData *UNUSED(rd), int rectx, int recty, ReportList *reports)
+int BKE_frameserver_start(struct Scene *scene, RenderData *UNUSED(rd), int rectx, int recty, ReportList *reports)
 {
 	struct sockaddr_in addr;
 	int arg = 1;
@@ -109,17 +118,17 @@ int start_frameserver(struct Scene *scene, RenderData *UNUSED(rd), int rectx, in
 	(void)scene; /* unused */
 
 	if (!startup_socket_system()) {
-		BKE_report(reports, RPT_ERROR, "Can't startup socket system");
+		BKE_report(reports, RPT_ERROR, "Cannot startup socket system");
 		return 0;
 	}
 
 	if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 		shutdown_socket_system();
-		BKE_report(reports, RPT_ERROR, "Can't open socket");
+		BKE_report(reports, RPT_ERROR, "Cannot open socket");
 		return 0;
 	}
 
-	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*) &arg, sizeof(arg));
+	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *) &arg, sizeof(arg));
 
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(U.frameserverport);
@@ -127,13 +136,13 @@ int start_frameserver(struct Scene *scene, RenderData *UNUSED(rd), int rectx, in
 
 	if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 		shutdown_socket_system();
-		BKE_report(reports, RPT_ERROR, "Can't bind to socket");
+		BKE_report(reports, RPT_ERROR, "Cannot bind to socket");
 		return 0;
 	}
 
 	if (listen(sock, SOMAXCONN) < 0) {
 		shutdown_socket_system();
-		BKE_report(reports, RPT_ERROR, "Can't establish listen backlog");
+		BKE_report(reports, RPT_ERROR, "Cannot establish listen backlog");
 		return 0;
 	}
 	connsock = -1;
@@ -168,7 +177,7 @@ static char good_bye[] =
 "<body><pre>\n"
 "Render stopped. Goodbye</pre></body></html>";
 
-static int safe_write(char * s, int tosend)
+static int safe_write(char *s, int tosend)
 {
 	int total = tosend;
 	do {
@@ -183,15 +192,15 @@ static int safe_write(char * s, int tosend)
 	return total;
 }
 
-static int safe_puts(char * s)
+static int safe_puts(char *s)
 {
 	return safe_write(s, strlen(s));
 }
 
-static int handle_request(RenderData *rd, char * req)
+static int handle_request(RenderData *rd, char *req)
 {
-	char * p;
-	char * path;
+	char *p;
+	char *path;
 	int pathlen;
 
 	if (memcmp(req, "GET ", 4) != 0) {
@@ -205,8 +214,7 @@ static int handle_request(RenderData *rd, char * req)
 
 	*p = 0;
 
-	if (strcmp(path, "/index.html") == 0
-		|| strcmp(path, "/") == 0) {
+	if (strcmp(path, "/index.html") == 0 || strcmp(path, "/") == 0) {
 		safe_puts(index_page);
 		return -1;
 	}
@@ -222,41 +230,45 @@ static int handle_request(RenderData *rd, char * req)
 		char buf[4096];
 
 		sprintf(buf,
-			"HTTP/1.1 200 OK\r\n"
-			"Content-Type: text/html\r\n"
-			"\r\n"
-			"start %d\n"
-			"end %d\n"
-			"width %d\n"
-			"height %d\n"
-			"rate %d\n"
-			"ratescale %d\n",
-			rd->sfra,
-			rd->efra,
-			render_width,
-			render_height,
-			rd->frs_sec,
-			1
-			);
+		        "HTTP/1.1 200 OK\r\n"
+		        "Content-Type: text/html\r\n"
+		        "\r\n"
+		        "start %d\n"
+		        "end %d\n"
+		        "width %d\n"
+		        "height %d\n"
+		        "rate %d\n"
+		        "ratescale %d\n",
+		        rd->sfra,
+		        rd->efra,
+		        render_width,
+		        render_height,
+		        rd->frs_sec,
+		        1
+		        );
 
 		safe_puts(buf);
 		return -1;
 	}
 	if (strcmp(path, "/close.txt") == 0) {
 		safe_puts(good_bye);
-		G.afbreek = 1; /* Abort render */
+		G.is_break = TRUE; /* Abort render */
 		return -1;
 	}
 	return -1;
 }
 
-int frameserver_loop(RenderData *rd, ReportList *UNUSED(reports))
+int BKE_frameserver_loop(RenderData *rd, ReportList *UNUSED(reports))
 {
 	fd_set readfds;
 	struct timeval tv;
-	struct sockaddr_in      addr;
+	struct sockaddr_in addr;
 	int len, rval;
+#ifdef FREE_WINDOWS
+	int socklen;
+#else
 	unsigned int socklen;
+#endif
 	char buf[4096];
 
 	if (connsock != -1) {
@@ -293,19 +305,21 @@ int frameserver_loop(RenderData *rd, ReportList *UNUSED(reports))
 		tv.tv_sec = 10;
 		tv.tv_usec = 0;
 
-			rval = select(connsock + 1, &readfds, NULL, NULL, &tv);
+		rval = select(connsock + 1, &readfds, NULL, NULL, &tv);
 		if (rval > 0) {
 			break;
-		} else if (rval == 0) {
+		}
+		else if (rval == 0) {
 			return -1;
-		} else if (rval < 0) {
+		}
+		else if (rval < 0) {
 			if (!select_was_interrupted_by_signal()) {
 				return -1;
 			}
 		}
 	}
 
-	len = recv(connsock, buf, 4095, 0);
+	len = recv(connsock, buf, sizeof(buf) - 1, 0);
 
 	if (len < 0) {
 		return -1;
@@ -318,30 +332,30 @@ int frameserver_loop(RenderData *rd, ReportList *UNUSED(reports))
 
 static void serve_ppm(int *pixels, int rectx, int recty)
 {
-	unsigned char* rendered_frame;
-	unsigned char* row = (unsigned char*) malloc(render_width * 3);
+	unsigned char *rendered_frame;
+	unsigned char *row = (unsigned char *) malloc(render_width * 3);
 	int y;
 	char header[1024];
 
 	sprintf(header,
-		"HTTP/1.1 200 OK\r\n"
-		"Content-Type: image/ppm\r\n"
-		"Connection: close\r\n"
-		"\r\n"
-		"P6\n"
-		"# Creator: blender frameserver v0.0.1\n"
-		"%d %d\n"
-		"255\n",
-		rectx, recty);
+	        "HTTP/1.1 200 OK\r\n"
+	        "Content-Type: image/ppm\r\n"
+	        "Connection: close\r\n"
+	        "\r\n"
+	        "P6\n"
+	        "# Creator: blender frameserver v0.0.1\n"
+	        "%d %d\n"
+	        "255\n",
+	        rectx, recty);
 
 	safe_puts(header);
 
 	rendered_frame = (unsigned char *)pixels;
 
 	for (y = recty - 1; y >= 0; y--) {
-		unsigned char* target = row;
-		unsigned char* src = rendered_frame + rectx * 4 * y;
-		unsigned char* end = src + rectx * 4;
+		unsigned char *target = row;
+		unsigned char *src = rendered_frame + rectx * 4 * y;
+		unsigned char *end = src + rectx * 4;
 		while (src != end) {
 			target[2] = src[2];
 			target[1] = src[1];
@@ -350,14 +364,15 @@ static void serve_ppm(int *pixels, int rectx, int recty)
 			target += 3;
 			src += 4;
 		}
-		safe_write((char*)row, 3 * rectx);
+		safe_write((char *)row, 3 * rectx);
 	}
 	free(row);
 	closesocket(connsock);
 	connsock = -1;
 }
 
-int append_frameserver(RenderData *UNUSED(rd), int frame, int *pixels, int rectx, int recty, ReportList *UNUSED(reports))
+int BKE_frameserver_append(RenderData *UNUSED(rd), int UNUSED(start_frame), int frame, int *pixels,
+                           int rectx, int recty, ReportList *UNUSED(reports))
 {
 	fprintf(stderr, "Serving frame: %d\n", frame);
 	if (write_ppm) {
@@ -368,10 +383,10 @@ int append_frameserver(RenderData *UNUSED(rd), int frame, int *pixels, int rectx
 		connsock = -1;
 	}
 
-	return 0;
+	return 1;
 }
 
-void end_frameserver(void)
+void BKE_frameserver_end(void)
 {
 	if (connsock != -1) {
 		closesocket(connsock);
@@ -381,3 +396,4 @@ void end_frameserver(void)
 	shutdown_socket_system();
 }
 
+#endif /* WITH_FRAMESERVER */

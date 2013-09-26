@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_PythonKeyboard.cpp 35169 2011-02-25 13:32:11Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,6 +28,8 @@
 #include "SCA_PythonKeyboard.h"
 #include "SCA_IInputDevice.h"
 
+#include "GHOST_C-api.h"
+
 /* ------------------------------------------------------------------------- */
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
@@ -57,6 +57,23 @@ SCA_PythonKeyboard::~SCA_PythonKeyboard()
 /* Python functions                                                          */
 /* ------------------------------------------------------------------------- */
 
+/* clipboard */
+static PyObject *gPyGetClipboard(PyObject *args, PyObject *kwds)
+{
+	char *buf = (char *)GHOST_getClipboard(0);
+	return PyUnicode_FromString(buf?buf:"");
+}
+
+static PyObject *gPySetClipboard(PyObject *args, PyObject *value)
+{
+	char* buf;
+	if (!PyArg_ParseTuple(value,"s:setClipboard",&buf))
+		Py_RETURN_NONE;
+
+	GHOST_putClipboard((GHOST_TInt8 *)buf, 0);
+	Py_RETURN_NONE;
+}
+
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_PythonKeyboard::Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
@@ -81,15 +98,18 @@ PyTypeObject SCA_PythonKeyboard::Type = {
 };
 
 PyMethodDef SCA_PythonKeyboard::Methods[] = {
+	{"getClipboard", (PyCFunction) gPyGetClipboard, METH_VARARGS, "getCliboard doc"},
+	{"setClipboard", (PyCFunction) gPySetClipboard, METH_VARARGS, "setCliboard doc"},
 	{NULL,NULL} //Sentinel
 };
 
 PyAttributeDef SCA_PythonKeyboard::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("events", SCA_PythonKeyboard, pyattr_get_events),
+	KX_PYATTRIBUTE_RO_FUNCTION("active_events", SCA_PythonKeyboard, pyattr_get_active_events),
 	{ NULL }	//Sentinel
 };
 
-PyObject* SCA_PythonKeyboard::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonKeyboard::pyattr_get_events(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	SCA_PythonKeyboard* self = static_cast<SCA_PythonKeyboard*>(self_v);
 	
@@ -97,7 +117,24 @@ PyObject* SCA_PythonKeyboard::pyattr_get_events(void *self_v, const KX_PYATTRIBU
 	{
 		const SCA_InputEvent & inevent = self->m_keyboard->GetEventValue((SCA_IInputDevice::KX_EnumInputs)i);
 		
-		PyDict_SetItem(self->m_event_dict, PyLong_FromSsize_t(i), PyLong_FromSsize_t(inevent.m_status));
+		PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), PyLong_FromLong(inevent.m_status));
+	}
+	Py_INCREF(self->m_event_dict);
+	return self->m_event_dict;
+}
+
+PyObject *SCA_PythonKeyboard::pyattr_get_active_events(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	SCA_PythonKeyboard* self = static_cast<SCA_PythonKeyboard*>(self_v);
+
+	PyDict_Clear(self->m_event_dict);
+	
+	for (int i=SCA_IInputDevice::KX_BEGINKEY; i<=SCA_IInputDevice::KX_ENDKEY; i++)
+	{
+		const SCA_InputEvent & inevent = self->m_keyboard->GetEventValue((SCA_IInputDevice::KX_EnumInputs)i);
+		
+		if (inevent.m_status != SCA_InputEvent::KX_NO_INPUTSTATUS)
+			PyDict_SetItem(self->m_event_dict, PyLong_FromLong(i), PyLong_FromLong(inevent.m_status));
 	}
 	Py_INCREF(self->m_event_dict);
 	return self->m_event_dict;

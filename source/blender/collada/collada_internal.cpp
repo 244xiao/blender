@@ -1,6 +1,4 @@
 /*
- * $Id: collada_internal.cpp 35596 2011-03-17 16:40:53Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -29,12 +27,23 @@
 
 /* COLLADABU_ASSERT, may be able to remove later */
 #include "COLLADABUPlatform.h"
-
 #include "collada_internal.h"
 
-UnitConverter::UnitConverter() : unit(), up_axis(COLLADAFW::FileInfo::Z_UP) {}
+#include "BLI_linklist.h"
 
-void UnitConverter::read_asset(const COLLADAFW::FileInfo* asset)
+UnitConverter::UnitConverter() : unit(), up_axis(COLLADAFW::FileInfo::Z_UP)
+{
+	unit_m4(x_up_mat4);
+	rotate_m4(x_up_mat4, 'Y', -0.5 * M_PI);
+
+	unit_m4(y_up_mat4);
+	rotate_m4(y_up_mat4, 'X', 0.5 * M_PI);
+
+	unit_m4(z_up_mat4);
+
+}
+
+void UnitConverter::read_asset(const COLLADAFW::FileInfo *asset)
 {
 	unit = asset->getUnit();
 	up_axis = asset->getUpAxisType();
@@ -42,7 +51,7 @@ void UnitConverter::read_asset(const COLLADAFW::FileInfo* asset)
 
 UnitConverter::UnitSystem UnitConverter::isMetricSystem()
 {
-	switch(unit.getLinearUnitUnit()) {
+	switch (unit.getLinearUnitUnit()) {
 		case COLLADAFW::FileInfo::Unit::MILLIMETER:
 		case COLLADAFW::FileInfo::Unit::CENTIMETER:
 		case COLLADAFW::FileInfo::Unit::DECIMETER:
@@ -72,7 +81,7 @@ void UnitConverter::convertVector3(COLLADABU::Math::Vector3 &vec, float *v)
 
 // TODO need also for angle conversion, time conversion...
 
-void UnitConverter::dae_matrix_to_mat4_(float out[][4], const COLLADABU::Math::Matrix4& in)
+void UnitConverter::dae_matrix_to_mat4_(float out[4][4], const COLLADABU::Math::Matrix4& in)
 {
 	// in DAE, matrices use columns vectors, (see comments in COLLADABUMathMatrix4.h)
 	// so here, to make a blender matrix, we swap columns and rows
@@ -83,13 +92,13 @@ void UnitConverter::dae_matrix_to_mat4_(float out[][4], const COLLADABU::Math::M
 	}
 }
 
-void UnitConverter::mat4_to_dae(float out[][4], float in[][4])
+void UnitConverter::mat4_to_dae(float out[4][4], float in[4][4])
 {
 	copy_m4_m4(out, in);
 	transpose_m4(out);
 }
 
-void UnitConverter::mat4_to_dae_double(double out[][4], float in[][4])
+void UnitConverter::mat4_to_dae_double(double out[4][4], float in[4][4])
 {
 	float mat[4][4];
 
@@ -100,7 +109,22 @@ void UnitConverter::mat4_to_dae_double(double out[][4], float in[][4])
 			out[i][j] = mat[i][j];
 }
 
-void TransformBase::decompose(float mat[][4], float *loc, float eul[3], float quat[4], float *size)
+float(&UnitConverter::get_rotation())[4][4]
+{
+	switch (up_axis) {
+		case COLLADAFW::FileInfo::X_UP:
+			return x_up_mat4;
+			break;
+		case COLLADAFW::FileInfo::Y_UP:
+			return y_up_mat4;
+			break;
+		default:
+			return z_up_mat4;
+			break;
+	}
+}
+
+void TransformBase::decompose(float mat[4][4], float *loc, float eul[3], float quat[4], float *size)
 {
 	mat4_to_size(size, mat);
 	if (eul) {
@@ -113,81 +137,83 @@ void TransformBase::decompose(float mat[][4], float *loc, float eul[3], float qu
 }
 
 /**
-Translation map.
-Used to translate every COLLADA id to a valid id, no matter what "wrong" letters may be
-included. Look at the IDREF XSD declaration for more.
-Follows strictly the COLLADA XSD declaration which explicitly allows non-english chars,
-like special chars (e.g. micro sign), umlauts and so on.
-The COLLADA spec also allows additional chars for member access ('.'), these
-must obviously be removed too, otherwise they would be heavily misinterpreted.
-*/
+ * Translation map.
+ * Used to translate every COLLADA id to a valid id, no matter what "wrong" letters may be
+ * included. Look at the IDREF XSD declaration for more.
+ * Follows strictly the COLLADA XSD declaration which explicitly allows non-english chars,
+ * like special chars (e.g. micro sign), umlauts and so on.
+ * The COLLADA spec also allows additional chars for member access ('.'), these
+ * must obviously be removed too, otherwise they would be heavily misinterpreted.
+ */
 const unsigned char translate_start_name_map[256] = {
-95,  95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-65,  66,  67,  68,  69,  70,  71,  72,
-73,  74,  75,  76,  77,  78,  79,  80,
-81,  82,  83,  84,  85,  86,  87,  88,
-89,  90,  95,  95,  95,  95,  95,  95,
-97,  98,  99,  100,  101,  102,  103,  104,
-105,  106,  107,  108,  109,  110,  111,  112,
-113,  114,  115,  116,  117,  118,  119,  120,
-121,  122,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  192,
-193,  194,  195,  196,  197,  198,  199,  200,
-201,  202,  203,  204,  205,  206,  207,  208,
-209,  210,  211,  212,  213,  214,  95,  216,
-217,  218,  219,  220,  221,  222,  223,  224,
-225,  226,  227,  228,  229,  230,  231,  232,
-233,  234,  235,  236,  237,  238,  239,  240,
-241,  242,  243,  244,  245,  246,  95,  248,
-249,  250,  251,  252,  253,  254,  255};
+	95,  95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	65,  66,  67,  68,  69,  70,  71,  72,
+	73,  74,  75,  76,  77,  78,  79,  80,
+	81,  82,  83,  84,  85,  86,  87,  88,
+	89,  90,  95,  95,  95,  95,  95,  95,
+	97,  98,  99,  100,  101,  102,  103,  104,
+	105,  106,  107,  108,  109,  110,  111,  112,
+	113,  114,  115,  116,  117,  118,  119,  120,
+	121,  122,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  192,
+	193,  194,  195,  196,  197,  198,  199,  200,
+	201,  202,  203,  204,  205,  206,  207,  208,
+	209,  210,  211,  212,  213,  214,  95,  216,
+	217,  218,  219,  220,  221,  222,  223,  224,
+	225,  226,  227,  228,  229,  230,  231,  232,
+	233,  234,  235,  236,  237,  238,  239,  240,
+	241,  242,  243,  244,  245,  246,  95,  248,
+	249,  250,  251,  252,  253,  254,  255
+};
 
 const unsigned char translate_name_map[256] = {
-95,  95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  45,  95,  95,  48,
-49,  50,  51,  52,  53,  54,  55,  56,
-57,  95,  95,  95,  95,  95,  95,  95,
-65,  66,  67,  68,  69,  70,  71,  72,
-73,  74,  75,  76,  77,  78,  79,  80,
-81,  82,  83,  84,  85,  86,  87,  88,
-89,  90,  95,  95,  95,  95,  95,  95,
-97,  98,  99,  100,  101,  102,  103,  104,
-105,  106,  107,  108,  109,  110,  111,  112,
-113,  114,  115,  116,  117,  118,  119,  120,
-121,  122,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  95,  95,
-95,  95,  95,  95,  95,  95,  183,  95,
-95,  95,  95,  95,  95,  95,  95,  192,
-193,  194,  195,  196,  197,  198,  199,  200,
-201,  202,  203,  204,  205,  206,  207,  208,
-209,  210,  211,  212,  213,  214,  95,  216,
-217,  218,  219,  220,  221,  222,  223,  224,
-225,  226,  227,  228,  229,  230,  231,  232,
-233,  234,  235,  236,  237,  238,  239,  240,
-241,  242,  243,  244,  245,  246,  95,  248,
-249,  250,  251,  252,  253,  254,  255};
+	95,  95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  45,  95,  95,  48,
+	49,  50,  51,  52,  53,  54,  55,  56,
+	57,  95,  95,  95,  95,  95,  95,  95,
+	65,  66,  67,  68,  69,  70,  71,  72,
+	73,  74,  75,  76,  77,  78,  79,  80,
+	81,  82,  83,  84,  85,  86,  87,  88,
+	89,  90,  95,  95,  95,  95,  95,  95,
+	97,  98,  99,  100,  101,  102,  103,  104,
+	105,  106,  107,  108,  109,  110,  111,  112,
+	113,  114,  115,  116,  117,  118,  119,  120,
+	121,  122,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  95,  95,
+	95,  95,  95,  95,  95,  95,  183,  95,
+	95,  95,  95,  95,  95,  95,  95,  192,
+	193,  194,  195,  196,  197,  198,  199,  200,
+	201,  202,  203,  204,  205,  206,  207,  208,
+	209,  210,  211,  212,  213,  214,  95,  216,
+	217,  218,  219,  220,  221,  222,  223,  224,
+	225,  226,  227,  228,  229,  230,  231,  232,
+	233,  234,  235,  236,  237,  238,  239,  240,
+	241,  242,  243,  244,  245,  246,  95,  248,
+	249,  250,  251,  252,  253,  254,  255
+};
 
 typedef std::map< std::string, std::vector<std::string> > map_string_list;
 map_string_list global_id_map;
@@ -198,46 +224,47 @@ void clear_global_id_map()
 }
 
 /** Look at documentation of translate_map */
+std::string translate_id(const char *idString)
+{
+	std::string id = std::string(idString);
+	return translate_id(id);
+}
+
 std::string translate_id(const std::string &id)
 {
-	if (id.size() == 0)
-	{ return id; }
+	if (id.size() == 0) {
+		return id;
+	}
+
 	std::string id_translated = id;
 	id_translated[0] = translate_start_name_map[(unsigned int)id_translated[0]];
-	for (unsigned int i=1; i < id_translated.size(); i++)
-	{
+	for (unsigned int i = 1; i < id_translated.size(); i++) {
 		id_translated[i] = translate_name_map[(unsigned int)id_translated[i]];
 	}
-	// It's so much workload now, the if() should speed up things.
-	if (id_translated != id)
-	{
+	// It's so much workload now, the if () should speed up things.
+	if (id_translated != id) {
 		// Search duplicates
 		map_string_list::iterator iter = global_id_map.find(id_translated);
-		if (iter != global_id_map.end())
-		{
+		if (iter != global_id_map.end()) {
 			unsigned int i = 0;
 			bool found = false;
-			for (i=0; i < iter->second.size(); i++)
-			{
-				if (id == iter->second[i])
-				{ 
+			for (i = 0; i < iter->second.size(); i++) {
+				if (id == iter->second[i]) {
 					found = true;
 					break;
 				}
 			}
 			bool convert = false;
-			if (found)
-			{
-			  if (i > 0)
-			  { convert = true; }
+			if (found) {
+				if (i > 0) {
+					convert = true;
+				}
 			}
-			else
-			{ 
+			else {
 				convert = true;
 				global_id_map[id_translated].push_back(id);
 			}
-			if (convert)
-			{
+			if (convert) {
 				std::stringstream out;
 				out << ++i;
 				id_translated += out.str();
@@ -250,12 +277,19 @@ std::string translate_id(const std::string &id)
 
 std::string id_name(void *id)
 {
-	return ((ID*)id)->name + 2;
+	return ((ID *)id)->name + 2;
 }
 
 std::string get_geometry_id(Object *ob)
 {
 	return translate_id(id_name(ob->data)) + "-mesh";
+}
+
+std::string get_geometry_id(Object *ob, bool use_instantiation)
+{
+	std::string geom_name = (use_instantiation) ? id_name(ob->data) : id_name(ob);
+
+	return translate_id(geom_name) + "-mesh";
 }
 
 std::string get_light_id(Object *ob)
@@ -265,7 +299,7 @@ std::string get_light_id(Object *ob)
 
 std::string get_joint_id(Bone *bone, Object *ob_arm)
 {
-	return translate_id(id_name(ob_arm) + "_" + bone->name);
+	return translate_id(/*id_name(ob_arm) + "_" +*/ bone->name);
 }
 
 std::string get_camera_id(Object *ob)
@@ -278,16 +312,8 @@ std::string get_material_id(Material *mat)
 	return translate_id(id_name(mat)) + "-material";
 }
 
-bool has_object_type(Scene *sce, short obtype)
+std::string get_morph_id(Object *ob)
 {
-	Base *base= (Base*) sce->base.first;
-	while(base) {
-		Object *ob = base->object;
-			
-		if (ob->type == obtype && ob->data) {
-			return true;
-		}
-		base= base->next;
-	}
-	return false;
+	return translate_id(id_name(ob)) + "-morph";
 }
+

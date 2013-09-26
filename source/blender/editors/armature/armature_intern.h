@@ -1,6 +1,4 @@
 /*
- * $Id: armature_intern.h 35736 2011-03-24 03:02:34Z aligorith $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,8 +28,8 @@
  *  \ingroup edarmature
  */
 
-#ifndef ED_ARMATURE_INTERN_H
-#define ED_ARMATURE_INTERN_H
+#ifndef __ARMATURE_INTERN_H__
+#define __ARMATURE_INTERN_H__
 
 /* internal exports only */
 struct wmOperatorType;
@@ -39,17 +37,19 @@ struct wmOperatorType;
 struct bContext;
 struct Scene;
 struct Object;
+struct Base;
 struct bAction;
 struct bPoseChannel;
 
 struct bArmature;
 struct EditBone;
+struct Bone;
 
 struct ListBase;
 struct LinkData;
 
 /* ******************************************************* */
-/* editarmature.c operators */
+/* Armature EditMode Operators */
 void ARMATURE_OT_bone_primitive_add(struct wmOperatorType *ot);
 
 void ARMATURE_OT_align(struct wmOperatorType *ot);
@@ -65,6 +65,7 @@ void ARMATURE_OT_select_all(struct wmOperatorType *ot);
 void ARMATURE_OT_select_inverse(struct wmOperatorType *ot);
 void ARMATURE_OT_select_hierarchy(struct wmOperatorType *ot);
 void ARMATURE_OT_select_linked(struct wmOperatorType *ot);
+void ARMATURE_OT_select_similar(struct wmOperatorType *ot);
 
 void ARMATURE_OT_delete(struct wmOperatorType *ot);
 void ARMATURE_OT_duplicate(struct wmOperatorType *ot);
@@ -78,8 +79,6 @@ void ARMATURE_OT_separate(struct wmOperatorType *ot);
 
 void ARMATURE_OT_autoside_names(struct wmOperatorType *ot);
 void ARMATURE_OT_flip_names(struct wmOperatorType *ot);
-
-void ARMATURE_OT_flags_set(struct wmOperatorType *ot);
 
 void ARMATURE_OT_layers_show_all(struct wmOperatorType *ot);
 void ARMATURE_OT_armature_layers(struct wmOperatorType *ot);
@@ -97,12 +96,12 @@ void POSE_OT_rot_clear(struct wmOperatorType *ot);
 void POSE_OT_loc_clear(struct wmOperatorType *ot);
 void POSE_OT_scale_clear(struct wmOperatorType *ot);
 void POSE_OT_transforms_clear(struct wmOperatorType *ot);
+void POSE_OT_user_transforms_clear(struct wmOperatorType *ot);
 
 void POSE_OT_copy(struct wmOperatorType *ot);
 void POSE_OT_paste(struct wmOperatorType *ot);
 
 void POSE_OT_select_all(struct wmOperatorType *ot);
-void POSE_OT_select_inverse(struct wmOperatorType *ot);
 void POSE_OT_select_parent(struct wmOperatorType *ot);
 void POSE_OT_select_hierarchy(struct wmOperatorType *ot);
 void POSE_OT_select_linked(struct wmOperatorType *ot);
@@ -112,26 +111,29 @@ void POSE_OT_select_flip_active(struct wmOperatorType *ot);
 
 void POSE_OT_group_add(struct wmOperatorType *ot);
 void POSE_OT_group_remove(struct wmOperatorType *ot);
+void POSE_OT_group_move(struct wmOperatorType *ot);
+void POSE_OT_group_sort(struct wmOperatorType *ot);
 void POSE_OT_group_assign(struct wmOperatorType *ot);
 void POSE_OT_group_unassign(struct wmOperatorType *ot);
 void POSE_OT_group_select(struct wmOperatorType *ot);
 void POSE_OT_group_deselect(struct wmOperatorType *ot);
 
 void POSE_OT_paths_calculate(struct wmOperatorType *ot);
+void POSE_OT_paths_update(struct wmOperatorType *ot);
 void POSE_OT_paths_clear(struct wmOperatorType *ot);
 
 void POSE_OT_autoside_names(struct wmOperatorType *ot);
 void POSE_OT_flip_names(struct wmOperatorType *ot);
 
-void POSE_OT_quaternions_flip(struct wmOperatorType *ot);
+void POSE_OT_rotation_mode_set(struct wmOperatorType *ot);
 
-void POSE_OT_flags_set(struct wmOperatorType *ot);
+void POSE_OT_quaternions_flip(struct wmOperatorType *ot);
 
 void POSE_OT_armature_layers(struct wmOperatorType *ot);
 void POSE_OT_bone_layers(struct wmOperatorType *ot);
 
 /* ******************************************************* */
-/* Etch-A-Ton */
+/* Etch-A-Ton (Skeleton Sketching) Operators */
 
 void SKETCH_OT_gesture(struct wmOperatorType *ot);
 void SKETCH_OT_delete(struct wmOperatorType *ot);
@@ -144,25 +146,25 @@ void SKETCH_OT_select(struct wmOperatorType *ot);
 
 /* ******************************************************* */
 /* Pose Tool Utilities (for PoseLib, Pose Sliding, etc.) */
-/* poseUtils.c */
+/* pose_utils.c */
 
 /* Temporary data linking PoseChannels with the F-Curves they affect */
 typedef struct tPChanFCurveLink {
 	struct tPChanFCurveLink *next, *prev;
 	
-	ListBase fcurves;				/* F-Curves for this PoseChannel (wrapped with LinkData) */
-	struct bPoseChannel *pchan;		/* Pose Channel which data is attached to */
+	ListBase fcurves;               /* F-Curves for this PoseChannel (wrapped with LinkData) */
+	struct bPoseChannel *pchan;     /* Pose Channel which data is attached to */
 	
-	char *pchan_path;				/* RNA Path to this Pose Channel (needs to be freed when we're done) */
+	char *pchan_path;               /* RNA Path to this Pose Channel (needs to be freed when we're done) */
 	
-	float oldloc[3];				/* transform values at start of operator (to be restored before each modal step) */
+	float oldloc[3];                /* transform values at start of operator (to be restored before each modal step) */
 	float oldrot[3];
 	float oldscale[3];
 	float oldquat[4];
 	float oldangle;
 	float oldaxis[3];
 	
-	struct IDProperty *oldprops;	/* copy of custom properties at start of operator (to be restored before each modal step) */	
+	struct IDProperty *oldprops;    /* copy of custom properties at start of operator (to be restored before each modal step) */
 } tPChanFCurveLink;
 
 /* ----------- */
@@ -174,16 +176,16 @@ void poseAnim_mapping_refresh(struct bContext *C, struct Scene *scene, struct Ob
 void poseAnim_mapping_reset(ListBase *pfLinks);
 void poseAnim_mapping_autoKeyframe(struct bContext *C, struct Scene *scene, struct Object *ob, ListBase *pfLinks, float cframe);
 
-LinkData *poseAnim_mapping_getNextFCurve(ListBase *fcuLinks, LinkData *prev, char *path);
+LinkData *poseAnim_mapping_getNextFCurve(ListBase *fcuLinks, LinkData *prev, const char *path);
 
 /* ******************************************************* */
 /* PoseLib */
-/* poselib.c */
+/* pose_lib.c */
 
 void POSELIB_OT_new(struct wmOperatorType *ot);
 void POSELIB_OT_unlink(struct wmOperatorType *ot);
 
-void POSELIB_OT_action_sanitise(struct wmOperatorType *ot);
+void POSELIB_OT_action_sanitize(struct wmOperatorType *ot);
 
 void POSELIB_OT_pose_add(struct wmOperatorType *ot);
 void POSELIB_OT_pose_remove(struct wmOperatorType *ot);
@@ -194,7 +196,7 @@ void POSELIB_OT_apply_pose(struct wmOperatorType *ot);
 
 /* ******************************************************* */
 /* Pose Sliding Tools */
-/* poseSlide.c */
+/* pose_slide.c */
 
 void POSE_OT_push(struct wmOperatorType *ot);
 void POSE_OT_relax(struct wmOperatorType *ot);
@@ -203,23 +205,43 @@ void POSE_OT_breakdown(struct wmOperatorType *ot);
 void POSE_OT_propagate(struct wmOperatorType *ot);
 
 /* ******************************************************* */
-/* editarmature.c */
+/* Various Armature Edit/Pose Editing API's */
+
+/* Ideally, many of these defines would not be needed as everything would be strictly self-contained
+ * within each file, but some tools still have a bit of overlap which makes things messy -- Feb 2013
+ */
 
 EditBone *make_boneList(struct ListBase *edbo, struct ListBase *bones, struct EditBone *parent, struct Bone *actBone);
-void BIF_sk_selectStroke(struct bContext *C, short mval[2], short extend);
+void BIF_sk_selectStroke(struct bContext *C, const int mval[2], short extend);
 
 /* duplicate method */
 void preEditBoneDuplicate(struct ListBase *editbones);
-struct EditBone *duplicateEditBone(struct EditBone *curBone, char *name, struct ListBase *editbones, struct Object *ob);
+struct EditBone *duplicateEditBone(struct EditBone *curBone, const char *name, struct ListBase *editbones, struct Object *ob);
 void updateDuplicateSubtarget(struct EditBone *dupBone, struct ListBase *editbones, struct Object *ob);
 
-/* duplicate method (cross objects */
-
+/* duplicate method (cross objects) */
 /* editbones is the target list */
-struct EditBone *duplicateEditBoneObjects(struct EditBone *curBone, char *name, struct ListBase *editbones, struct Object *src_ob, struct Object *dst_ob);
+struct EditBone *duplicateEditBoneObjects(struct EditBone *curBone, const char *name, struct ListBase *editbones, struct Object *src_ob, struct Object *dst_ob);
 
 /* editbones is the source list */
 void updateDuplicateSubtargetObjects(struct EditBone *dupBone, struct ListBase *editbones, struct Object *src_ob, struct Object *dst_ob);
 
-#endif /* ED_ARMATURE_INTERN_H */
+
+EditBone *editbone_name_exists(struct ListBase *edbo, const char *name);
+
+EditBone *add_points_bone(struct Object *obedit, float head[3], float tail[3]);
+void bone_free(struct bArmature *arm, struct EditBone *bone);
+
+void armature_tag_select_mirrored(struct bArmature *arm);
+void armature_select_mirrored(struct bArmature *arm);
+void armature_tag_unselect(struct bArmature *arm);
+
+void *get_nearest_bone(struct bContext *C, short findunsel, int x, int y);
+void *get_bone_from_selectbuffer(struct Scene *scene, struct Base *base, unsigned int *buffer, short hits, short findunsel);
+
+int bone_looper(struct Object *ob, struct Bone *bone, void *data,
+                int (*bone_func)(struct Object *, struct Bone *, void *));
+
+
+#endif /* __ARMATURE_INTERN_H__ */
 

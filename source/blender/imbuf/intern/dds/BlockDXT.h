@@ -1,6 +1,4 @@
 /*
- * $Id: BlockDXT.h 35239 2011-02-27 20:23:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributors: Amorilia (amorilia@gamebox.net)
+ * Contributors: Amorilia (amorilia@users.sourceforge.net)
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -57,8 +55,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef _DDS_BLOCKDXT_H
-#define _DDS_BLOCKDXT_H
+#ifndef __BLOCKDXT_H__
+#define __BLOCKDXT_H__
 
 #include <Common.h>
 #include <Color.h>
@@ -78,11 +76,13 @@ struct BlockDXT1
 	bool isFourColorMode() const;
 
 	uint evaluatePalette(Color32 color_array[4]) const;
-	uint evaluatePaletteFast(Color32 color_array[4]) const;
+	uint evaluatePaletteNV5x(Color32 color_array[4]) const;
+
 	void evaluatePalette3(Color32 color_array[4]) const;
 	void evaluatePalette4(Color32 color_array[4]) const;
 	
 	void decodeBlock(ColorBlock * block) const;
+	void decodeBlockNV5x(ColorBlock * block) const;
 	
 	void setIndices(int * idx);
 
@@ -136,6 +136,7 @@ struct BlockDXT3
 	BlockDXT1 color;
 	
 	void decodeBlock(ColorBlock * block) const;
+	void decodeBlockNV5x(ColorBlock * block) const;
 	
 	void flip4();
 	void flip2();
@@ -146,7 +147,7 @@ struct BlockDXT3
 struct AlphaBlockDXT5
 {
 	// uint64 unions do not compile on all platforms
-	/*
+#if 0
 	union {
 		struct {
 			uint64 alpha0 : 8;	// 8
@@ -170,26 +171,26 @@ struct AlphaBlockDXT5
 		};
 		uint64 u;
 	};
-	*/
+#endif
 	uint64 u;
-	uint8 alpha0() const { return u & 0xffLL; };
-	uint8 alpha1() const { return (u >> 8) & 0xffLL; };
-	uint8 bits0() const { return (u >> 16) & 0x7LL; };
-	uint8 bits1() const { return (u >> 19) & 0x7LL; };
-	uint8 bits2() const { return (u >> 22) & 0x7LL; };
-	uint8 bits3() const { return (u >> 25) & 0x7LL; };
-	uint8 bits4() const { return (u >> 28) & 0x7LL; };
-	uint8 bits5() const { return (u >> 31) & 0x7LL; };
-	uint8 bits6() const { return (u >> 34) & 0x7LL; };
-	uint8 bits7() const { return (u >> 37) & 0x7LL; };
-	uint8 bits8() const { return (u >> 40) & 0x7LL; };
-	uint8 bits9() const { return (u >> 43) & 0x7LL; };
-	uint8 bitsA() const { return (u >> 46) & 0x7LL; };
-	uint8 bitsB() const { return (u >> 49) & 0x7LL; };
-	uint8 bitsC() const { return (u >> 52) & 0x7LL; };
-	uint8 bitsD() const { return (u >> 55) & 0x7LL; };
-	uint8 bitsE() const { return (u >> 58) & 0x7LL; };
-	uint8 bitsF() const { return (u >> 61) & 0x7LL; };
+	uint8 alpha0() const { return u & 0xffLL; }
+	uint8 alpha1() const { return (u >> 8) & 0xffLL; }
+	uint8 bits0() const { return (u >> 16) & 0x7LL; }
+	uint8 bits1() const { return (u >> 19) & 0x7LL; }
+	uint8 bits2() const { return (u >> 22) & 0x7LL; }
+	uint8 bits3() const { return (u >> 25) & 0x7LL; }
+	uint8 bits4() const { return (u >> 28) & 0x7LL; }
+	uint8 bits5() const { return (u >> 31) & 0x7LL; }
+	uint8 bits6() const { return (u >> 34) & 0x7LL; }
+	uint8 bits7() const { return (u >> 37) & 0x7LL; }
+	uint8 bits8() const { return (u >> 40) & 0x7LL; }
+	uint8 bits9() const { return (u >> 43) & 0x7LL; }
+	uint8 bitsA() const { return (u >> 46) & 0x7LL; }
+	uint8 bitsB() const { return (u >> 49) & 0x7LL; }
+	uint8 bitsC() const { return (u >> 52) & 0x7LL; }
+	uint8 bitsD() const { return (u >> 55) & 0x7LL; }
+	uint8 bitsE() const { return (u >> 58) & 0x7LL; }
+	uint8 bitsF() const { return (u >> 61) & 0x7LL; }
 	
 	void evaluatePalette(uint8 alpha[8]) const;
 	void evaluatePalette8(uint8 alpha[8]) const;
@@ -213,6 +214,7 @@ struct BlockDXT5
 	BlockDXT1 color;
 	
 	void decodeBlock(ColorBlock * block) const;
+	void decodeBlockNV5x(ColorBlock * block) const;
 	
 	void flip4();
 	void flip2();
@@ -269,4 +271,4 @@ void mem_read(Stream & mem, BlockATI1 & block);
 void mem_read(Stream & mem, BlockATI2 & block);
 void mem_read(Stream & mem, BlockCTX1 & block);
 
-#endif // _DDS_BLOCKDXT_H
+#endif  /* __BLOCKDXT_H__ */

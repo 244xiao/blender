@@ -1,6 +1,4 @@
 /*
- * $Id: KX_PythonInitTypes.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,11 +29,11 @@
  *  \ingroup ketsji
  */
 
-#ifndef _adr_py_init_types_h_				// only process once,
-#define _adr_py_init_types_h_				// even if multiply included
+#ifndef __KX_PYTHON_INIT_TYPES__
+#define __KX_PYTHON_INIT_TYPES__
 
 #ifdef WITH_PYTHON
 void initPyTypes(void);
 #endif
 
-#endif
+#endif  /* __KX_PYTHON_INIT_TYPES__ */

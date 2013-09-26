@@ -1,6 +1,4 @@
 /*
- * $Id: DummyPhysicsEnvironment.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,19 +29,19 @@
  *  \ingroup physdummy
  */
 
-#ifndef _DUMMYPHYSICSENVIRONMENT
-#define _DUMMYPHYSICSENVIRONMENT
+#ifndef __DUMMYPHYSICSENVIRONMENT_H__
+#define __DUMMYPHYSICSENVIRONMENT_H__
 
 #include "PHY_IPhysicsEnvironment.h"
 
 /**
-*	DummyPhysicsEnvironment  is an empty placeholder
-*   Alternatives are ODE,Sumo and Dynamo PhysicsEnvironments
-*	Use DummyPhysicsEnvironment as a base to integrate your own physics engine
-*	Physics Environment takes care of stepping the simulation and is a container for physics entities (rigidbodies,constraints, materials etc.)
-*
-*	A derived class may be able to 'construct' entities by loading and/or converting
-*/
+ * DummyPhysicsEnvironment  is an empty placeholder
+ * Alternatives are ODE,Sumo and Dynamo PhysicsEnvironments
+ * Use DummyPhysicsEnvironment as a base to integrate your own physics engine
+ * Physics Environment takes care of stepping the simulation and is a container for physics entities (rigidbodies,constraints, materials etc.)
+ *
+ * A derived class may be able to 'construct' entities by loading and/or converting
+ */
 class DummyPhysicsEnvironment  : public PHY_IPhysicsEnvironment
 {
 
@@ -58,6 +56,7 @@ public:
 	virtual	float		getFixedTimeStep();
 
 	virtual	void		setGravity(float x,float y,float z);
+	virtual	void		getGravity(class MT_Vector3& grav);
 
 	virtual int			createConstraint(class PHY_IPhysicsController* ctrl,class PHY_IPhysicsController* ctrl2,PHY_ConstraintType type,
 			float pivotX,float pivotY,float pivotZ,
@@ -74,8 +73,14 @@ public:
 		return 0;
 	}
 
+		// Character physics wrapper
+	virtual PHY_ICharacter*	getCharacterController(class KX_GameObject* ob)
+	{
+		return 0;
+	}
+
 	virtual PHY_IPhysicsController* rayTest(PHY_IRayCastFilterCallback &filterCallback, float fromX,float fromY,float fromZ, float toX,float toY,float toZ);
-	virtual bool cullingTest(PHY_CullingCallback callback, void* userData, PHY__Vector4* planes, int nplanes, int occlusionRes) { return false; }
+	virtual bool cullingTest(PHY_CullingCallback callback, void* userData, class MT_Vector4* planes, int nplanes, int occlusionRes, const int *viewport, double modelview[16], double projection[16]) { return false; }
 
 
 	//gamelogic callbacks
@@ -86,7 +91,7 @@ public:
 		}
 		virtual bool requestCollisionCallback(PHY_IPhysicsController* ctrl) { return false; }
 		virtual bool removeCollisionCallback(PHY_IPhysicsController* ctrl) { return false;}
-		virtual PHY_IPhysicsController*	CreateSphereController(float radius,const PHY__Vector3& position) {return 0;}
+		virtual PHY_IPhysicsController*	CreateSphereController(float radius,const class MT_Vector3& position) {return 0;}
 		virtual PHY_IPhysicsController* CreateConeController(float coneradius,float coneheight) { return 0;}
 
 		virtual void	setConstraintParam(int constraintId,int param,float value,float value1)
@@ -100,11 +105,8 @@ public:
 
 		
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:DummyPhysicsEnvironment"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:DummyPhysicsEnvironment")
 #endif
 };
 
-#endif //_DUMMYPHYSICSENVIRONMENT
-
+#endif  /* __DUMMYPHYSICSENVIRONMENT_H__ */

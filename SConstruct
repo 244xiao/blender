@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# $Id: SConstruct 35873 2011-03-29 13:00:03Z jesterking $
+#
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -14,7 +14,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # The Original Code is Copyright (C) 2006, Blender Foundation
 # All rights reserved.
@@ -30,6 +30,8 @@
 # Then read all SConscripts and build
 #
 # TODO: fix /FORCE:MULTIPLE on windows to get proper debug builds.
+# TODO: directory copy functions are far too complicated, see:
+#       http://wiki.blender.org/index.php/User:Ideasman42/SConsNotSimpleInstallingFiles
 
 import platform as pltfrm
 
@@ -44,9 +46,7 @@ import os
 import os.path
 import string
 import shutil
-import glob
 import re
-from tempfile import mkdtemp
 
 # store path to tools
 toolpath=os.path.join(".", "build_files", "scons", "tools")
@@ -56,7 +56,6 @@ sys.path.append(toolpath)
 
 import Blender
 import btools
-import bcolors
 
 EnsureSConsVersion(1,0,0)
 
@@ -68,6 +67,7 @@ BlenderEnvironment = Blender.BlenderEnvironment
 B = Blender
 
 VERSION = btools.VERSION # This is used in creating the local config directories
+VERSION_RELEASE_CYCLE = btools.VERSION_RELEASE_CYCLE
 
 ### globals ###
 platform = sys.platform
@@ -89,7 +89,7 @@ if platform=='win32':
 
 if not use_color=='1':
     B.bc.disable()
-    
+
  #on defaut white Os X terminal, some colors are totally unlegible
 if platform=='darwin':
     B.bc.OKGREEN = '\033[34m'
@@ -111,6 +111,17 @@ btools.print_targets(B.targets, B.bc)
 
 # handling cmd line arguments & config file
 
+# bitness stuff
+tempbitness = int(B.arguments.get('BF_BITNESS', bitness)) # default to bitness found as per starting python
+if tempbitness in (32, 64): # only set if 32 or 64 has been given
+    bitness = int(tempbitness)
+
+if bitness:
+    B.bitness = bitness
+else:
+    B.bitness = tempbitness
+
+
 # first check cmdline for toolset and we create env to work on
 quickie = B.arguments.get('BF_QUICK', None)
 quickdebug = B.arguments.get('BF_QUICKDEBUG', None)
@@ -124,8 +135,10 @@ if quickie:
     B.quickie=string.split(quickie,',')
 else:
     B.quickie=[]
-    
+
 toolset = B.arguments.get('BF_TOOLSET', None)
+vcver = B.arguments.get('MSVS_VERSION', '9.0')
+
 if toolset:
     print "Using " + toolset
     if toolset=='mstoolkit':
@@ -133,14 +146,13 @@ if toolset:
         env.Tool('mstoolkit', [toolpath])
     else:
         env = BlenderEnvironment(tools=[toolset], ENV = os.environ)
-        # xxx commented out, as was supressing warnings under mingw..
-        #if env:
-        #    btools.SetupSpawn(env)
+        if env:
+            btools.SetupSpawn(env)
 else:
     if bitness==64 and platform=='win32':
-        env = BlenderEnvironment(ENV = os.environ, MSVS_ARCH='amd64')
+        env = BlenderEnvironment(ENV = os.environ, MSVS_ARCH='amd64', TARGET_ARCH='x86_64', MSVC_VERSION=vcver)
     else:
-        env = BlenderEnvironment(ENV = os.environ)
+        env = BlenderEnvironment(ENV = os.environ, TARGET_ARCH='x86', MSVC_VERSION=vcver)
 
 if not env:
     print "Could not create a build environment"
@@ -155,11 +167,22 @@ if cxx:
 
 if sys.platform=='win32':
     if env['CC'] in ['cl', 'cl.exe']:
-         platform = 'win64-vc' if bitness == 64 else 'win32-vc'
+        platform = 'win64-vc' if bitness == 64 else 'win32-vc'
     elif env['CC'] in ['gcc']:
-        platform = 'win32-mingw'
+        platform = 'win64-mingw' if bitness == 64 else 'win32-mingw'
+
+if 'mingw' in platform:
+    print "Setting custom spawn function"
+    btools.SetupSpawn(env)
 
 env.SConscriptChdir(0)
+
+# Remove major kernel version from linux platform.
+# After Linus switched kernel to new version model this major version
+# shouldn't take much sense for building rules.
+
+if re.match('linux[0-9]+', platform):
+    platform = 'linux'
 
 crossbuild = B.arguments.get('BF_CROSS', None)
 if crossbuild and platform not in ('win32-vc', 'win64-vc'):
@@ -197,7 +220,7 @@ opts.Update(env)
 
 if sys.platform=='win32':
     if bitness==64:
-        env.Append(CFLAGS=['-DWIN64']) # -DWIN32 needed too, as it's used all over to target Windows generally
+        env.Append(CPPFLAGS=['-DWIN64']) # -DWIN32 needed too, as it's used all over to target Windows generally
 
 if not env['BF_FANCY']:
     B.bc.disable()
@@ -220,6 +243,7 @@ print B.bc.OKGREEN + "Build with debug symbols%s: %s" % (B.bc.ENDC, env['BF_DEBU
 if 'blenderlite' in B.targets:
     target_env_defs = {}
     target_env_defs['WITH_BF_GAMEENGINE'] = False
+    target_env_defs['WITH_BF_CYCLES'] = False
     target_env_defs['WITH_BF_OPENAL'] = False
     target_env_defs['WITH_BF_OPENEXR'] = False
     target_env_defs['WITH_BF_OPENMP'] = False
@@ -231,6 +255,7 @@ if 'blenderlite' in B.targets:
     target_env_defs['WITH_BF_REDCODE'] = False
     target_env_defs['WITH_BF_DDS'] = False
     target_env_defs['WITH_BF_CINEON'] = False
+    target_env_defs['WITH_BF_FRAMESERVER'] = False
     target_env_defs['WITH_BF_HDR'] = False
     target_env_defs['WITH_BF_ZLIB'] = False
     target_env_defs['WITH_BF_SDL'] = False
@@ -239,39 +264,81 @@ if 'blenderlite' in B.targets:
     target_env_defs['WITH_BF_BULLET'] = False
     target_env_defs['WITH_BF_BINRELOC'] = False
     target_env_defs['BF_BUILDINFO'] = False
-    target_env_defs['BF_NO_ELBEEM'] = True
+    target_env_defs['WITH_BF_FLUID'] = False
+    target_env_defs['WITH_BF_OCEANSIM'] = False
+    target_env_defs['WITH_BF_SMOKE'] = False
+    target_env_defs['WITH_BF_BOOLEAN'] = False
+    target_env_defs['WITH_BF_REMESH'] = False
     target_env_defs['WITH_BF_PYTHON'] = False
-    
+    target_env_defs['WITH_BF_3DMOUSE'] = False
+    target_env_defs['WITH_BF_LIBMV'] = False
+    target_env_defs['WITH_BF_FREESTYLE'] = False
+
     # Merge blenderlite, let command line to override
     for k,v in target_env_defs.iteritems():
         if k not in B.arguments:
             env[k] = v
 
+if 'cudakernels' in B.targets:
+    env['WITH_BF_CYCLES'] = True
+    env['WITH_BF_CYCLES_CUDA_BINARIES'] = True
+    env['WITH_BF_PYTHON'] = False
+
+# Extended OSX_SDK and 3D_CONNEXION_CLIENT_LIBRARY and JAckOSX detection for OSX
+if env['OURPLATFORM']=='darwin':
+    print B.bc.OKGREEN + "Detected Xcode version: -- " + B.bc.ENDC + env['XCODE_CUR_VER'] + " --"
+    print "Available " + env['MACOSX_SDK_CHECK']
+    if not 'Mac OS X 10.6' in env['MACOSX_SDK_CHECK']:
+        print  B.bc.OKGREEN + "Auto-setting available MacOSX SDK -> " + B.bc.ENDC + "MacOSX10.7.sdk"
+    elif not 'Mac OS X 10.5' in env['MACOSX_SDK_CHECK']:
+        print  B.bc.OKGREEN + "Auto-setting available MacOSX SDK -> " + B.bc.ENDC + "MacOSX10.6.sdk"
+    else:
+        print B.bc.OKGREEN + "Found recommended sdk :" + B.bc.ENDC + " using MacOSX10.5.sdk"
+
+    # for now, Mac builders must download and install the 3DxWare 10 Beta 4 driver framework from 3Dconnexion
+    # necessary header file lives here when installed:
+    # /Library/Frameworks/3DconnexionClient.framework/Versions/Current/Headers/ConnexionClientAPI.h
+    if env['WITH_BF_3DMOUSE'] == 1:
+        if not os.path.exists('/Library/Frameworks/3DconnexionClient.framework'):
+            print "3D_CONNEXION_CLIENT_LIBRARY not found, disabling WITH_BF_3DMOUSE" # avoid build errors !
+            env['WITH_BF_3DMOUSE'] = 0
+        else:
+            env.Append(LINKFLAGS=['-F/Library/Frameworks','-Xlinker','-weak_framework','-Xlinker','3DconnexionClient'])
+            env['BF_3DMOUSE_INC'] = '/Library/Frameworks/3DconnexionClient.framework/Headers'
+
+    # for now, Mac builders must download and install the JackOSX framework
+    # necessary header file lives here when installed:
+    # /Library/Frameworks/Jackmp.framework/Versions/A/Headers/jack.h
+    if env['WITH_BF_JACK'] == 1:
+        if not os.path.exists('/Library/Frameworks/Jackmp.framework'):
+            print "JackOSX install not found, disabling WITH_BF_JACK" # avoid build errors !
+            env['WITH_BF_JACK'] = 0
+        else:
+            env.Append(LINKFLAGS=['-L/Library/Frameworks','-Xlinker','-weak_framework','-Xlinker','Jackmp'])
+
+    if env['WITH_BF_CYCLES_OSL'] == 1:
+        OSX_OSL_LIBPATH = Dir(env.subst(env['BF_OSL_LIBPATH'])).abspath
+        # we need 2 variants of passing the oslexec with the force_load option, string and list type atm
+        env.Append(LINKFLAGS=['-L'+OSX_OSL_LIBPATH,'-loslcomp','-force_load '+ OSX_OSL_LIBPATH +'/liboslexec.a','-loslquery'])
+        env.Append(BF_PROGRAM_LINKFLAGS=['-Xlinker','-force_load','-Xlinker',OSX_OSL_LIBPATH +'/liboslexec.a'])
+
+    # Trying to get rid of eventually clashes, we export some explicite as local symbols
+    env.Append(LINKFLAGS=['-Xlinker','-unexported_symbols_list','-Xlinker','./source/creator/osx_locals.map'])
 
 if env['WITH_BF_OPENMP'] == 1:
         if env['OURPLATFORM'] in ('win32-vc', 'win64-vc'):
                 env['CCFLAGS'].append('/openmp')
-                env['CPPFLAGS'].append('/openmp')
-                env['CXXFLAGS'].append('/openmp')
         else:
             if env['CC'].endswith('icc'): # to be able to handle CC=/opt/bla/icc case
                 env.Append(LINKFLAGS=['-openmp', '-static-intel'])
                 env['CCFLAGS'].append('-openmp')
-                env['CPPFLAGS'].append('-openmp')
-                env['CXXFLAGS'].append('-openmp')
             else:
-                env.Append(CCFLAGS=['-fopenmp']) 
-                env.Append(CPPFLAGS=['-fopenmp'])
-                env.Append(CXXFLAGS=['-fopenmp'])
+                env.Append(CCFLAGS=['-fopenmp'])
 
 if env['WITH_GHOST_COCOA'] == True:
-    env.Append(CFLAGS=['-DGHOST_COCOA']) 
-    env.Append(CXXFLAGS=['-DGHOST_COCOA'])
     env.Append(CPPFLAGS=['-DGHOST_COCOA'])
-    
+
 if env['USE_QTKIT'] == True:
-    env.Append(CFLAGS=['-DUSE_QTKIT']) 
-    env.Append(CXXFLAGS=['-DUSE_QTKIT'])
     env.Append(CPPFLAGS=['-DUSE_QTKIT'])
 
 #check for additional debug libnames
@@ -300,15 +367,30 @@ if 'blenderplayer' in B.targets:
 if 'blendernogame' in B.targets:
     env['WITH_BF_GAMEENGINE'] = False
 
-# disable elbeem (fluidsim) compilation?
-if env['BF_NO_ELBEEM'] == 1:
-    env['CPPFLAGS'].append('-DDISABLE_ELBEEM')
-    env['CXXFLAGS'].append('-DDISABLE_ELBEEM')
-    env['CCFLAGS'].append('-DDISABLE_ELBEEM')
+# build without elbeem (fluidsim)?
+if env['WITH_BF_FLUID'] == 1:
+    env['CPPFLAGS'].append('-DWITH_MOD_FLUID')
 
-if env['WITH_BF_SDL'] == False and env['OURPLATFORM'] in ('win32-vc', 'win32-ming', 'win64-vc'):
-    env['PLATFORM_LINKFLAGS'].remove('/ENTRY:mainCRTStartup')
-    env['PLATFORM_LINKFLAGS'].append('/ENTRY:main')
+# build with ocean sim?
+if env['WITH_BF_OCEANSIM'] == 1:
+    env['WITH_BF_FFTW3']  = 1  # ocean needs fftw3 so enable it
+    env['CPPFLAGS'].append('-DWITH_MOD_OCEANSIM')
+
+
+if btools.ENDIAN == "big":
+    env['CPPFLAGS'].append('-D__BIG_ENDIAN__')
+else:
+    env['CPPFLAGS'].append('-D__LITTLE_ENDIAN__')
+
+# TODO, make optional (as with CMake)
+env['CPPFLAGS'].append('-DWITH_AUDASPACE')
+env['CPPFLAGS'].append('-DWITH_AVI')
+env['CPPFLAGS'].append('-DWITH_BOOL_COMPAT')
+if env['OURPLATFORM'] in ('win32-vc', 'win64-vc') and env['MSVC_VERSION'] == '11.0':
+    env['CPPFLAGS'].append('-D_ALLOW_KEYWORD_MACROS')
+
+if env['OURPLATFORM'] not in ('win32-vc', 'win64-vc'):
+    env['CPPFLAGS'].append('-DHAVE_STDBOOL_H')
 
 # lastly we check for root_build_dir ( we should not do before, otherwise we might do wrong builddir
 B.root_build_dir = env['BF_BUILDDIR']
@@ -317,7 +399,7 @@ if not B.root_build_dir[-1]==os.sep:
     B.root_build_dir += os.sep
 if not B.doc_build_dir[-1]==os.sep:
     B.doc_build_dir += os.sep
-    
+
 # We do a shortcut for clean when no quicklist is given: just delete
 # builddir without reading in SConscripts
 do_clean = None
@@ -360,6 +442,30 @@ if not quickie and do_clean:
         print B.bc.HEADER+'Already Clean, nothing to do.'+B.bc.ENDC
     Exit()
 
+
+# ensure python header is found since detection can fail, this could happen
+# with _any_ library but since we used a fixed python version this tends to
+# be most problematic.
+if env['WITH_BF_PYTHON']:
+    found_python_h = found_pyconfig_h = False
+    for bf_python_inc in env.subst('${BF_PYTHON_INC}').split():
+        py_h = os.path.join(Dir(bf_python_inc).abspath, "Python.h")
+        if os.path.exists(py_h):
+            found_python_h = True
+        py_h = os.path.join(Dir(bf_python_inc).abspath, "pyconfig.h")
+        if os.path.exists(py_h):
+            found_pyconfig_h = True
+
+    if not (found_python_h and found_pyconfig_h):
+        print("""\nMissing: Python.h and/or pyconfig.h in "%s"
+         Set 'BF_PYTHON_INC' to point to valid include path(s),
+         containing Python.h and pyconfig.h for Python version "%s".
+
+         Example: python scons/scons.py BF_PYTHON_INC=../Python/include
+              """ % (env.subst('${BF_PYTHON_INC}'), env.subst('${BF_PYTHON_VERSION}')))
+        Exit()
+
+
 if not os.path.isdir ( B.root_build_dir):
     os.makedirs ( B.root_build_dir )
     os.makedirs ( B.root_build_dir + 'source' )
@@ -371,9 +477,146 @@ if not os.path.isdir ( B.root_build_dir):
 # if not os.path.isdir(B.doc_build_dir) and env['WITH_BF_DOCS']:
 #     os.makedirs ( B.doc_build_dir )
 
+###################################
+# Ensure all data files are valid #
+###################################
+if not os.path.isdir ( B.root_build_dir + 'data_headers'):
+    os.makedirs ( B.root_build_dir + 'data_headers' )
+if not os.path.isdir ( B.root_build_dir + 'data_sources'):
+    os.makedirs ( B.root_build_dir + 'data_sources' )
+# use for includes
+env['DATA_HEADERS'] = os.path.join(os.path.abspath(env['BF_BUILDDIR']), "data_headers")
+env['DATA_SOURCES'] = os.path.join(os.path.abspath(env['BF_BUILDDIR']), "data_sources")
+def data_to_c(FILE_FROM, FILE_TO, VAR_NAME):
+    if os.sep == "\\":
+        FILE_FROM = FILE_FROM.replace("/", "\\")
+        FILE_TO   = FILE_TO.replace("/", "\\")
+
+    # first check if we need to bother.
+    if os.path.exists(FILE_TO):
+        if os.path.getmtime(FILE_FROM) < os.path.getmtime(FILE_TO):
+            return
+
+    print(B.bc.HEADER + "Generating: " + B.bc.ENDC + "%r" % os.path.basename(FILE_TO))
+    fpin = open(FILE_FROM, "rb")
+    fpin.seek(0, os.SEEK_END)
+    size = fpin.tell()
+    fpin.seek(0)
+
+    fpout = open(FILE_TO, "w")
+    fpout.write("int  %s_size = %d;\n" % (VAR_NAME, size))
+    fpout.write("char %s[] = {\n" % VAR_NAME)
+
+    while size > 0:
+        size -= 1
+        if size % 32 == 31:
+            fpout.write("\n")
+
+        fpout.write("%3d," % ord(fpin.read(1)))
+    fpout.write("\n  0};\n\n")
+
+    fpin.close()
+    fpout.close()
+
+def data_to_c_simple(FILE_FROM):
+	filename_only = os.path.basename(FILE_FROM)
+	FILE_TO = os.path.join(env['DATA_SOURCES'], filename_only + ".c")
+	VAR_NAME = "datatoc_" + filename_only.replace(".", "_")
+
+	data_to_c(FILE_FROM, FILE_TO, VAR_NAME)
+
+
+if B.targets != ['cudakernels']:
+    data_to_c("source/blender/compositor/operations/COM_OpenCLKernels.cl",
+              B.root_build_dir + "data_headers/COM_OpenCLKernels.cl.h",
+              "datatoc_COM_OpenCLKernels_cl")
+
+    data_to_c_simple("release/datafiles/startup.blend")
+    data_to_c_simple("release/datafiles/preview.blend")
+    data_to_c_simple("release/datafiles/preview_cycles.blend")
+
+    # --- glsl ---
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_simple_frag.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_simple_vert.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_material.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_material.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_sep_gaussian_blur_frag.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_sep_gaussian_blur_vert.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_vertex.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_vsm_store_frag.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_vsm_store_vert.glsl")
+
+    # --- blender ---
+    data_to_c_simple("release/datafiles/bfont.pfb")
+    data_to_c_simple("release/datafiles/bfont.ttf")
+    data_to_c_simple("release/datafiles/bmonofont.ttf")
+
+    data_to_c_simple("release/datafiles/splash.png")
+    data_to_c_simple("release/datafiles/blender_icons16.png")
+    data_to_c_simple("release/datafiles/blender_icons32.png")
+    data_to_c_simple("release/datafiles/prvicons.png")
+
+    data_to_c_simple("release/datafiles/brushicons/add.png")
+    data_to_c_simple("release/datafiles/brushicons/blob.png")
+    data_to_c_simple("release/datafiles/brushicons/blur.png")
+    data_to_c_simple("release/datafiles/brushicons/clay.png")
+    data_to_c_simple("release/datafiles/brushicons/claystrips.png")
+    data_to_c_simple("release/datafiles/brushicons/clone.png")
+    data_to_c_simple("release/datafiles/brushicons/crease.png")
+    data_to_c_simple("release/datafiles/brushicons/darken.png")
+    data_to_c_simple("release/datafiles/brushicons/draw.png")
+    data_to_c_simple("release/datafiles/brushicons/fill.png")
+    data_to_c_simple("release/datafiles/brushicons/flatten.png")
+    data_to_c_simple("release/datafiles/brushicons/grab.png")
+    data_to_c_simple("release/datafiles/brushicons/inflate.png")
+    data_to_c_simple("release/datafiles/brushicons/layer.png")
+    data_to_c_simple("release/datafiles/brushicons/lighten.png")
+    data_to_c_simple("release/datafiles/brushicons/mask.png")
+    data_to_c_simple("release/datafiles/brushicons/mix.png")
+    data_to_c_simple("release/datafiles/brushicons/multiply.png")
+    data_to_c_simple("release/datafiles/brushicons/nudge.png")
+    data_to_c_simple("release/datafiles/brushicons/pinch.png")
+    data_to_c_simple("release/datafiles/brushicons/scrape.png")
+    data_to_c_simple("release/datafiles/brushicons/smear.png")
+    data_to_c_simple("release/datafiles/brushicons/smooth.png")
+    data_to_c_simple("release/datafiles/brushicons/snake_hook.png")
+    data_to_c_simple("release/datafiles/brushicons/soften.png")
+    data_to_c_simple("release/datafiles/brushicons/subtract.png")
+    data_to_c_simple("release/datafiles/brushicons/texdraw.png")
+    data_to_c_simple("release/datafiles/brushicons/thumb.png")
+    data_to_c_simple("release/datafiles/brushicons/twist.png")
+    data_to_c_simple("release/datafiles/brushicons/vertexdraw.png")
+
+    data_to_c_simple("release/datafiles/matcaps/mc01.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc02.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc03.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc04.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc05.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc06.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc07.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc08.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc09.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc10.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc11.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc12.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc13.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc14.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc15.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc16.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc17.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc18.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc19.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc20.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc21.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc22.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc23.jpg")
+    data_to_c_simple("release/datafiles/matcaps/mc24.jpg")
+
+##### END DATAFILES ##########
+
 Help(opts.GenerateHelpText(env))
 
-# default is new quieter output, but if you need to see the 
+# default is new quieter output, but if you need to see the
 # commands, do 'scons BF_QUIET=0'
 bf_quietoutput = B.arguments.get('BF_QUIET', '1')
 if env['BF_QUIET']:
@@ -390,12 +633,12 @@ B.init_lib_dict()
 
 Export('env')
 
-BuildDir(B.root_build_dir+'/intern', 'intern', duplicate=0)
-SConscript(B.root_build_dir+'/intern/SConscript')
-BuildDir(B.root_build_dir+'/extern', 'extern', duplicate=0)
-SConscript(B.root_build_dir+'/extern/SConscript')
-BuildDir(B.root_build_dir+'/source', 'source', duplicate=0)
+VariantDir(B.root_build_dir+'/source', 'source', duplicate=0)
 SConscript(B.root_build_dir+'/source/SConscript')
+VariantDir(B.root_build_dir+'/intern', 'intern', duplicate=0)
+SConscript(B.root_build_dir+'/intern/SConscript')
+VariantDir(B.root_build_dir+'/extern', 'extern', duplicate=0)
+SConscript(B.root_build_dir+'/extern/SConscript')
 
 # now that we have read all SConscripts, we know what
 # libraries will be built. Create list of
@@ -409,17 +652,18 @@ if B.arguments.get('BF_PRIORITYLIST', '0')=='1':
     B.propose_priorities()
 
 dobj = B.buildinfo(env, "dynamic") + B.resources
+creob = B.creator(env)
 thestatlibs, thelibincs = B.setup_staticlibs(env)
 thesyslibs = B.setup_syslibs(env)
 
 if 'blender' in B.targets or not env['WITH_BF_NOBLENDER']:
-    env.BlenderProg(B.root_build_dir, "blender", mainlist + thestatlibs + dobj, thesyslibs, [B.root_build_dir+'/lib'] + thelibincs, 'blender')
+    env.BlenderProg(B.root_build_dir, "blender", creob + mainlist + thestatlibs + dobj, thesyslibs, [B.root_build_dir+'/lib'] + thelibincs, 'blender')
 if env['WITH_BF_PLAYER']:
     playerlist = B.create_blender_liblist(env, 'player')
     playerlist += B.create_blender_liblist(env, 'player2')
     playerlist += B.create_blender_liblist(env, 'intern')
     playerlist += B.create_blender_liblist(env, 'extern')
-    env.BlenderProg(B.root_build_dir, "blenderplayer",  playerlist + thestatlibs + dobj, thesyslibs, [B.root_build_dir+'/lib'] + thelibincs, 'blenderplayer')
+    env.BlenderProg(B.root_build_dir, "blenderplayer", dobj + playerlist + thestatlibs, thesyslibs, [B.root_build_dir+'/lib'] + thelibincs, 'blenderplayer')
 
 ##### Now define some targets
 
@@ -450,65 +694,175 @@ datafileslist = []
 datafilestargetlist = []
 dottargetlist = []
 scriptinstall = []
+cubininstall = []
 
-if  env['OURPLATFORM']!='darwin':
-        for dp, dn, df in os.walk('bin/.blender'):
+if env['OURPLATFORM']!='darwin':
+    dotblenderinstall = []
+    for targetdir,srcfile in zip(dottargetlist, dotblendlist):
+        td, tf = os.path.split(targetdir)
+        dotblenderinstall.append(env.Install(dir=td, source=srcfile))
+    for targetdir,srcfile in zip(datafilestargetlist, datafileslist):
+        td, tf = os.path.split(targetdir)
+        dotblenderinstall.append(env.Install(dir=td, source=srcfile))
+
+    if env['WITH_BF_PYTHON']:
+        #-- local/VERSION/scripts
+        scriptpaths=['release/scripts']
+        for scriptpath in scriptpaths:
+            for dp, dn, df in os.walk(scriptpath):
+                if '.svn' in dn:
+                    dn.remove('.svn')
+                if '_svn' in dn:
+                    dn.remove('_svn')
+                if '__pycache__' in dn:  # py3.2 cache dir
+                    dn.remove('__pycache__')
+
+                # only for testing builds
+                if VERSION_RELEASE_CYCLE == "release" and "addons_contrib" in dn:
+                    dn.remove('addons_contrib')
+
+                # do not install freestyle if disabled
+                if not env['WITH_BF_FREESTYLE'] and "freestyle" in dn:
+                    dn.remove("freestyle")
+
+                dir = os.path.join(env['BF_INSTALLDIR'], VERSION)
+                dir += os.sep + os.path.basename(scriptpath) + dp[len(scriptpath):]
+
+                source=[os.path.join(dp, f) for f in df if not f.endswith(".pyc")]
+                # To ensure empty dirs are created too
+                if len(source)==0 and not os.path.exists(dir):
+                    env.Execute(Mkdir(dir))
+                scriptinstall.append(env.Install(dir=dir,source=source))
+        if env['WITH_BF_CYCLES']:
+            # cycles python code
+            dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles')
+            source=os.listdir('intern/cycles/blender/addon')
+            if '.svn' in source: source.remove('.svn')
+            if '_svn' in source: source.remove('_svn')
+            if '__pycache__' in source: source.remove('__pycache__')
+            source=['intern/cycles/blender/addon/'+s for s in source]
+            scriptinstall.append(env.Install(dir=dir,source=source))
+
+            # cycles kernel code
+            dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'kernel')
+            source=os.listdir('intern/cycles/kernel')
+            if '.svn' in source: source.remove('.svn')
+            if '_svn' in source: source.remove('_svn')
+            if '__pycache__' in source: source.remove('__pycache__')
+            source.remove('kernel.cpp')
+            source.remove('CMakeLists.txt')
+            source.remove('svm')
+            source.remove('closure')
+            source.remove('shaders')
+            source.remove('osl')
+            source=['intern/cycles/kernel/'+s for s in source]
+            source.append('intern/cycles/util/util_color.h')
+            source.append('intern/cycles/util/util_math.h')
+            source.append('intern/cycles/util/util_transform.h')
+            source.append('intern/cycles/util/util_types.h')
+            scriptinstall.append(env.Install(dir=dir,source=source))
+            # svm
+            dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'kernel', 'svm')
+            source=os.listdir('intern/cycles/kernel/svm')
+            if '.svn' in source: source.remove('.svn')
+            if '_svn' in source: source.remove('_svn')
+            if '__pycache__' in source: source.remove('__pycache__')
+            source=['intern/cycles/kernel/svm/'+s for s in source]
+            scriptinstall.append(env.Install(dir=dir,source=source))
+            # closure
+            dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'kernel', 'closure')
+            source=os.listdir('intern/cycles/kernel/closure')
+            if '.svn' in source: source.remove('.svn')
+            if '_svn' in source: source.remove('_svn')
+            if '__pycache__' in source: source.remove('__pycache__')
+            source=['intern/cycles/kernel/closure/'+s for s in source]
+            scriptinstall.append(env.Install(dir=dir,source=source))
+
+            # licenses
+            dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'license')
+            source=os.listdir('intern/cycles/doc/license')
+            if '.svn' in source: source.remove('.svn')
+            if '_svn' in source: source.remove('_svn')
+            if '__pycache__' in source: source.remove('__pycache__')
+            source.remove('CMakeLists.txt')
+            source=['intern/cycles/doc/license/'+s for s in source]
+            scriptinstall.append(env.Install(dir=dir,source=source))
+
+    if env['WITH_BF_CYCLES']:
+        # cuda binaries
+        if env['WITH_BF_CYCLES_CUDA_BINARIES']:
+            dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'lib')
+            for arch in env['BF_CYCLES_CUDA_BINARIES_ARCH']:
+                kernel_build_dir = os.path.join(B.root_build_dir, 'intern/cycles/kernel')
+                cubin_file = os.path.join(kernel_build_dir, "kernel_%s.cubin" % arch)
+                cubininstall.append(env.Install(dir=dir,source=cubin_file))
+
+        # osl shaders
+        if env['WITH_BF_CYCLES_OSL']:
+            dir=os.path.join(env['BF_INSTALLDIR'], VERSION, 'scripts', 'addons','cycles', 'shader')
+
+            osl_source_dir = Dir('./intern/cycles/kernel/shaders').srcnode().path
+            oso_build_dir = os.path.join(B.root_build_dir, 'intern/cycles/kernel/shaders')
+
+            headers='node_color.h node_fresnel.h node_texture.h oslutil.h stdosl.h'.split()
+            source=['intern/cycles/kernel/shaders/'+s for s in headers]
+            scriptinstall.append(env.Install(dir=dir,source=source))
+
+            for f in os.listdir(osl_source_dir):
+                if f.endswith('.osl'):
+                    oso_file = os.path.join(oso_build_dir, f.replace('.osl', '.oso'))
+                    scriptinstall.append(env.Install(dir=dir,source=oso_file))
+
+    if env['WITH_BF_OCIO']:
+        colormanagement = os.path.join('release', 'datafiles', 'colormanagement')
+
+        for dp, dn, df in os.walk(colormanagement):
             if '.svn' in dn:
                 dn.remove('.svn')
             if '_svn' in dn:
                 dn.remove('_svn')
-            
-            for f in df:
-                if not env['WITH_BF_INTERNATIONAL']:
-                    if 'locale' in dp:
-                        continue
-                    if f == '.Blanguages':
-                        continue
-                if not env['WITH_BF_FREETYPE']:
-                    if f.endswith('.ttf'):
-                        continue
-                
-                if 'locale' in dp:
-                    datafileslist.append(os.path.join(dp,f))
-                    dir= os.path.join(*([env['BF_INSTALLDIR']] + [VERSION] + ['datafiles'] + dp.split(os.sep)[1:]))    # skip bin
-                    datafilestargetlist.append(dir + os.sep + f)
 
+            dir = os.path.join(env['BF_INSTALLDIR'], VERSION, 'datafiles')
+            dir += os.sep + os.path.basename(colormanagement) + dp[len(colormanagement):]
+
+            source = [os.path.join(dp, f) for f in df if not f.endswith(".pyc")]
+
+            # To ensure empty dirs are created too
+            if len(source) == 0:
+                env.Execute(Mkdir(dir))
+
+            scriptinstall.append(env.Install(dir=dir,source=source))
+
+    if env['WITH_BF_INTERNATIONAL']:
+        internationalpaths=['release' + os.sep + 'datafiles']
+
+        def check_path(path, member):
+            return (member in path.split(os.sep))
+
+        for intpath in internationalpaths:
+            for dp, dn, df in os.walk(intpath):
+                if '.svn' in dn:
+                    dn.remove('.svn')
+                if '_svn' in dn:
+                    dn.remove('_svn')
+
+                # we only care about release/datafiles/fonts, release/datafiles/locales
+                if check_path(dp, "fonts") or check_path(dp, "locale"):
+                    pass
                 else:
-                    dotblendlist.append(os.path.join(dp, f))
-                    dir= os.path.join(*([env['BF_INSTALLDIR']] + [VERSION] + ['config'] + dp.split(os.sep)[1:]))    # skip bin
-                    dottargetlist.append(dir + os.sep + f)
-                    
-        dotblenderinstall = []
-        for targetdir,srcfile in zip(dottargetlist, dotblendlist):
-            td, tf = os.path.split(targetdir)
-            dotblenderinstall.append(env.Install(dir=td, source=srcfile))
-        for targetdir,srcfile in zip(datafilestargetlist, datafileslist):
-            td, tf = os.path.split(targetdir)
-            dotblenderinstall.append(env.Install(dir=td, source=srcfile))
-        
-        if env['WITH_BF_PYTHON']:
-            #-- local/VERSION/scripts
-            scriptpaths=['release/scripts']
-            for scriptpath in scriptpaths:
-                for dp, dn, df in os.walk(scriptpath):
-                    if '.svn' in dn:
-                        dn.remove('.svn')
-                    if '_svn' in dn:
-                        dn.remove('_svn')
-                    if '__pycache__' in dn:  # py3.2 cache dir
-                        dn.remove('__pycache__')
+                    continue
 
-                    dir = os.path.join(env['BF_INSTALLDIR'], VERSION)
-                    dir += os.sep + os.path.basename(scriptpath) + dp[len(scriptpath):]
+                dir = os.path.join(env['BF_INSTALLDIR'], VERSION)
+                dir += os.sep + os.path.basename(intpath) + dp[len(intpath):]
 
-                    source=[os.path.join(dp, f) for f in df if not f.endswith(".pyc")]
-                    # To ensure empty dirs are created too
-                    if len(source)==0:
-                        env.Execute(Mkdir(dir))
-                    scriptinstall.append(env.Install(dir=dir,source=source))
+                source=[os.path.join(dp, f) for f in df if not f.endswith(".pyc")]
+                # To ensure empty dirs are created too
+                if len(source)==0:
+                    env.Execute(Mkdir(dir))
+                scriptinstall.append(env.Install(dir=dir,source=source))
 
 #-- icons
-if env['OURPLATFORM']=='linux2':
+if env['OURPLATFORM']=='linux':
     iconlist = []
     icontargetlist = []
 
@@ -526,6 +880,8 @@ if env['OURPLATFORM']=='linux2':
         td, tf = os.path.split(targetdir)
         iconinstall.append(env.Install(dir=td, source=srcfile))
 
+    scriptinstall.append(env.Install(dir=env['BF_INSTALLDIR'], source='release/bin/blender-thumbnailer.py'))
+
 # dlls for linuxcross
 # TODO - add more libs, for now this lets blenderlite run
 if env['OURPLATFORM']=='linuxcross':
@@ -536,41 +892,6 @@ if env['OURPLATFORM']=='linuxcross':
         source += ['../lib/windows/pthreads/lib/pthreadGC2.dll']
 
     scriptinstall.append(env.Install(dir=dir, source=source))
-
-#-- plugins
-pluglist = []
-plugtargetlist = []
-for tp, tn, tf in os.walk('release/plugins'):
-    if '.svn' in tn:
-        tn.remove('.svn')
-    if '_svn' in tn:
-        tn.remove('_svn')
-    df = tp[8:] # remove 'release/'
-    for f in tf:
-        pluglist.append(os.path.join(tp, f))
-        plugtargetlist.append( os.path.join(env['BF_INSTALLDIR'], VERSION, df, f) )
-
-
-# header files for plugins
-pluglist.append('source/blender/blenpluginapi/documentation.h')
-plugtargetlist.append(os.path.join(env['BF_INSTALLDIR'], VERSION, 'plugins', 'include', 'documentation.h'))
-pluglist.append('source/blender/blenpluginapi/externdef.h')
-plugtargetlist.append(os.path.join(env['BF_INSTALLDIR'], VERSION, 'plugins', 'include', 'externdef.h'))
-pluglist.append('source/blender/blenpluginapi/floatpatch.h')
-plugtargetlist.append(os.path.join(env['BF_INSTALLDIR'], VERSION, 'plugins', 'include', 'floatpatch.h'))
-pluglist.append('source/blender/blenpluginapi/iff.h')
-plugtargetlist.append(os.path.join(env['BF_INSTALLDIR'], VERSION, 'plugins', 'include', 'iff.h'))
-pluglist.append('source/blender/blenpluginapi/plugin.h')
-plugtargetlist.append(os.path.join(env['BF_INSTALLDIR'], VERSION, 'plugins', 'include', 'plugin.h'))
-pluglist.append('source/blender/blenpluginapi/util.h')
-plugtargetlist.append(os.path.join(env['BF_INSTALLDIR'], VERSION, 'plugins', 'include', 'util.h'))
-pluglist.append('source/blender/blenpluginapi/plugin.DEF')
-plugtargetlist.append(os.path.join(env['BF_INSTALLDIR'], VERSION, 'plugins', 'include', 'plugin.def'))
-
-plugininstall = []
-for targetdir,srcfile in zip(plugtargetlist, pluglist):
-    td, tf = os.path.split(targetdir)
-    plugininstall.append(env.Install(dir=td, source=srcfile))
 
 textlist = []
 texttargetlist = []
@@ -585,24 +906,15 @@ for tp, tn, tf in os.walk('release/text'):
 textinstall = env.Install(dir=env['BF_INSTALLDIR'], source=textlist)
 
 if  env['OURPLATFORM']=='darwin':
-        allinstall = [blenderinstall, plugininstall, textinstall]
-elif env['OURPLATFORM']=='linux2':
-        allinstall = [blenderinstall, dotblenderinstall, scriptinstall, plugininstall, textinstall, iconinstall]
+        allinstall = [blenderinstall, textinstall]
+elif env['OURPLATFORM']=='linux':
+        allinstall = [blenderinstall, dotblenderinstall, scriptinstall, textinstall, iconinstall, cubininstall]
 else:
-        allinstall = [blenderinstall, dotblenderinstall, scriptinstall, plugininstall, textinstall]
+        allinstall = [blenderinstall, dotblenderinstall, scriptinstall, textinstall, cubininstall]
 
 if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
     dllsources = []
 
-    if not env['OURPLATFORM'] in ('win32-mingw', 'win64-vc', 'linuxcross'):
-        # For MinGW and linuxcross static linking will be used
-        dllsources += ['${LCGDIR}/gettext/lib/gnu_gettext.dll']
-
-    #currently win64-vc doesn't appear to have libpng.dll
-    if env['OURPLATFORM'] != 'win64-vc':
-        dllsources += ['${BF_PNG_LIBPATH}/libpng.dll']
-
-    dllsources += ['${BF_ZLIB_LIBPATH}/zlib.dll']
     # Used when linking to libtiff was dynamic
     # keep it here until compilation on all platform would be ok
     # dllsources += ['${BF_TIFF_LIBPATH}/${BF_TIFF_LIB}.dll']
@@ -632,25 +944,68 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
 
     if env['WITH_BF_OPENAL']:
         dllsources.append('${LCGDIR}/openal/lib/OpenAL32.dll')
-        dllsources.append('${LCGDIR}/openal/lib/wrap_oal.dll')
+        if env['OURPLATFORM'] in ('win32-vc', 'win64-vc') and env['MSVC_VERSION'] == '11.0':
+            pass
+        else:
+            dllsources.append('${LCGDIR}/openal/lib/wrap_oal.dll')
 
     if env['WITH_BF_SNDFILE']:
         dllsources.append('${LCGDIR}/sndfile/lib/libsndfile-1.dll')
 
     if env['WITH_BF_FFMPEG']:
-        dllsources += ['${BF_FFMPEG_LIBPATH}/avcodec-52.dll',
-                    '${BF_FFMPEG_LIBPATH}/avformat-52.dll',
-                    '${BF_FFMPEG_LIBPATH}/avdevice-52.dll',
-                    '${BF_FFMPEG_LIBPATH}/avutil-50.dll',
-                    '${BF_FFMPEG_LIBPATH}/swscale-0.dll']
+        dllsources += env['BF_FFMPEG_DLL'].split()
 
     # Since the thumb handler is loaded by Explorer, architecture is
     # strict: the x86 build fails on x64 Windows. We need to ship
     # both builds in x86 packages.
     if bitness == 32:
-        dllsources.append('${LCGDIR}/thumbhandler/lib/BlendThumb.dll')	
+        dllsources.append('${LCGDIR}/thumbhandler/lib/BlendThumb.dll')
     dllsources.append('${LCGDIR}/thumbhandler/lib/BlendThumb64.dll')
 
+    if env['WITH_BF_OCIO']:
+        if not env['OURPLATFORM'] in ('win32-mingw', 'linuxcross'):
+            dllsources.append('${LCGDIR}/opencolorio/bin/OpenColorIO.dll')
+
+        else:
+            dllsources.append('${LCGDIR}/opencolorio/bin/libOpenColorIO.dll')
+
+    dllsources.append('#source/icons/blender.exe.manifest')
+
+    windlls = env.Install(dir=env['BF_INSTALLDIR'], source = dllsources)
+    allinstall += windlls
+
+if env['OURPLATFORM'] == 'win64-mingw':
+    dllsources = []
+
+    if env['WITH_BF_PYTHON']:
+        if env['BF_DEBUG']:
+            dllsources.append('${BF_PYTHON_LIBPATH}/${BF_PYTHON_DLL}_d.dll')
+        else:
+            dllsources.append('${BF_PYTHON_LIBPATH}/${BF_PYTHON_DLL}.dll')
+
+    if env['WITH_BF_FFMPEG']:
+        dllsources += env['BF_FFMPEG_DLL'].split()
+
+    if env['WITH_BF_OPENAL']:
+        dllsources.append('${LCGDIR}/openal/lib/OpenAL32.dll')
+        dllsources.append('${LCGDIR}/openal/lib/wrap_oal.dll')
+
+    if env['WITH_BF_SNDFILE']:
+        dllsources.append('${LCGDIR}/sndfile/lib/libsndfile-1.dll')
+
+    if env['WITH_BF_SDL']:
+        dllsources.append('${LCGDIR}/sdl/lib/SDL.dll')
+
+    if(env['WITH_BF_OPENMP']):
+        dllsources.append('${LCGDIR}/binaries/libgomp-1.dll')
+
+    if env['WITH_BF_OCIO']:
+        dllsources.append('${LCGDIR}/opencolorio/bin/libOpenColorIO.dll')
+
+    dllsources.append('${LCGDIR}/thumbhandler/lib/BlendThumb64.dll')
+    dllsources.append('${LCGDIR}/binaries/libgcc_s_sjlj-1.dll')
+    dllsources.append('${LCGDIR}/binaries/libwinpthread-1.dll')
+    dllsources.append('${LCGDIR}/binaries/libstdc++-6.dll')
     dllsources.append('#source/icons/blender.exe.manifest')
 
     windlls = env.Install(dir=env['BF_INSTALLDIR'], source = dllsources)
@@ -686,6 +1041,20 @@ buildslave_cmd = env.Command('buildslave_exec', None, buildslave_action)
 buildslave_alias = env.Alias('buildslave', buildslave_cmd)
 
 Depends(buildslave_cmd, allinstall)
+
+cudakernels_action = env.Action(btools.cudakernels, btools.cudakernels_print)
+cudakernels_cmd = env.Command('cudakernels_exec', None, cudakernels_action)
+cudakernels_alias = env.Alias('cudakernels', cudakernels_cmd)
+
+cudakernel_dir = os.path.join(os.path.abspath(os.path.normpath(B.root_build_dir)), 'intern/cycles/kernel')
+cuda_kernels = []
+
+for x in env['BF_CYCLES_CUDA_BINARIES_ARCH']:
+    cubin = os.path.join(cudakernel_dir, 'kernel_' + x + '.cubin')
+    cuda_kernels.append(cubin)
+
+Depends(cudakernels_cmd, cuda_kernels)
+Depends(cudakernels_cmd, cubininstall)
 
 Default(B.program_list)
 

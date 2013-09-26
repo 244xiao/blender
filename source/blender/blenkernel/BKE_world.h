@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_world.h 34962 2011-02-18 13:05:18Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_WORLD_H
-#define BKE_WORLD_H
+#ifndef __BKE_WORLD_H__
+#define __BKE_WORLD_H__
 
 /** \file BKE_world.h
  *  \ingroup bke
@@ -35,12 +33,15 @@
  *  \author nzc
  */
 
+struct Main;
 struct World;
 
-void free_world(struct World *sc); 
-struct World *add_world(const char *name);
-struct World *copy_world(struct World *wrld);
-void make_local_world(struct World *wrld);
+void BKE_world_free(struct World *sc);
+void BKE_world_free_ex(struct World *sc, int do_id_user);
+struct World *add_world(struct Main *bmian, const char *name);
+struct World *BKE_world_copy(struct World *wrld);
+struct World *localize_world(struct World *wrld);
+void BKE_world_make_local(struct World *wrld);
 
 #endif
 

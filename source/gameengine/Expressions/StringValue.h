@@ -1,6 +1,5 @@
 /*
  * StringValue.h: interface for the CStringValue class.
- * $Id: StringValue.h 35063 2011-02-22 10:33:14Z jesterking $
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -26,14 +25,13 @@ class CStringValue : public CPropValue
 {
 
 	
-	//PLUGIN_DECLARE_SERIAL(CStringValue,CValue)		
+	//PLUGIN_DECLARE_SERIAL(CStringValue,CValue)
 public:
 	/// Construction / destruction
 	CStringValue();
-	CStringValue (const char *txt, const char *name , AllocationTYPE alloctype = CValue::HEAPVALUE);
+	CStringValue(const char *txt, const char *name, AllocationTYPE alloctype = CValue::HEAPVALUE);
 
-	virtual ~CStringValue() {
-	};
+	virtual ~CStringValue() {}
 	/// CValue implementation
 	virtual bool		IsEqual(const STR_String & other);
 	virtual const STR_String &	GetText();
@@ -41,13 +39,13 @@ public:
 	
 	virtual	CValue*		Calc(VALUE_OPERATOR op, CValue *val);
 	virtual	CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
-	virtual void		SetValue(CValue* newval) { 	m_strString = newval->GetText(); SetModified(true);	};
+	virtual void		SetValue(CValue* newval) { 	m_strString = newval->GetText(); SetModified(true);	}
 	virtual CValue*		GetReplica();
 #ifdef WITH_PYTHON
 	virtual PyObject*	ConvertValueToPython() {
-		return PyUnicode_FromString(m_strString.Ptr());
+		return PyUnicode_From_STR_String(m_strString);
 	}
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
 private:
 	// data member
@@ -55,11 +53,8 @@ private:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:CStringValue"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CStringValue")
 #endif
 };
 
-#endif
-
+#endif  /* __STRINGVALUE_H__ */

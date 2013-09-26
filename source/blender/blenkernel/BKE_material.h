@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_material.h 34962 2011-02-18 13:05:18Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BKE_MATERIAL_H
-#define BKE_MATERIAL_H
+#ifndef __BKE_MATERIAL_H__
+#define __BKE_MATERIAL_H__
 
 /** \file BKE_material.h
  *  \ingroup bke
@@ -42,21 +40,27 @@ struct Main;
 struct Material;
 struct ID;
 struct Object;
+struct Mesh;
+struct MTFace;
+struct Scene;
 
 /* materials */
 
 void init_def_material(void);
-void free_material(struct Material *sc); 
-void test_object_materials(struct ID *id);
+void BKE_material_free(struct Material *sc); 
+void BKE_material_free_ex(struct Material *ma, int do_id_user);
+void test_object_materials(struct Main *bmain, struct ID *id);
 void resize_object_material(struct Object *ob, const short totcol);
 void init_material(struct Material *ma);
-struct Material *add_material(const char *name);
-struct Material *copy_material(struct Material *ma);
+struct Material *BKE_material_add(struct Main *bmain, const char *name);
+struct Material *BKE_material_copy(struct Material *ma);
 struct Material *localize_material(struct Material *ma);
 struct Material *give_node_material(struct Material *ma); /* returns node material or self */
-void make_local_material(struct Material *ma);
+void BKE_material_make_local(struct Material *ma);
+void extern_local_matarar(struct Material **matar, short totcol);
 
-void automatname(struct Material *);
+/* UNUSED */
+// void automatname(struct Material *);
 
 /* material slots */
 
@@ -65,19 +69,26 @@ short *give_totcolp(struct Object *ob);
 struct Material ***give_matarar_id(struct ID *id); /* same but for ID's */
 short *give_totcolp_id(struct ID *id);
 
-struct Material *give_current_material(struct Object *ob, int act);
-struct ID *material_from(struct Object *ob, int act);
-void assign_material(struct Object *ob, struct Material *ma, int act);
-void assign_matarar(struct Object *ob, struct Material ***matar, int totcol);
+enum {
+	BKE_MAT_ASSIGN_USERPREF,
+	BKE_MAT_ASSIGN_OBDATA,
+	BKE_MAT_ASSIGN_OBJECT
+};
 
-int find_material_index(struct Object *ob, struct Material *ma);
+struct Material *give_current_material(struct Object *ob, short act);
+struct ID *material_from(struct Object *ob, short act);
+void assign_material_id(struct ID *id, struct Material *ma, short act);
+void assign_material(struct Object *ob, struct Material *ma, short act, int assign_type);
+void assign_matarar(struct Object *ob, struct Material ***matar, short totcol);
+
+short find_material_index(struct Object *ob, struct Material *ma);
 
 int object_add_material_slot(struct Object *ob);
 int object_remove_material_slot(struct Object *ob);
 
 /* rna api */
 void material_append_id(struct ID *id, struct Material *ma);
-struct Material *material_pop_id(struct ID *id, int index);
+struct Material *material_pop_id(struct ID *id, int index, int remove_material_slot); /* index is an int because of RNA */
 
 /* rendering */
 
@@ -88,7 +99,10 @@ void end_render_materials(struct Main *);
 
 int material_in_material(struct Material *parmat, struct Material *mat);
 
-void ramp_blend(int type, float *r, float *g, float *b, float fac, float *col);
+void ramp_blend(int type, float r_col[3], const float fac, const float col[3]);
+
+/* driver update hacks */
+void material_drivers_update(struct Scene *scene, struct Material *mat, float ctime);
 
 /* copy/paste */
 void clear_matcopybuf(void);
@@ -96,13 +110,11 @@ void free_matcopybuf(void);
 void copy_matcopybuf(struct Material *ma);
 void paste_matcopybuf(struct Material *ma);
 
-void clear_mat_mtex_copybuf(void);
-void copy_mat_mtex_copybuf(struct ID *id);
-void paste_mat_mtex_copybuf(struct ID *id);
+/* handle backward compatibility for tface/materials called from doversion (fileload=1) or Help Menu (fileload=0) */	
+int do_version_tface(struct Main *main, int fileload);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

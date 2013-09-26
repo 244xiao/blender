@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_IObject.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -33,8 +31,8 @@
  *   SceneGraph
  */
 
-#ifndef SCA_IOBJECT_H
-#define SCA_IOBJECT_H
+#ifndef __SCA_IOBJECT_H__
+#define __SCA_IOBJECT_H__
 
 #include "Value.h"
 #include <vector>
@@ -45,7 +43,7 @@ class SCA_IController;
 class SCA_IActuator;
 
 #ifdef WITH_PYTHON
-template<class T> T PyVecTo(PyObject*);
+template<class T> T PyVecTo(PyObject *);
 #endif
 
 typedef std::vector<SCA_ISensor *>       SCA_SensorList;
@@ -56,7 +54,7 @@ typedef std::vector<SCA_IObject *>		 SCA_ObjectList;
 class SCA_IObject :	public CValue
 {
 	
-	Py_Header;
+	Py_Header
 	
 protected:
 	friend class KX_StateActuator;
@@ -215,7 +213,7 @@ public:
 	 */
 	unsigned int GetState(void)	{ return m_state; }
 
-//	const class MT_Point3&	ConvertPythonPylist(PyObject* pylist);
+//	const class MT_Point3&	ConvertPythonPylist(PyObject *pylist);
 
 	virtual int GetGameObjectType() {return -1;}
 	
@@ -223,9 +221,8 @@ public:
 		OBJ_ARMATURE=0,
 		OBJ_CAMERA=1,
 		OBJ_LIGHT=2,
-	}ObjectTypes;
+	} ObjectTypes;
 
 };
 
-#endif //SCA_IOBJECT_H
-
+#endif  /* __SCA_IOBJECT_H__ */

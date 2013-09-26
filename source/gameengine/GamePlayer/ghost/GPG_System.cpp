@@ -1,6 +1,4 @@
 /*
- * $Id: GPG_System.cpp 35170 2011-02-25 13:35:11Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -48,7 +46,7 @@ double GPG_System::GetTimeInSeconds()
 {
 	GHOST_TInt64 millis = (GHOST_TInt64)m_system->getMilliSeconds();
 	double time = (double)millis;
-	time /= 1000.;
+	time /= 1000.0f;
 	return time;
 }
 

@@ -1,7 +1,6 @@
 /*
  * Manager for sensor that only need to call Update
  *
- * $Id: SCA_BasicEventManager.h 35063 2011-02-22 10:33:14Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -33,8 +32,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __SCA_BASICEVENTMGR
-#define __SCA_BASICEVENTMGR
+#ifndef __SCA_BASICEVENTMANAGER_H__
+#define __SCA_BASICEVENTMANAGER_H__
 
 #include "SCA_EventManager.h"
 #include <vector>
@@ -51,11 +50,8 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SCA_BasicEventManager"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_BasicEventManager")
 #endif
 };
 
-#endif //__SCA_BASICEVENTMGR
-
+#endif  /* __SCA_BASICEVENTMANAGER_H__ */

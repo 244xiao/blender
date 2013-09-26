@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -21,34 +20,48 @@
 
 set(INC
 	../include
+	../../blenfont
 	../../blenkernel
-	../../blenloader
 	../../blenlib
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/elbeem/extern
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
+	dynamicpaint_ops.c
 	particle_boids.c
 	particle_edit.c
 	particle_object.c
 	physics_fluid.c
 	physics_ops.c
 	physics_pointcache.c
+	rigidbody_constraint.c
+	rigidbody_object.c
+	rigidbody_world.c
 
 	physics_intern.h
 )
 
-if(NOT WITH_MOD_FLUID)
-	add_definitions(-DDISABLE_ELBEEM)
+if(WITH_MOD_FLUID)
+	add_definitions(-DWITH_MOD_FLUID)
 endif()
 
-if(WITH_OPENMP)
-		add_definitions(-DPARALLEL=1)
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
 endif()
 
-blender_add_lib(bf_editor_physics "${SRC}" "${INC}")
+if(WITH_BULLET)
+	list(APPEND INC
+		../../../../intern/rigidbody
+	)
+	add_definitions(-DWITH_BULLET)
+endif()
+
+blender_add_lib(bf_editor_physics "${SRC}" "${INC}" "${INC_SYS}")

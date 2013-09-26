@@ -1,8 +1,7 @@
 /*
-* Set scene/camera stuff
-*
-* $Id: KX_SceneActuator.cpp 35171 2011-02-25 13:35:59Z jesterking $
-*
+ * Set scene/camera stuff
+ *
+ *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,7 +26,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
-*/
+ */
 
 /** \file gameengine/Ketsji/KX_SceneActuator.cpp
  *  \ingroup ketsji
@@ -97,7 +96,7 @@ bool KX_SceneActuator::UnlinkObject(SCA_IObject* clientobj)
 	return false;
 }
 
-void KX_SceneActuator::Relink(GEN_Map<GEN_HashedPtr, void*> *obj_map)
+void KX_SceneActuator::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
 {
 	void **h_obj = (*obj_map)[m_camera];
 	if (h_obj) {
@@ -191,7 +190,7 @@ bool KX_SceneActuator::Update()
 
 
 /*  returns a camera if the name is valid */
-KX_Camera* KX_SceneActuator::FindCamera(char *camName)
+KX_Camera* KX_SceneActuator::FindCamera(const char *camName)
 {
 	KX_SceneList* sl = m_KetsjiEngine->CurrentScenes();
 	STR_String name = STR_String(camName);
@@ -209,7 +208,7 @@ KX_Camera* KX_SceneActuator::FindCamera(char *camName)
 
 
 
-KX_Scene* KX_SceneActuator::FindScene(char * sceneName)
+KX_Scene* KX_SceneActuator::FindScene(const char *sceneName)
 {
 	return m_KetsjiEngine->FindScene(sceneName);
 }
@@ -250,14 +249,14 @@ PyMethodDef KX_SceneActuator::Methods[] =
 };
 
 PyAttributeDef KX_SceneActuator::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW("scene",0,32,true,KX_SceneActuator,m_nextSceneName),
+	KX_PYATTRIBUTE_STRING_RW("scene",0,MAX_ID_NAME-2,true,KX_SceneActuator,m_nextSceneName),
 	KX_PYATTRIBUTE_RW_FUNCTION("camera",KX_SceneActuator,pyattr_get_camera,pyattr_set_camera),
 	KX_PYATTRIBUTE_BOOL_RW("useRestart", KX_SceneActuator, m_restart),
 	KX_PYATTRIBUTE_INT_RW("mode", KX_SCENE_NODEF+1, KX_SCENE_MAX-1, true, KX_SceneActuator, m_mode),
 	{ NULL }	//Sentinel
 };
 
-PyObject* KX_SceneActuator::pyattr_get_camera(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_SceneActuator::pyattr_get_camera(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SceneActuator* actuator = static_cast<KX_SceneActuator*>(self);
 	if (!actuator->m_camera)
@@ -277,10 +276,10 @@ int KX_SceneActuator::pyattr_set_camera(void *self, const struct KX_PYATTRIBUTE_
 	if (actuator->m_camera)
 		actuator->m_camera->UnregisterActuator(actuator);
 	
-	if(camOb==NULL) {
+	if (camOb==NULL) {
 		actuator->m_camera= NULL;
 	}
-	else {	
+	else {
 		actuator->m_camera = camOb;
 		actuator->m_camera->RegisterActuator(actuator);
 	}

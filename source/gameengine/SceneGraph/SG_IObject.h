@@ -1,6 +1,4 @@
 /*
- * $Id: SG_IObject.h 35082 2011-02-22 19:30:37Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup bgesg
  */
  
-#ifndef __SG_IOBJECT
-#define __SG_IOBJECT
+#ifndef __SG_IOBJECT_H__
+#define __SG_IOBJECT_H__
 
 #include "SG_QList.h"
 #include <vector>
@@ -49,6 +47,7 @@ enum SG_Stage
 	SG_STAGE_CONTROLLER_UPDATE,
 	SG_STAGE_ACTUATOR,
 	SG_STAGE_ACTUATOR_UPDATE,
+	SG_STAGE_ANIMATION_UPDATE,
 	SG_STAGE_PHYSICS2,
 	SG_STAGE_PHYSICS2_UPDATE,
 	SG_STAGE_SCENE,
@@ -84,19 +83,19 @@ typedef void* (*SG_DestructionNewCallback)(
 	void*	clientinfo
 );
 
-typedef void  (*SG_UpdateTransformCallback)(
+typedef void (*SG_UpdateTransformCallback)(
 	SG_IObject* sgobject,
 	void*	clientobj,
 	void*	clientinfo
 );
 
-typedef bool  (*SG_ScheduleUpdateCallback)(
+typedef bool (*SG_ScheduleUpdateCallback)(
 	SG_IObject* sgobject,
 	void*	clientobj,
 	void*	clientinfo
 );
 
-typedef bool  (*SG_RescheduleUpdateCallback)(
+typedef bool (*SG_RescheduleUpdateCallback)(
 	SG_IObject* sgobject,
 	void*	clientobj,
 	void*	clientinfo
@@ -106,10 +105,10 @@ typedef bool  (*SG_RescheduleUpdateCallback)(
 /**
  * SG_Callbacks hold 2 call backs to the outside world.
  * The first is meant to be called when objects are replicated.
- * And allows the outside world to syncronise external objects
+ * And allows the outside world to synchronize external objects
  * with replicated nodes and their children.
- * The second is called when a node is detroyed and again
- * is their for synconisation purposes
+ * The second is called when a node is destroyed and again
+ * is their for synchronization purposes
  * These callbacks may both be NULL. 
  * The efficacy of this approach has not been proved some 
  * alternatives might be to perform all replication and destruction
@@ -128,8 +127,8 @@ struct	SG_Callbacks
 		m_schedulefunc(NULL),
 		m_reschedulefunc(NULL)
 	{
-	};
-		
+	}
+
 	SG_Callbacks(
 		SG_ReplicationNewCallback repfunc,
 		SG_DestructionNewCallback destructfunc,
@@ -143,7 +142,7 @@ struct	SG_Callbacks
 		m_schedulefunc(schedulefunc),
 		m_reschedulefunc(reschedulefunc)
 	{
-	};
+	}
 
 	SG_ReplicationNewCallback	m_replicafunc;
 	SG_DestructionNewCallback	m_destructionfunc;
@@ -153,8 +152,8 @@ struct	SG_Callbacks
 };
 
 /**
-base object that can be part of the scenegraph.
-*/
+ * base object that can be part of the scenegraph.
+ */
 class SG_IObject : public SG_QList
 {
 private :
@@ -175,19 +174,29 @@ public:
 	 * this object is deleted.
 	 */
 	
-		void				
+		void
 	AddSGController(
+		SG_Controller* cont
+	);
+
+	/**
+	 * Remove a pointer to a controller from this node.
+	 * This does not delete the controller itself! Be careful to
+	 * avoid memory leaks.
+	 */
+		void
+	RemoveSGController(
 		SG_Controller* cont
 	);
 
 	/** 
 	 * Clear the array of pointers to controllers associated with 
 	 * this node. This does not delete the controllers themselves!
-     * This should be used very carefully to avoid memory
+	 * This should be used very carefully to avoid memory
 	 * leaks.
 	 */
 	
-		void				
+		void
 	RemoveAllControllers(
 	); 
 
@@ -217,14 +226,14 @@ public:
 	/**
 	 * Get the client object associated with this
 	 * node. This interface allows you to associate
-	 * arbitray external objects with this node. They are
+	 * arbitrary external objects with this node. They are
 	 * passed to the callback functions when they are 
-	 * activated so you can syncronise these external objects
+	 * activated so you can synchronize these external objects
 	 * upon replication and destruction
 	 * This may be NULL.
 	 */
 
-	inline const void* GetSGClientObject() const	
+	inline const void* GetSGClientObject() const
 	{
 		return m_SGclientObject;
 	}
@@ -237,7 +246,7 @@ public:
 	/**
 	 * Set the client object for this node. This is just a 
 	 * pointer to an object allocated that should exist for 
-	 * the duration of the lifetime of this object, or untill
+	 * the duration of the lifetime of this object, or until
 	 * this function is called again.
 	 */
 	
@@ -271,7 +280,7 @@ public:
 	void SetControllerTime(double time);
 	
 	virtual 
-		void		
+		void
 	Destruct(
 	) = 0;
 
@@ -358,11 +367,8 @@ protected :
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SG_IObject"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_IObject")
 #endif
 };
 
-#endif //__SG_IOBJECT
-
+#endif  /* __SG_IOBJECT_H__ */

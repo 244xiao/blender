@@ -1,6 +1,4 @@
 /*
- * $Id: rayobject_hint.h 35233 2011-02-27 19:31:27Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,28 +30,26 @@
  */
 
 
-#ifndef RE_RAYTRACE_RAYOBJECT_HINT_H
-#define RE_RAYTRACE_RAYOBJECT_HINT_H
+#ifndef __RAYOBJECT_HINT_H__
+#define __RAYOBJECT_HINT_H__
 
-#define HINT_RECURSE	 1
-#define HINT_ACCEPT		 0
-#define HINT_DISCARD	-1
+#define HINT_RECURSE     1
+#define HINT_ACCEPT      0
+#define HINT_DISCARD    -1
 
-struct HintBB
-{
+struct HintBB {
 	float bb[6];
 };
 
 inline int hint_test_bb(HintBB *obj, float *Nmin, float *Nmax)
 {
-	if(bb_fits_inside( Nmin, Nmax, obj->bb, obj->bb+3 ) )
+	if (bb_fits_inside(Nmin, Nmax, obj->bb, obj->bb + 3) )
 		return HINT_RECURSE;
 	else
 		return HINT_ACCEPT;
 }
-/*
-struct HintFrustum
-{
+#if 0
+struct HintFrustum {
 	float co[3];
 	float no[4][3];
 };
@@ -71,7 +67,6 @@ inline int hint_test_bb(HintFrustum &obj, float *Nmin, float *Nmax)
 	
 	return HINT_ACCEPT;
 }
-*/
-
 #endif
 
+#endif /* __RAYOBJECT_HINT_H__ */

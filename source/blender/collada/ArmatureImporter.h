@@ -1,6 +1,4 @@
 /*
- * $Id: ArmatureImporter.h 35020 2011-02-21 08:38:53Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,18 +24,21 @@
  *  \ingroup collada
  */
 
-#ifndef __BC_ARMATUREIMPORTER_H__
-#define __BC_ARMATUREIMPORTER_H__
+#ifndef __ARMATUREIMPORTER_H__
+#define __ARMATUREIMPORTER_H__
 
 #include "COLLADAFWNode.h"
 #include "COLLADAFWUniqueId.h"
+#include "COLLADAFWMorphController.h"
 
 extern "C" {
 #include "BKE_context.h"
+#include "BKE_key.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_key_types.h"
 
 #include "ED_armature.h"
 }
@@ -46,6 +47,7 @@ extern "C" {
 #include "MeshImporter.h"
 #include "SkinInfo.h"
 #include "TransformReader.h"
+#include "ExtraTags.h"
 
 #include <map>
 #include <vector>
@@ -88,10 +90,12 @@ private:
 	std::map<COLLADAFW::UniqueId, COLLADAFW::UniqueId> geom_uid_by_controller_uid;
 	std::map<COLLADAFW::UniqueId, COLLADAFW::Node*> joint_by_uid; // contains all joints
 	std::vector<COLLADAFW::Node*> root_joints;
+	std::vector<COLLADAFW::Node*> finished_joints;
+	std::vector<COLLADAFW::MorphController*> morph_controllers;
 	std::map<COLLADAFW::UniqueId, Object*> joint_parent_map;
+	std::map<COLLADAFW::UniqueId, Object*> unskinned_armature_map;
 
 	MeshImporterBase *mesh_importer;
-	AnimationImporterBase *anim_importer;
 
 	// This is used to store data passed in write_controller_data.
 	// Arrays from COLLADAFW::SkinControllerData lose ownership, so do this class members
@@ -102,12 +106,15 @@ private:
 	JointData *get_joint_data(COLLADAFW::Node *node);
 #endif
 
-	void create_bone(SkinInfo& skin, COLLADAFW::Node *node, EditBone *parent, int totchild,
-					 float parent_mat[][4], bArmature *arm);
+	void create_bone(SkinInfo* skin, COLLADAFW::Node *node, EditBone *parent, int totchild,
+	                 float parent_mat[4][4], bArmature *arm);
 
-	void add_leaf_bone(float mat[][4], EditBone *bone);
+	void add_leaf_bone(float mat[4][4], EditBone *bone, COLLADAFW::Node * node);
 
 	void fix_leaf_bones();
+	
+	void set_pose( Object *ob_arm,  COLLADAFW::Node *root_node, const char *parentname, float parent_mat[4][4]);
+
 
 #if 0
 	void set_leaf_bone_shapes(Object *ob_arm);
@@ -123,23 +130,22 @@ private:
 #endif
 
 	void create_armature_bones(SkinInfo& skin);
+	void create_armature_bones( );
 
+	/** TagsMap typedef for uid_tags_map. */
+	typedef std::map<std::string, ExtraTags*> TagsMap;
+	TagsMap uid_tags_map;
 public:
 
-	ArmatureImporter(UnitConverter *conv, MeshImporterBase *mesh, AnimationImporterBase *anim, Scene *sce);
+	ArmatureImporter(UnitConverter *conv, MeshImporterBase *mesh, Scene *sce);
 	~ArmatureImporter();
 
-	// root - if this joint is the top joint in hierarchy, if a joint
-	// is a child of a node (not joint), root should be true since
-	// this is where we build armature bones from
-	void add_joint(COLLADAFW::Node *node, bool root, Object *parent);
-
-#if 0
-	void add_root_joint(COLLADAFW::Node *node);
-#endif
+	void add_root_joint(COLLADAFW::Node *node, Object *parent);
 
 	// here we add bones to armatures, having armatures previously created in write_controller
 	void make_armatures(bContext *C);
+
+	void make_shape_keys();
 
 #if 0
 	// link with meshes, create vertex groups, assign weights
@@ -151,13 +157,16 @@ public:
 	bool write_controller(const COLLADAFW::Controller* controller);
 
 	COLLADAFW::UniqueId *get_geometry_uid(const COLLADAFW::UniqueId& controller_uid);
-
+	
 	Object *get_armature_for_joint(COLLADAFW::Node *node);
 
 	void get_rna_path_for_joint(COLLADAFW::Node *node, char *joint_path, size_t count);
 	
 	// gives a world-space mat
-	bool get_joint_bind_mat(float m[][4], COLLADAFW::Node *joint);
+	bool get_joint_bind_mat(float m[4][4], COLLADAFW::Node *joint);
+
+	void set_tags_map( TagsMap& tags_map);
+	
 };
 
 #endif

@@ -1,5 +1,4 @@
 /*
- * $Id: KX_SG_NodeRelationships.cpp 35171 2011-02-25 13:35:59Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -46,15 +45,15 @@ KX_NormalParentRelation::
 New(
 ) {
 	return new KX_NormalParentRelation();
-}		
+}
 
 	bool
 KX_NormalParentRelation::
 UpdateChildCoordinates(
 	SG_Spatial * child,
 	const SG_Spatial * parent,
-	bool& parentUpdated	
-){
+	bool& parentUpdated
+) {
 	MT_assert(child != NULL);
 
 	if (!parentUpdated && !child->IsModified())
@@ -68,7 +67,7 @@ UpdateChildCoordinates(
 		return true; //false;
 	}
 	else {
-		// the childs world locations which we will update.	
+		// the childs world locations which we will update.
 		const MT_Vector3 & p_world_scale = parent->GetWorldScaling();
 		const MT_Point3 & p_world_pos = parent->GetWorldPosition();
 		const MT_Matrix3x3 & p_world_rotation = parent->GetWorldOrientation();
@@ -84,20 +83,20 @@ UpdateChildCoordinates(
 	SG_ParentRelation *
 KX_NormalParentRelation::
 NewCopy(
-){
+) {
 	return new KX_NormalParentRelation();
 }
 
 KX_NormalParentRelation::
 ~KX_NormalParentRelation(
-){
+) {
 	//nothing to do
 }
 
 
 KX_NormalParentRelation::
 KX_NormalParentRelation(
-){
+) {
 	// nothing to do
 }
 
@@ -109,7 +108,7 @@ KX_NormalParentRelation(
 	KX_VertexParentRelation *
 KX_VertexParentRelation::
 New(
-){
+) {
 	return new KX_VertexParentRelation();
 }
 		
@@ -122,8 +121,8 @@ KX_VertexParentRelation::
 UpdateChildCoordinates(
 	SG_Spatial * child,
 	const SG_Spatial * parent,
-	bool& parentUpdated	
-){
+	bool& parentUpdated
+) {
 
 	MT_assert(child != NULL);
 
@@ -149,20 +148,20 @@ UpdateChildCoordinates(
 	SG_ParentRelation *
 KX_VertexParentRelation::
 NewCopy(
-){
+) {
 	return new KX_VertexParentRelation();
 };
 
 KX_VertexParentRelation::
 ~KX_VertexParentRelation(
-){
+) {
 	//nothing to do
 }
 
 
 KX_VertexParentRelation::
 KX_VertexParentRelation(
-){
+) {
 	//nothing to do
 }
 
@@ -175,9 +174,9 @@ KX_VertexParentRelation(
 KX_SlowParentRelation::
 New(
 	MT_Scalar relaxation
-){
+) {
 	return new 	KX_SlowParentRelation(relaxation);
-}	
+}
 
 /** 
  * Method inherited from KX_ParentRelation
@@ -188,8 +187,8 @@ KX_SlowParentRelation::
 UpdateChildCoordinates(
 	SG_Spatial * child,
 	const SG_Spatial * parent,
-	bool& parentUpdated	
-){
+	bool& parentUpdated
+) {
 	MT_assert(child != NULL);
 
 	// the child will move even if the parent is not
@@ -199,7 +198,7 @@ UpdateChildCoordinates(
 	const MT_Point3 & child_pos = child->GetLocalPosition();
 	const MT_Matrix3x3 & child_rotation = child->GetLocalOrientation();
 
-	// the childs world locations which we will update.	
+	// the childs world locations which we will update.
 	
 	MT_Vector3 child_w_scale;
 	MT_Point3 child_w_pos;
@@ -231,7 +230,7 @@ UpdateChildCoordinates(
 
 			child_w_scale = child->GetWorldScaling();
 			child_w_pos = child->GetWorldPosition();
-			child_w_rotation = child->GetWorldOrientation();	
+			child_w_rotation = child->GetWorldOrientation();
 
 			// now 'interpolate' the normal coordinates with the last 
 			// world coordinates to get the new world coordinates.
@@ -274,7 +273,7 @@ UpdateChildCoordinates(
 	SG_ParentRelation *
 KX_SlowParentRelation::
 NewCopy(
-){
+) {
 	return new 	KX_SlowParentRelation(m_relax);
 }
 
@@ -290,7 +289,7 @@ KX_SlowParentRelation(
 
 KX_SlowParentRelation::
 ~KX_SlowParentRelation(
-){
+) {
 	//nothing to do
 }
 

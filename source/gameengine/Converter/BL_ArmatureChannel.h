@@ -1,6 +1,4 @@
 /*
- * $Id: BL_ArmatureChannel.h 35167 2011-02-25 13:30:41Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,12 +29,12 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_ARMATURECHANNEL
-#define __BL_ARMATURECHANNEL
+#ifndef __BL_ARMATURECHANNEL_H__
+#define __BL_ARMATURECHANNEL_H__
 
 #include "DNA_action_types.h"
-#include "GEN_HashedPtr.h"
-#include "GEN_Map.h"
+#include "CTR_HashedPtr.h"
+#include "CTR_Map.h"
 #include "PyObjectPlus.h"
 
 class SCA_IObject;
@@ -64,18 +62,18 @@ public:
 
 #ifdef WITH_PYTHON
 	// Python access
-	virtual PyObject* py_repr(void);
+	virtual PyObject *py_repr(void);
 
-	static PyObject* py_attr_getattr(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *py_attr_getattr(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static int py_attr_setattr(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	static PyObject* py_attr_get_joint_rotation(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *py_attr_get_joint_rotation(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static int py_attr_set_joint_rotation(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 };
 
 /* this is a factory class to access bBone data field in the GE.
-   It's not supposed to be instantiated, we only need it for the Attributes and Method array.
-   The actual proxy object will be manually created using NewProxyPtr */
+ * It's not supposed to be instantiated, we only need it for the Attributes and Method array.
+ * The actual proxy object will be manually created using NewProxyPtr */
 class BL_ArmatureBone : public PyObjectPlus
 {
 	// use Py_HeaderPtr since we use generic pointer in proxy
@@ -95,6 +93,4 @@ public:
 
 };
 
-
-#endif //__BL_ARMATURECHANNEL
-
+#endif  /* __BL_ARMATURECHANNEL_H__ */

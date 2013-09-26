@@ -1,6 +1,4 @@
 /*
- * $Id: KX_SoundActuator.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,16 +29,21 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_SOUNDACTUATOR
-#define __KX_SOUNDACTUATOR
+#ifndef __KX_SOUNDACTUATOR_H__
+#define __KX_SOUNDACTUATOR_H__
 
 #include "SCA_IActuator.h"
 
-#include "AUD_C-API.h"
+#ifdef WITH_AUDASPACE
+#  include "AUD_C-API.h"
+#  include "AUD_IFactory.h"
+#  include "AUD_IHandle.h"
+#  include <boost/shared_ptr.hpp>
+#endif
+
 #include "BKE_sound.h"
 
-typedef struct KX_3DSoundSettings
-{
+typedef struct KX_3DSoundSettings {
 	float min_gain;
 	float max_gain;
 	float reference_distance;
@@ -53,14 +56,14 @@ typedef struct KX_3DSoundSettings
 
 class KX_SoundActuator : public SCA_IActuator
 {
-        Py_Header;
-        bool					m_isplaying;
-	AUD_Sound*				m_sound;
+	Py_Header
+	bool					m_isplaying;
+	boost::shared_ptr<AUD_IFactory>				m_sound;
 	float					m_volume;
 	float					m_pitch;
 	bool					m_is3d;
 	KX_3DSoundSettings		m_3d;
-		AUD_Channel*				m_handle;
+	boost::shared_ptr<AUD_IHandle>				m_handle;
 
 	void play();
 
@@ -81,7 +84,7 @@ public:
 	KX_SOUNDACT_TYPE		m_type;
 
 	KX_SoundActuator(SCA_IObject* gameobj,
-					 AUD_Sound* sound,
+					 boost::shared_ptr<AUD_IFactory> sound,
 					 float volume,
 					 float pitch,
 					 bool is3d,
@@ -110,16 +113,17 @@ public:
 	static int pyattr_set_gain(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_pitch(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_type(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_sound(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-	static PyObject* pyattr_get_3d_property(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_audposition(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_gain(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_pitch(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_type(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_3d_property(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_audposition(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_gain(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_pitch(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_type(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_sound(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
 };
 
-#endif //__KX_SOUNDACTUATOR
-
+#endif  /* __KX_SOUNDACTUATOR_H__ */

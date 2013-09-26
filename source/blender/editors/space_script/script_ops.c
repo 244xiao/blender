@@ -1,6 +1,4 @@
 /*
- * $Id: script_ops.c 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -58,13 +56,14 @@ void script_operatortypes(void)
 {
 	WM_operatortype_append(SCRIPT_OT_python_file_run);
 	WM_operatortype_append(SCRIPT_OT_reload);
+	WM_operatortype_append(SCRIPT_OT_autoexec_warn_clear);
 }
 
 void script_keymap(wmKeyConfig *keyconf)
 {
-	wmKeyMap *keymap= WM_keymap_find(keyconf, "Script", SPACE_SCRIPT, 0);
+	wmKeyMap *keymap = WM_keymap_find(keyconf, "Script", SPACE_SCRIPT, 0);
 
 	/* TODO - this is just while we have no way to load a text datablock */
-	RNA_string_set(WM_keymap_add_item(keymap, "SCRIPT_OT_python_file_run", PKEY, KM_PRESS, KM_CTRL|KM_SHIFT|KM_ALT, 0)->ptr, "filepath", "test.py");
+	RNA_string_set(WM_keymap_add_item(keymap, "SCRIPT_OT_python_file_run", PKEY, KM_PRESS, KM_CTRL | KM_SHIFT | KM_ALT, 0)->ptr, "filepath", "test.py");
 }
 

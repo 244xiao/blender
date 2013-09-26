@@ -1,5 +1,4 @@
 /*
- * $Id: KX_HashedPtr.cpp 35168 2011-02-25 13:31:23Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -33,9 +32,9 @@
 
 #include "KX_HashedPtr.h"
 
-unsigned int KX_Hash(void * inDWord)
+unsigned int KX_Hash(void *inDWord)
 {
-#if defined(_WIN64)
+#if defined(_WIN64) && !defined(FREE_WINDOWS64)
 	unsigned __int64 key = (unsigned __int64)inDWord;
 #else
 	unsigned long key = (unsigned long)inDWord;
@@ -48,7 +47,7 @@ unsigned int KX_Hash(void * inDWord)
 	key += ~(key <<  9);
 	key ^=  (key >> 17);
 
-  	return (unsigned int)(key & 0xffffffff);
+	return (unsigned int)(key & 0xffffffff);
 }
 
 

@@ -1,6 +1,4 @@
 /*
- * $Id: gpencil_intern.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,8 +28,8 @@
  *  \ingroup edgpencil
  */
 
-#ifndef ED_GPENCIL_INTERN_H
-#define ED_GPENCIL_INTERN_H
+#ifndef __GPENCIL_INTERN_H__
+#define __GPENCIL_INTERN_H__
 
 /* internal exports only */
 
@@ -39,6 +37,7 @@
 /* ***************************************************** */
 /* Operator Defines */
 
+struct bGPdata;
 struct wmOperatorType;
 
 /* drawing ---------- */
@@ -50,6 +49,7 @@ typedef enum eGPencil_PaintModes {
 	GP_PAINTMODE_DRAW = 0,
 	GP_PAINTMODE_ERASER,
 	GP_PAINTMODE_DRAW_STRAIGHT,
+	GP_PAINTMODE_DRAW_POLY
 } eGPencil_PaintModes;
 
 /* buttons editing --- */
@@ -63,6 +63,11 @@ void GPENCIL_OT_active_frame_delete(struct wmOperatorType *ot);
 
 void GPENCIL_OT_convert(struct wmOperatorType *ot);
 
+/* undo stack ---------- */
+
+void gpencil_undo_init(struct bGPdata *gpd);
+void gpencil_undo_push(struct bGPdata *gpd);
+void gpencil_undo_finish(void);
 
 /******************************************************* */
 /* FILTERED ACTION DATA - TYPES  ---> XXX DEPRECEATED OLD ANIM SYSTEM CODE! */
@@ -72,18 +77,18 @@ void GPENCIL_OT_convert(struct wmOperatorType *ot);
 typedef struct bActListElem {
 	struct bActListElem *next, *prev;
 	
-	void 	*data;		/* source data this elem represents */
-	int 	type;		/* one of the ACTTYPE_* values */
-	int		flag;		/* copy of elem's flags for quick access */
-	int 	index;		/* copy of adrcode where applicable */
+	void *data;   /* source data this elem represents */
+	int   type;   /* one of the ACTTYPE_* values */
+	int   flag;   /* copy of elem's flags for quick access */
+	int   index;  /* copy of adrcode where applicable */
 	
-	void	*key_data;	/* motion data - ipo or ipo-curve */
-	short	datatype;	/* type of motion data to expect */
+	void  *key_data;  /* motion data - ipo or ipo-curve */
+	short  datatype;  /* type of motion data to expect */
 	
-	struct bActionGroup *grp;	/* action group that owns the channel */
+	struct bActionGroup *grp;   /* action group that owns the channel */
 	
-	void 	*owner;		/* will either be an action channel or fake ipo-channel (for keys) */
-	short	ownertype;	/* type of owner */
+	void  *owner;      /* will either be an action channel or fake ipo-channel (for keys) */
+	short  ownertype;  /* type of owner */
 } bActListElem;
 
 /******************************************************* */
@@ -91,14 +96,14 @@ typedef struct bActListElem {
 
 /* filtering flags  - under what circumstances should a channel be added */
 typedef enum ACTFILTER_FLAGS {
-	ACTFILTER_VISIBLE		= (1<<0),	/* should channels be visible */
-	ACTFILTER_SEL			= (1<<1),	/* should channels be selected */
-	ACTFILTER_FOREDIT		= (1<<2),	/* does editable status matter */
-	ACTFILTER_CHANNELS		= (1<<3),	/* do we only care that it is a channel */
-	ACTFILTER_IPOKEYS		= (1<<4),	/* only channels referencing ipo's */
-	ACTFILTER_ONLYICU		= (1<<5),	/* only reference ipo-curves */
-	ACTFILTER_FORDRAWING	= (1<<6),	/* make list for interface drawing */
-	ACTFILTER_ACTGROUPED	= (1<<7)	/* belongs to the active group */
+	ACTFILTER_VISIBLE       = (1 << 0),   /* should channels be visible */
+	ACTFILTER_SEL           = (1 << 1),   /* should channels be selected */
+	ACTFILTER_FOREDIT       = (1 << 2),   /* does editable status matter */
+	ACTFILTER_CHANNELS      = (1 << 3),   /* do we only care that it is a channel */
+	ACTFILTER_IPOKEYS       = (1 << 4),   /* only channels referencing ipo's */
+	ACTFILTER_ONLYICU       = (1 << 5),   /* only reference ipo-curves */
+	ACTFILTER_FORDRAWING    = (1 << 6),   /* make list for interface drawing */
+	ACTFILTER_ACTGROUPED    = (1 << 7)    /* belongs to the active group */
 } ACTFILTER_FLAGS;
 
 /* Action Editor - Main Data types */
@@ -112,5 +117,5 @@ typedef enum ACTCONT_TYPES {
 
 
 
-#endif /* ED_GPENCIL_INTERN_H */
+#endif /* __GPENCIL_INTERN_H__ */
 

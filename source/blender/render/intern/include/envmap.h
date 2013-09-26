@@ -1,7 +1,6 @@
 /*
  * envmap_ext.h
  *
- * $Id: envmap.h 35233 2011-02-27 19:31:27Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -34,8 +33,8 @@
  */
 
 
-#ifndef ENVMAP_EXT_H
-#define ENVMAP_EXT_H 
+#ifndef __ENVMAP_H__
+#define __ENVMAP_H__ 
 
 /**
  * Make environment maps for all objects in the scene that have an
@@ -45,9 +44,11 @@
 
 struct Render;
 struct TexResult;
+struct ImagePool;
 
 void make_envmaps(struct Render *re);
-int envmaptex(struct Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, struct TexResult *texres);
+int envmaptex(struct Tex *tex, const float texvec[3], float dxt[3], float dyt[3], int osatex, struct TexResult *texres, struct ImagePool *pool);
+void env_rotate_scene(struct Render *re, float mat[4][4], int do_rotate);
 
-#endif /* ENVMAP_EXT_H */
+#endif /* __ENVMAP_H__ */
 

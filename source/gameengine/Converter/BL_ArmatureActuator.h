@@ -1,6 +1,4 @@
 /*
- * $Id: BL_ArmatureActuator.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef BL_ARMATUREACTUATOR
-#define BL_ARMATUREACTUATOR
+#ifndef __BL_ARMATUREACTUATOR_H__
+#define __BL_ARMATUREACTUATOR_H__
 
 #include "SCA_IActuator.h"
 #include "BL_ArmatureConstraint.h"
@@ -48,15 +46,16 @@
 
 class	BL_ArmatureActuator : public SCA_IActuator
 {
-	Py_Header;
+	Py_Header
 public:
 	BL_ArmatureActuator(SCA_IObject* gameobj,
-						int type,
-						const char *posechannel,
-						const char *constraintname,
-						KX_GameObject* targetobj,
-						KX_GameObject* subtargetobj,
-						float weight);
+	                    int type,
+	                    const char *posechannel,
+	                    const char *constraintname,
+	                    KX_GameObject* targetobj,
+	                    KX_GameObject* subtargetobj,
+	                    float weight,
+	                    float influence);
 
 	virtual ~BL_ArmatureActuator();
 
@@ -67,18 +66,18 @@ public:
 	};
 	virtual void ProcessReplica();
 	virtual bool UnlinkObject(SCA_IObject* clientobj);
-	virtual void Relink(GEN_Map<GEN_HashedPtr, void*> *obj_map);
+	virtual void Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map);
 	virtual bool Update(double curtime, bool frame);
 	virtual void ReParent(SCA_IObject* parent);
 	
 #ifdef WITH_PYTHON
 
 	/* These are used to get and set m_target */
-	static PyObject* pyattr_get_constraint(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-	static PyObject* pyattr_get_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_constraint(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
 private:
 	// identify the constraint that this actuator controls
@@ -90,9 +89,8 @@ private:
 	STR_String		m_posechannel;
 	STR_String		m_constraintname;
 	float			m_weight;
+	float			m_influence;
 	int				m_type;
 };
 
-#endif //BL_ARMATUREACTUATOR
-
-
+#endif  /* __BL_ARMATUREACTUATOR_H__ */

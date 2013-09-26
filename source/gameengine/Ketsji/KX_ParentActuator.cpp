@@ -1,17 +1,13 @@
 /*
  * Set or remove an objects parent
  *
- * $Id: KX_ParentActuator.cpp 35171 2011-02-25 13:35:59Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. The Blender
- * Foundation also sells licenses for use in proprietary software under
- * the Blender License.  See http://www.blender.org/BL/ for information
- * about this.
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -99,7 +95,7 @@ bool KX_ParentActuator::UnlinkObject(SCA_IObject* clientobj)
 	return false;
 }
 
-void KX_ParentActuator::Relink(GEN_Map<GEN_HashedPtr, void*> *obj_map)
+void KX_ParentActuator::Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map)
 {
 	void **h_obj = (*obj_map)[m_ob];
 	if (h_obj) {
@@ -176,10 +172,10 @@ PyAttributeDef KX_ParentActuator::Attributes[] = {
 	{ NULL }	//Sentinel
 };
 
-PyObject* KX_ParentActuator::pyattr_get_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_ParentActuator::pyattr_get_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_ParentActuator* actuator = static_cast<KX_ParentActuator*>(self);
-	if (!actuator->m_ob)	
+	if (!actuator->m_ob)
 		Py_RETURN_NONE;
 	else
 		return actuator->m_ob->GetProxy();
@@ -194,7 +190,7 @@ int KX_ParentActuator::pyattr_set_object(void *self, const struct KX_PYATTRIBUTE
 		return PY_SET_ATTR_FAIL; // ConvertPythonToGameObject sets the error
 		
 	if (actuator->m_ob != NULL)
-		actuator->m_ob->UnregisterActuator(actuator);	
+		actuator->m_ob->UnregisterActuator(actuator);
 
 	actuator->m_ob = (SCA_IObject*) gameobj;
 		

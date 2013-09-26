@@ -1,5 +1,4 @@
 /*
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -35,12 +34,19 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifdef WIN32
+#include "BLI_winstuff.h"
+#endif
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
+#include "BLI_threads.h"
 #include "BLI_voxel.h"
 #include "BLI_utildefines.h"
+
+#include "BLF_translation.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -64,16 +70,35 @@
 #include "texture.h"
 #include "voxeldata.h"
 
+static int is_vd_res_ok(VoxelData *vd)
+{
+	/* arbitrary large value so corrupt headers don't break */
+	const int min = 1, max = 100000;
+	return (vd->resol[0] >= min && vd->resol[0] <= max) &&
+	       (vd->resol[1] >= min && vd->resol[1] <= max) &&
+	       (vd->resol[2] >= min && vd->resol[2] <= max);
+}
+
+/* use size_t because the result may exceed INT_MAX */
+static size_t vd_resol_size(VoxelData *vd)
+{
+	return (size_t)vd->resol[0] * (size_t)vd->resol[1] * (size_t)vd->resol[2];
+}
+
 static int load_frame_blendervoxel(VoxelData *vd, FILE *fp, int frame)
 {	
+	const size_t size = vd_resol_size(vd);
 	size_t offset = sizeof(VoxelDataHeader);
-	int size = (vd->resol[0])*(vd->resol[1])*(vd->resol[2]);
 	
-	vd->dataset = MEM_mapallocN(sizeof(float)*size, "voxel dataset");
-	
-	if(fseek(fp, frame*size*sizeof(float)+offset, 0) == -1)
+	if (is_vd_res_ok(vd) == FALSE)
 		return 0;
-	if(fread(vd->dataset, sizeof(float), size, fp) != size)
+
+	vd->dataset = MEM_mapallocN(sizeof(float) * size, "voxel dataset");
+	if (vd->dataset == NULL) return 0;
+
+	if (fseek(fp, frame * size * sizeof(float) + offset, 0) == -1)
+		return 0;
+	if (fread(vd->dataset, sizeof(float), size, fp) != size)
 		return 0;
 	
 	vd->cachedframe = frame;
@@ -83,23 +108,36 @@ static int load_frame_blendervoxel(VoxelData *vd, FILE *fp, int frame)
 
 static int load_frame_raw8(VoxelData *vd, FILE *fp, int frame)
 {
-	int size = (vd->resol[0])*(vd->resol[1])*(vd->resol[2]);
+	const size_t size = vd_resol_size(vd);
 	char *data_c;
 	int i;
-	
-	vd->dataset = MEM_mapallocN(sizeof(float)*size, "voxel dataset");
-	data_c = (char *)MEM_mallocN(sizeof(char)*size, "temporary voxel file reading storage");
-	
-	if(fseek(fp,(frame-1)*size*sizeof(char),0) == -1) {
-		MEM_freeN(data_c);
+
+	if (is_vd_res_ok(vd) == FALSE)
+		return 0;
+
+	vd->dataset = MEM_mapallocN(sizeof(float) * size, "voxel dataset");
+	if (vd->dataset == NULL) return 0;
+	data_c = (char *)MEM_mallocN(sizeof(char) * size, "temporary voxel file reading storage");
+	if (data_c == NULL) {
+		MEM_freeN(vd->dataset);
+		vd->dataset = NULL;
 		return 0;
 	}
-	if(fread(data_c, sizeof(char), size, fp) != size) {
+
+	if (fseek(fp, (frame - 1) * size * sizeof(char), 0) == -1) {
 		MEM_freeN(data_c);
+		MEM_freeN(vd->dataset);
+		vd->dataset = NULL;
+		return 0;
+	}
+	if (fread(data_c, sizeof(char), size, fp) != size) {
+		MEM_freeN(data_c);
+		MEM_freeN(vd->dataset);
+		vd->dataset = NULL;
 		return 0;
 	}
 	
-	for (i=0; i<size; i++) {
+	for (i = 0; i < size; i++) {
 		vd->dataset[i] = (float)data_c[i] / 255.f;
 	}
 	MEM_freeN(data_c);
@@ -115,7 +153,7 @@ static void load_frame_image_sequence(VoxelData *vd, Tex *tex)
 	Image *ima = tex->ima;
 	ImageUser *tiuser = &tex->iuser;
 	ImageUser iuser = *(tiuser);
-	int x=0, y=0, z=0;
+	int x = 0, y = 0, z = 0;
 	float *rf;
 
 	if (!ima || !tiuser) return;
@@ -124,12 +162,12 @@ static void load_frame_image_sequence(VoxelData *vd, Tex *tex)
 	ima->source = IMA_SRC_SEQUENCE;
 	iuser.framenr = 1 + iuser.offset;
 
-	/* find the first valid ibuf and use it to initialise the resolution of the data set */
+	/* find the first valid ibuf and use it to initialize the resolution of the data set */
 	/* need to do this in advance so we know how much memory to allocate */
-	ibuf= BKE_image_get_ibuf(ima, &iuser);
+	ibuf = BKE_image_acquire_ibuf(ima, &iuser, NULL);
 	while (!ibuf && (iuser.framenr < iuser.frames)) {
 		iuser.framenr++;
-		ibuf= BKE_image_get_ibuf(ima, &iuser);
+		ibuf = BKE_image_acquire_ibuf(ima, &iuser, NULL);
 	}
 	if (!ibuf) return;
 	if (!ibuf->rect_float) IMB_float_from_rect(ibuf);
@@ -138,140 +176,196 @@ static void load_frame_image_sequence(VoxelData *vd, Tex *tex)
 	vd->resol[0] = ibuf->x;
 	vd->resol[1] = ibuf->y;
 	vd->resol[2] = iuser.frames;
-	vd->dataset = MEM_mapallocN(sizeof(float)*(vd->resol[0])*(vd->resol[1])*(vd->resol[2]), "voxel dataset");
+	vd->dataset = MEM_mapallocN(sizeof(float) * vd_resol_size(vd), "voxel dataset");
 	
-	for (z=0; z < iuser.frames; z++)
-	{	
+	for (z = 0; z < iuser.frames; z++) {
 		/* get a new ibuf for each frame */
 		if (z > 0) {
 			iuser.framenr++;
-			ibuf= BKE_image_get_ibuf(ima, &iuser);
+			BKE_image_release_ibuf(ima, ibuf, NULL);
+			ibuf = BKE_image_acquire_ibuf(ima, &iuser, NULL);
 			if (!ibuf) break;
 			if (!ibuf->rect_float) IMB_float_from_rect(ibuf);
 		}
 		rf = ibuf->rect_float;
 		
-		for (y=0; y < ibuf->y; y++)
-		{
-			for (x=0; x < ibuf->x; x++)
-			{
+		for (y = 0; y < ibuf->y; y++) {
+			for (x = 0; x < ibuf->x; x++) {
 				/* currently averaged to monchrome */
-				vd->dataset[ V_I(x, y, z, vd->resol) ] = (rf[0] + rf[1] + rf[2])*0.333f;
-				rf +=4;
+				vd->dataset[BLI_VOXEL_INDEX(x, y, z, vd->resol)] = (rf[0] + rf[1] + rf[2]) / 3.0f;
+				rf += 4;
 			}
 		}
 		
 		BKE_image_free_anim_ibufs(ima, iuser.framenr);
 	}
-	
+
+	BKE_image_release_ibuf(ima, ibuf, NULL);
+
 	vd->ok = 1;
 	return;
 }
 
 static int read_voxeldata_header(FILE *fp, struct VoxelData *vd)
 {
-	VoxelDataHeader *h=(VoxelDataHeader *)MEM_mallocN(sizeof(VoxelDataHeader), "voxel data header");
+	VoxelDataHeader *h = (VoxelDataHeader *)MEM_mallocN(sizeof(VoxelDataHeader), "voxel data header");
 	
 	rewind(fp);
-	if(fread(h,sizeof(VoxelDataHeader),1,fp) != 1) {
+	if (fread(h, sizeof(VoxelDataHeader), 1, fp) != 1) {
 		MEM_freeN(h);
 		return 0;
 	}
 	
-	vd->resol[0]=h->resolX;
-	vd->resol[1]=h->resolY;
-	vd->resol[2]=h->resolZ;
+	vd->resol[0] = h->resolX;
+	vd->resol[1] = h->resolY;
+	vd->resol[2] = h->resolZ;
 
 	MEM_freeN(h);
 	return 1;
 }
 
-static void init_frame_smoke(VoxelData *vd, float cfra)
+static void init_frame_smoke(VoxelData *vd, int cfra)
 {
+#ifdef WITH_SMOKE
 	Object *ob;
 	ModifierData *md;
 	
 	vd->dataset = NULL;
-	if (vd->object == NULL)	return;	
-	ob= vd->object;
+	if (vd->object == NULL) return;
+	ob = vd->object;
 	
 	/* draw code for smoke */
-	if( (md = (ModifierData *)modifiers_findByType(ob, eModifierType_Smoke)) )
-	{
+	if ((md = (ModifierData *)modifiers_findByType(ob, eModifierType_Smoke))) {
 		SmokeModifierData *smd = (SmokeModifierData *)md;
-
+		SmokeDomainSettings *sds = smd->domain;
 		
-		if(smd->domain && smd->domain->fluid) {
-			if(cfra < smd->domain->point_cache[0]->startframe)
-				; /* don't show smoke before simulation starts, this could be made an option in the future */
+		if (sds && sds->fluid) {
+			BLI_rw_mutex_lock(sds->fluid_mutex, THREAD_LOCK_READ);
+
+			if (!sds->fluid) {
+				BLI_rw_mutex_unlock(sds->fluid_mutex);
+				return;
+			}
+
+			if (cfra < sds->point_cache[0]->startframe)
+				;  /* don't show smoke before simulation starts, this could be made an option in the future */
 			else if (vd->smoked_type == TEX_VD_SMOKEHEAT) {
-				int totRes;
+				size_t totRes;
+				size_t i;
 				float *heat;
-				int i;
 
-				VECCOPY(vd->resol, smd->domain->res);
-				totRes = (vd->resol[0])*(vd->resol[1])*(vd->resol[2]);
-
-				// scaling heat values from -2.0-2.0 to 0.0-1.0
-				vd->dataset = MEM_mapallocN(sizeof(float)*(totRes), "smoke data");
-
-
-				heat = smoke_get_heat(smd->domain->fluid);
-
-				for (i=0; i<totRes; i++)
-				{
-					vd->dataset[i] = (heat[i]+2.0f)/4.0f;
+				if (!smoke_has_heat(sds->fluid)) {
+					BLI_rw_mutex_unlock(sds->fluid_mutex);
+					return;
 				}
 
-				//vd->dataset = smoke_get_heat(smd->domain->fluid);
+				copy_v3_v3_int(vd->resol, sds->res);
+				totRes = vd_resol_size(vd);
+				vd->dataset = MEM_mapallocN(sizeof(float) * (totRes), "smoke data");
+				/* get heat data */
+				heat = smoke_get_heat(sds->fluid);
+
+				/* scale heat values from -2.0-2.0 to 0.0-1.0 */
+				for (i = 0; i < totRes; i++) {
+					vd->dataset[i] = (heat[i] + 2.0f) / 4.0f;
+				}
 			}
 			else if (vd->smoked_type == TEX_VD_SMOKEVEL) {
-				int totRes;
+				size_t totRes;
+				size_t i;
 				float *xvel, *yvel, *zvel;
-				int i;
 
-				VECCOPY(vd->resol, smd->domain->res);
-				totRes = (vd->resol[0])*(vd->resol[1])*(vd->resol[2]);
+				copy_v3_v3_int(vd->resol, sds->res);
+				totRes = vd_resol_size(vd);
+				vd->dataset = MEM_mapallocN(sizeof(float) * (totRes), "smoke data");
+				/* get velocity data */
+				xvel = smoke_get_velocity_x(sds->fluid);
+				yvel = smoke_get_velocity_y(sds->fluid);
+				zvel = smoke_get_velocity_z(sds->fluid);
 
-				// scaling heat values from -2.0-2.0 to 0.0-1.0
-				vd->dataset = MEM_mapallocN(sizeof(float)*(totRes), "smoke data");
-
-				xvel = smoke_get_velocity_x(smd->domain->fluid);
-				yvel = smoke_get_velocity_y(smd->domain->fluid);
-				zvel = smoke_get_velocity_z(smd->domain->fluid);
-
-				for (i=0; i<totRes; i++)
-				{
-					vd->dataset[i] = sqrt(xvel[i]*xvel[i] + yvel[i]*yvel[i] + zvel[i]*zvel[i])*3.0f;
+				/* map velocities between 0 and 0.3f */
+				for (i = 0; i < totRes; i++) {
+					vd->dataset[i] = sqrtf(xvel[i] * xvel[i] + yvel[i] * yvel[i] + zvel[i] * zvel[i]) * 3.0f;
 				}
 
 			}
-			else {
-				int totRes;
-				float *density;
+			else if (vd->smoked_type == TEX_VD_SMOKEFLAME) {
+				size_t totRes;
+				float *flame;
 
-				if (smd->domain->flags & MOD_SMOKE_HIGHRES) {
-					smoke_turbulence_get_res(smd->domain->wt, vd->resol);
-					density = smoke_turbulence_get_density(smd->domain->wt);
-				} else {
-					VECCOPY(vd->resol, smd->domain->res);
-					density = smoke_get_density(smd->domain->fluid);
+				if (sds->flags & MOD_SMOKE_HIGHRES) {
+					if (!smoke_turbulence_has_fuel(sds->wt)) {
+						BLI_rw_mutex_unlock(sds->fluid_mutex);
+						return;
+					}
+					smoke_turbulence_get_res(sds->wt, vd->resol);
+					flame = smoke_turbulence_get_flame(sds->wt);
+				}
+				else {
+					if (!smoke_has_fuel(sds->fluid)) {
+						BLI_rw_mutex_unlock(sds->fluid_mutex);
+						return;
+					}
+					copy_v3_v3_int(vd->resol, sds->res);
+					flame = smoke_get_flame(sds->fluid);
 				}
 
-				totRes = (vd->resol[0])*(vd->resol[1])*(vd->resol[2]);
-
 				/* always store copy, as smoke internal data can change */
+				totRes = vd_resol_size(vd);
 				vd->dataset = MEM_mapallocN(sizeof(float)*(totRes), "smoke data");
-				memcpy(vd->dataset, density, sizeof(float)*totRes);
-			} // end of fluid condition
+				memcpy(vd->dataset, flame, sizeof(float)*totRes);
+			}
+			else {
+				size_t totCells;
+				int depth = 4;
+				vd->data_type = TEX_VD_RGBA_PREMUL;
+
+				/* data resolution */
+				if (sds->flags & MOD_SMOKE_HIGHRES) {
+					smoke_turbulence_get_res(sds->wt, vd->resol);
+				}
+				else {
+					copy_v3_v3_int(vd->resol, sds->res);
+				}
+
+				/* TODO: is_vd_res_ok(rvd) doesnt check this resolution */
+				totCells = vd_resol_size(vd) * depth;
+				/* always store copy, as smoke internal data can change */
+				vd->dataset = MEM_mapallocN(sizeof(float) * totCells, "smoke data");
+
+				if (sds->flags & MOD_SMOKE_HIGHRES) {
+					if (smoke_turbulence_has_colors(sds->wt)) {
+						smoke_turbulence_get_rgba(sds->wt, vd->dataset, 1);
+					}
+					else {
+						smoke_turbulence_get_rgba_from_density(sds->wt, sds->active_color, vd->dataset, 1);
+					}
+				}
+				else {
+					if (smoke_has_colors(sds->fluid)) {
+						smoke_get_rgba(sds->fluid, vd->dataset, 1);
+					}
+					else {
+						smoke_get_rgba_from_density(sds->fluid, sds->active_color, vd->dataset, 1);
+					}
+				}
+			}  /* end of fluid condition */
+
+			BLI_rw_mutex_unlock(sds->fluid_mutex);
 		}
 	}
 	
 	vd->ok = 1;
-	return;
+
+#else // WITH_SMOKE
+	(void)vd;
+	(void)cfra;
+
+	vd->dataset = NULL;
+#endif
 }
 
-static void cache_voxeldata(struct Render *re, Tex *tex)
+void cache_voxeldata(Tex *tex, int scene_frame)
 {	
 	VoxelData *vd = tex->vd;
 	FILE *fp;
@@ -279,7 +373,7 @@ static void cache_voxeldata(struct Render *re, Tex *tex)
 	char path[sizeof(vd->source_path)];
 	
 	/* only re-cache if dataset needs updating */
-	if ((vd->flag & TEX_VD_STILL) || (vd->cachedframe == re->r.cfra))
+	if ((vd->flag & TEX_VD_STILL) || (vd->cachedframe == scene_frame))
 		if (vd->ok) return;
 	
 	/* clear out old cache, ready for new */
@@ -287,44 +381,42 @@ static void cache_voxeldata(struct Render *re, Tex *tex)
 		MEM_freeN(vd->dataset);
 		vd->dataset = NULL;
 	}
+	/* reset data_type */
+	vd->data_type = TEX_VD_INTENSITY;
 
 	if (vd->flag & TEX_VD_STILL)
 		curframe = vd->still_frame;
 	else
-		curframe = re->r.cfra;
+		curframe = scene_frame;
 	
 	BLI_strncpy(path, vd->source_path, sizeof(path));
 	
-	switch(vd->file_format) {
+	switch (vd->file_format) {
 		case TEX_VD_IMAGE_SEQUENCE:
 			load_frame_image_sequence(vd, tex);
 			return;
 		case TEX_VD_SMOKE:
-			init_frame_smoke(vd, re->r.cfra);
+			init_frame_smoke(vd, scene_frame);
 			return;
 		case TEX_VD_BLENDERVOXEL:
 			BLI_path_abs(path, G.main->name);
 			if (!BLI_exists(path)) return;
-			fp = fopen(path,"rb");
+			fp = BLI_fopen(path, "rb");
 			if (!fp) return;
 			
-			if(read_voxeldata_header(fp, vd))
-				load_frame_blendervoxel(vd, fp, curframe-1);
-			else
-				fclose(fp);
-			
+			if (read_voxeldata_header(fp, vd))
+				load_frame_blendervoxel(vd, fp, curframe - 1);
+
+			fclose(fp);
 			return;
 		case TEX_VD_RAW_8BIT:
 			BLI_path_abs(path, G.main->name);
 			if (!BLI_exists(path)) return;
-			fp = fopen(path,"rb");
+			fp = BLI_fopen(path, "rb");
 			if (!fp) return;
 			
-			if (load_frame_raw8(vd, fp, curframe))
-				;
-			else	
-				fclose(fp);
-			
+			load_frame_raw8(vd, fp, curframe);
+			fclose(fp);
 			return;
 	}
 }
@@ -333,28 +425,30 @@ void make_voxeldata(struct Render *re)
 {
 	Tex *tex;
 	
-	re->i.infostr= "Loading voxel datasets";
+	re->i.infostr = IFACE_("Loading voxel datasets");
 	re->stats_draw(re->sdh, &re->i);
 	
 	/* XXX: should be doing only textures used in this render */
-	for (tex= re->main->tex.first; tex; tex= tex->id.next) {
-		if(tex->id.us && tex->type==TEX_VOXELDATA) {
-			cache_voxeldata(re, tex);
+	for (tex = re->main->tex.first; tex; tex = tex->id.next) {
+		if (tex->id.us && tex->type == TEX_VOXELDATA) {
+			cache_voxeldata(tex, re->r.cfra);
 		}
 	}
 	
-	re->i.infostr= NULL;
+	re->i.infostr = NULL;
 	re->stats_draw(re->sdh, &re->i);
 	
 }
 
-int voxeldatatex(struct Tex *tex, float *texvec, struct TexResult *texres)
+int voxeldatatex(struct Tex *tex, const float texvec[3], struct TexResult *texres)
 {	 
-	int retval = TEX_INT;
-	VoxelData *vd = tex->vd;	
-	float co[3], offset[3] = {0.5, 0.5, 0.5};
+	VoxelData *vd = tex->vd;
+	float co[3], offset[3] = {0.5, 0.5, 0.5}, a;
+	int retval = (vd->data_type == TEX_VD_RGBA_PREMUL) ? TEX_RGB : TEX_INT;
+	int depth = (vd->data_type == TEX_VD_RGBA_PREMUL) ? 4 : 1;
+	int ch;
 
-	if ((!vd) || (vd->dataset==NULL)) {
+	if (vd->dataset == NULL) {
 		texres->tin = 0.0f;
 		return 0;
 	}
@@ -378,9 +472,9 @@ int voxeldatatex(struct Tex *tex, float *texvec, struct TexResult *texres)
 		}
 		case TEX_REPEAT:
 		{
-			co[0] = co[0] - floor(co[0]);
-			co[1] = co[1] - floor(co[1]);
-			co[2] = co[2] - floor(co[2]);
+			co[0] = co[0] - floorf(co[0]);
+			co[1] = co[1] - floorf(co[1]);
+			co[2] = co[2] - floorf(co[2]);
 			break;
 		}
 		case TEX_EXTEND:
@@ -391,33 +485,63 @@ int voxeldatatex(struct Tex *tex, float *texvec, struct TexResult *texres)
 			break;
 		}
 	}
-	
-	switch (vd->interp_type) {
-		case TEX_VD_NEARESTNEIGHBOR:
-			texres->tin = voxel_sample_nearest(vd->dataset, vd->resol, co);
-			break;  
-		case TEX_VD_LINEAR:
-			texres->tin = voxel_sample_trilinear(vd->dataset, vd->resol, co);
-			break;					
-		case TEX_VD_QUADRATIC:
-			texres->tin = voxel_sample_triquadratic(vd->dataset, vd->resol, co);
-			break;
-		case TEX_VD_TRICUBIC_CATROM:
-		case TEX_VD_TRICUBIC_BSPLINE:
-			texres->tin = voxel_sample_tricubic(vd->dataset, vd->resol, co, (vd->interp_type == TEX_VD_TRICUBIC_BSPLINE));
-			break;
+
+	for (ch = 0; ch < depth; ch++) {
+		float *dataset = vd->dataset + ch*vd->resol[0]*vd->resol[1]*vd->resol[2];
+		float *result = &texres->tin;
+
+		if (vd->data_type == TEX_VD_RGBA_PREMUL) {
+			switch (ch) {
+				case 0:
+					result = &texres->tr;
+					break;
+				case 1:
+					result = &texres->tg;
+					break;
+				case 2:
+					result = &texres->tb;
+					break;
+			}
+		}
+
+		switch (vd->interp_type) {
+			case TEX_VD_NEARESTNEIGHBOR:
+				*result = BLI_voxel_sample_nearest(dataset, vd->resol, co);
+				break;  
+			case TEX_VD_LINEAR:
+				*result = BLI_voxel_sample_trilinear(dataset, vd->resol, co);
+				break;
+			case TEX_VD_QUADRATIC:
+				*result = BLI_voxel_sample_triquadratic(dataset, vd->resol, co);
+				break;
+			case TEX_VD_TRICUBIC_CATROM:
+			case TEX_VD_TRICUBIC_BSPLINE:
+				*result = BLI_voxel_sample_tricubic(dataset, vd->resol, co, (vd->interp_type == TEX_VD_TRICUBIC_BSPLINE));
+				break;
+		}
 	}
-	
+
+	a = texres->tin;
 	texres->tin *= vd->int_multiplier;
 	BRICONT;
 	
-	texres->tr = texres->tin;
-	texres->tg = texres->tin;
-	texres->tb = texres->tin;
+	if (vd->data_type == TEX_VD_RGBA_PREMUL) {
+		/* unmultiply */
+		if (a>0.001f) {
+			texres->tr /= a;
+			texres->tg /= a;
+			texres->tb /= a;
+		}
+		texres->talpha = 1;
+	}
+	else {
+		texres->tr = texres->tin;
+		texres->tg = texres->tin;
+		texres->tb = texres->tin;
+	}
+
 	texres->ta = texres->tin;
 	BRICONTRGB;
 	
-	return retval;	
+	return retval;
 }
-
-

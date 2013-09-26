@@ -1,7 +1,6 @@
 /*
  * Always trigger
  *
- * $Id: SCA_AlwaysSensor.cpp 35169 2011-02-25 13:32:11Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -33,11 +32,10 @@
  *  \ingroup gamelogic
  */
 
-
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-// This warning tells us about truncation of __long__ stl-generated names.
-// It can occasionally cause DevStudio to have internal compiler warnings.
-#pragma warning( disable : 4786 )     
+#ifdef _MSC_VER
+  /* This warning tells us about truncation of __long__ stl-generated names.
+   * It can occasionally cause DevStudio to have internal compiler warnings. */
+#  pragma warning( disable:4786 )
 #endif
 
 #include "SCA_AlwaysSensor.h"

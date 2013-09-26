@@ -1,6 +1,4 @@
 /*
- * $Id: RAS_IRasterizer.h 35390 2011-03-07 19:14:17Z dfelinto $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,11 +29,11 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_IRASTERIZER
-#define __RAS_IRASTERIZER
+#ifndef __RAS_IRASTERIZER_H__
+#define __RAS_IRASTERIZER_H__
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable:4786)
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)
 #endif
 
 #include "STR_HashedString.h"
@@ -54,6 +52,7 @@ using namespace std;
 
 class RAS_ICanvas;
 class RAS_IPolyMaterial;
+class RAS_MeshSlot;
 
 typedef vector<unsigned short> KX_IndexArray;
 typedef vector<RAS_TexVert> KX_VertexArray;
@@ -66,13 +65,9 @@ typedef vector< KX_IndexArray* > vecIndexArrays;
 class RAS_IRasterizer
 {
 public:
-	RAS_IRasterizer(RAS_ICanvas* canv){};
-	virtual ~RAS_IRasterizer(){};
-	/**
-	 */
-	enum	{
-			RAS_RENDER_3DPOLYGON_TEXT = 16384	/* TF_BMFONT */
-	};
+	RAS_IRasterizer(RAS_ICanvas* canv) {};
+	virtual ~RAS_IRasterizer() {};
+
 	/**
 	 * Drawing types
 	 */
@@ -105,11 +100,11 @@ public:
 
 	/**
 	 */
-	enum    { 	 
-			KX_TEX = 4,			/* TF_TEX */
-			KX_LIGHT = 16,		/* TF_LIGHT */
-			KX_TWOSIDE = 512,	/* TF_TWOSIDE */
-			KX_LINES = 32768 	 
+	enum {
+		RAS_RENDER_3DPOLYGON_TEXT = 64,	/* GEMAT_TEXT */
+		KX_BACKCULL = 16,		/* GEMAT_BACKCULL */
+		KX_TEX = 4096,			/* GEMAT_TEX */
+		KX_LINES = 32768
 	};
 
 	/**
@@ -135,7 +130,7 @@ public:
 		RAS_TEXCO_GEN,		//< GPU will generate texture coordinates
 		RAS_TEXCO_ORCO,		//< Vertex coordinates (object space)
 		RAS_TEXCO_GLOB,		//< Vertex coordinates (world space)
-		RAS_TEXCO_UV1,		//< UV coordinates
+		RAS_TEXCO_UV,		//< UV coordinates
 		RAS_TEXCO_OBJECT,	//< Use another object's position as coordinates
 		RAS_TEXCO_LAVECTOR,	//< Light vector as coordinates
 		RAS_TEXCO_VIEW,		//< View vector as coordinates
@@ -143,7 +138,6 @@ public:
 		RAS_TEXCO_WINDOW,	//< Window coordinates
 		RAS_TEXCO_NORM,		//< Normal coordinates 
 		RAS_TEXTANGENT,		//<
-		RAS_TEXCO_UV2,		//<
 		RAS_TEXCO_VCOL,		//< Vertex Color
 		RAS_TEXCO_DISABLE	//< Disable this texture unit (cached)
 	};
@@ -154,6 +148,17 @@ public:
 	enum StereoEye {
 			RAS_STEREO_LEFTEYE = 1,
 			RAS_STEREO_RIGHTEYE
+	};
+
+	/**
+	 * Mipmap options
+	 */
+	enum MipmapOption {
+		RAS_MIPMAP_NONE,
+		RAS_MIPMAP_NEAREST,
+		RAS_MIPMAP_LINEAR,
+
+		RAS_MIPMAP_MAX, // Should always be last
 	};
 
 	/**
@@ -168,7 +173,7 @@ public:
 	 */
 	virtual bool	SetMaterial(const RAS_IPolyMaterial& mat)=0;
 	/**
-	 * Init initialises the renderer.
+	 * Init initializes the renderer.
 	 */
 	virtual bool	Init()=0;
 	/**
@@ -208,10 +213,10 @@ public:
 	virtual void	SetStereoMode(const StereoMode stereomode)=0;
 	/**
 	 * Stereo can be used to query if the rasterizer is in stereo mode.
-	 * @return true if stereo mode is enabled.
+	 * \return true if stereo mode is enabled.
 	 */
 	virtual bool	Stereo()=0;
-    virtual StereoMode GetStereoMode()=0;
+	virtual StereoMode GetStereoMode()=0;
 	virtual bool	InterlacedStereo()=0;
 	/**
 	 * Sets which eye buffer subsequent primitives will be rendered to.
@@ -242,7 +247,7 @@ public:
 
 	/**
 	 * IndexPrimitives_3DText will render text into the polygons.
-	 * The text to be rendered is from @param rendertools client object's text property.
+	 * The text to be rendered is from \param rendertools client object's text property.
 	 */
 	virtual void	IndexPrimitives_3DText(class RAS_MeshSlot& ms,
 							class RAS_IPolyMaterial* polymat,
@@ -253,7 +258,7 @@ public:
 	/**
 	 * Set the projection matrix for the rasterizer. This projects
 	 * from camera coordinates to window coordinates.
-	 * @param mat The projection matrix.
+	 * \param mat The projection matrix.
 	 */
 	virtual void	SetProjectionMatrix(const MT_Matrix4x4 & mat)=0;
 	/**
@@ -298,16 +303,16 @@ public:
 								 float alpha)=0;
 	
 	/**
-	 * @param drawingmode = KX_BOUNDINGBOX, KX_WIREFRAME, KX_SOLID, KX_SHADED or KX_TEXTURED.
+	 * \param drawingmode = KX_BOUNDINGBOX, KX_WIREFRAME, KX_SOLID, KX_SHADED or KX_TEXTURED.
 	 */
 	virtual void	SetDrawingMode(int drawingmode)=0;
 	/**
-	 * @return the current drawing mode: KX_BOUNDINGBOX, KX_WIREFRAME, KX_SOLID, KX_SHADED or KX_TEXTURED.
+	 * \return the current drawing mode: KX_BOUNDINGBOX, KX_WIREFRAME, KX_SOLID, KX_SHADED or KX_TEXTURED.
 	 */
 	virtual int	GetDrawingMode()=0;
 	/**
 	 * Sets face culling
-	 */	
+	 */
 	virtual void	SetCullFace(bool enable)=0;
 	/**
 	 * Sets wireframe mode.
@@ -318,13 +323,13 @@ public:
 	virtual double	GetTime()=0;
 	/**
 	 * Generates a projection matrix from the specified frustum.
-	 * @param left the left clipping plane
-	 * @param right the right clipping plane
-	 * @param bottom the bottom clipping plane
-	 * @param top the top clipping plane
-	 * @param frustnear the near clipping plane
-	 * @param frustfar the far clipping plane
-	 * @return a 4x4 matrix representing the projection transform.
+	 * \param left the left clipping plane
+	 * \param right the right clipping plane
+	 * \param bottom the bottom clipping plane
+	 * \param top the top clipping plane
+	 * \param frustnear the near clipping plane
+	 * \param frustfar the far clipping plane
+	 * \return a 4x4 matrix representing the projection transform.
 	 */
 	virtual MT_Matrix4x4 GetFrustumMatrix(
 		float left,
@@ -339,13 +344,13 @@ public:
 
 	/**
 	 * Generates a orthographic projection matrix from the specified frustum.
-	 * @param left the left clipping plane
-	 * @param right the right clipping plane
-	 * @param bottom the bottom clipping plane
-	 * @param top the top clipping plane
-	 * @param frustnear the near clipping plane
-	 * @param frustfar the far clipping plane
-	 * @return a 4x4 matrix representing the projection transform.
+	 * \param left the left clipping plane
+	 * \param right the right clipping plane
+	 * \param bottom the bottom clipping plane
+	 * \param top the top clipping plane
+	 * \param frustnear the near clipping plane
+	 * \param frustfar the far clipping plane
+	 * \return a 4x4 matrix representing the projection transform.
 	 */
 	virtual MT_Matrix4x4 GetOrthoMatrix(
 		float left,
@@ -392,21 +397,23 @@ public:
 	 */
 	virtual void	SetPolygonOffset(float mult, float add) = 0;
 	
-	virtual	void	DrawDebugLine(const MT_Vector3& from,const MT_Vector3& to,const MT_Vector3& color)=0;
-	virtual	void	FlushDebugLines()=0;
+	virtual	void	DrawDebugLine(const MT_Vector3& from, const MT_Vector3& to, const MT_Vector3& color)=0;
+	virtual	void	DrawDebugCircle(const MT_Vector3& center, const MT_Scalar radius, const MT_Vector3& color,
+									const MT_Vector3& normal, int nsector)=0;
+	virtual	void	FlushDebugShapes()=0;
 	
 
 
 	virtual void	SetTexCoordNum(int num) = 0;
 	virtual void	SetAttribNum(int num) = 0;
 	virtual void	SetTexCoord(TexCoGen coords, int unit) = 0;
-	virtual void	SetAttrib(TexCoGen coords, int unit) = 0;
+	virtual void	SetAttrib(TexCoGen coords, int unit, int layer = 0) = 0;
 
 	virtual const MT_Matrix4x4&	GetViewMatrix() const = 0;
 	virtual const MT_Matrix4x4&	GetViewInvMatrix() const = 0;
 
-	virtual bool	QueryLists(){return false;}
-	virtual bool	QueryArrays(){return false;}
+	virtual bool	QueryLists() { return false; }
+	virtual bool	QueryArrays() { return false; }
 	
 	virtual void	EnableMotionBlur(float motionblurvalue)=0;
 	virtual void	DisableMotionBlur()=0;
@@ -415,17 +422,21 @@ public:
 	virtual int		GetMotionBlurState()=0;
 	virtual void	SetMotionBlurState(int newstate)=0;
 
-	virtual void	SetBlendingMode(int blendmode)=0;
+	virtual void	SetAlphaBlend(int alphablend)=0;
 	virtual void	SetFrontFace(bool ccw)=0;
-	
-	
+
+	virtual void	SetAnisotropicFiltering(short level)=0;
+	virtual short	GetAnisotropicFiltering()=0;
+
+	virtual void	SetMipmapping(MipmapOption val)=0;
+	virtual MipmapOption GetMipmapping()=0;
+
+	virtual void	SetUsingOverrideShader(bool val)=0;
+	virtual bool	GetUsingOverrideShader()=0;
+
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_IRasterizer"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IRasterizer")
 #endif
 };
 
-#endif //__RAS_IRASTERIZER
-
-
+#endif  /* __RAS_IRASTERIZER_H__ */

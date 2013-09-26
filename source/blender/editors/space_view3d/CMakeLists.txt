@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -23,16 +22,19 @@ set(INC
 	../include
 	../../blenfont
 	../../blenkernel
-	../../blenloader
 	../../blenlib
+	../../bmesh
 	../../gpu
 	../../imbuf
 	../../makesdna
 	../../makesrna
-	../../windowmanager
 	../../render/extern/include
+	../../windowmanager
 	../../../../intern/guardedalloc
 	../../../../intern/smoke/extern
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -48,7 +50,10 @@ set(SRC
 	view3d_edit.c
 	view3d_fly.c
 	view3d_header.c
+	view3d_iterators.c
 	view3d_ops.c
+	view3d_project.c
+	view3d_ruler.c
 	view3d_select.c
 	view3d_snap.c
 	view3d_toolbar.c
@@ -58,10 +63,20 @@ set(SRC
 )
 
 if(WITH_GAMEENGINE)
-	list(APPEND INC ../../../kernel/gen_system)
+	list(APPEND INC
+		../../../gameengine/BlenderRoutines
+	)
 	add_definitions(-DWITH_GAMEENGINE)
 endif()
 
 add_definitions(-DGLEW_STATIC)
 
-blender_add_lib(bf_editor_space_view3d "${SRC}" "${INC}")
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_FREESTYLE)
+	add_definitions(-DWITH_FREESTYLE)
+endif()
+
+blender_add_lib(bf_editor_space_view3d "${SRC}" "${INC}" "${INC_SYS}")

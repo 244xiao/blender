@@ -1,6 +1,4 @@
 /*
- * $Id: renderdatabase.h 35233 2011-02-27 19:31:27Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  */
 
 
-#ifndef RENDERDATABASE_H
-#define RENDERDATABASE_H
+#ifndef __RENDERDATABASE_H__
+#define __RENDERDATABASE_H__
 
 struct Object;
 struct VlakRen;
@@ -57,17 +55,20 @@ struct RadFace;
 typedef struct VertTableNode {
 	struct VertRen *vert;
 	float *rad;
-	float *sticky;
 	float *strand;
 	float *tangent;
 	float *stress;
 	float *winspeed;
+	/* Index of vertex in source mesh (before modifiers). */
+	int *origindex;
 } VertTableNode;
 
 typedef struct VlakTableNode {
 	struct VlakRen *vlak;
 	struct MTFace *mtface;
 	struct MCol *mcol;
+	/* Index of mpoly in source mesh (before tessellation). */
+	int *origindex;
 	int totmtface, totmcol;
 	float *surfnor;
 	float *tangent;
@@ -90,9 +91,8 @@ void free_renderdata_tables(struct Render *re);
 void free_renderdata_vertnodes(struct VertTableNode *vertnodes);
 void free_renderdata_vlaknodes(struct VlakTableNode *vlaknodes);
 
-void set_normalflags(struct Render *re, struct ObjectRen *obr);
-void project_renderdata(struct Render *re, void (*projectfunc)(float *, float mat[][4], float *),  int do_pano, float xoffs, int do_buckets);
-int clip_render_object(float boundbox[][3], float *bounds, float mat[][4]);
+void project_renderdata(struct Render *re, void (*projectfunc)(const float *, float mat[4][4], float *),  int do_pano, float xoffs, int do_buckets);
+int clip_render_object(float boundbox[2][3], float bounds[4], float mat[4][4]);
 
 /* functions are not exported... so wrong names */
 
@@ -100,24 +100,29 @@ struct VlakRen *RE_findOrAddVlak(struct ObjectRen *obr, int nr);
 struct VertRen *RE_findOrAddVert(struct ObjectRen *obr, int nr);
 struct StrandRen *RE_findOrAddStrand(struct ObjectRen *obr, int nr);
 struct HaloRen *RE_findOrAddHalo(struct ObjectRen *obr, int nr);
-struct HaloRen *RE_inithalo(struct Render *re, struct ObjectRen *obr, struct Material *ma, float *vec, float *vec1, float *orco, float hasize,  float vectsize, int seed);
-struct HaloRen *RE_inithalo_particle(struct Render *re, struct ObjectRen *obr, struct DerivedMesh *dm, struct Material *ma,   float *vec,   float *vec1, float *orco, float *uvco, float hasize, float vectsize, int seed, float *pa_co);
+struct HaloRen *RE_inithalo(struct Render *re, struct ObjectRen *obr, struct Material *ma,
+                            const float vec[3], const float vec1[3],
+                            const float *orco, float hasize,  float vectsize, int seed);
+struct HaloRen *RE_inithalo_particle(struct Render *re, struct ObjectRen *obr, struct DerivedMesh *dm, struct Material *ma,
+                                     const float vec[3], const float vec1[3],
+                                     const float *orco, const float *uvco, float hasize, float vectsize, int seed,
+                                     const float pa_co[3]);
 struct StrandBuffer *RE_addStrandBuffer(struct ObjectRen *obr, int totvert);
 
 struct ObjectRen *RE_addRenderObject(struct Render *re, struct Object *ob, struct Object *par, int index, int psysindex, int lay);
-struct ObjectInstanceRen *RE_addRenderInstance(struct Render *re, struct ObjectRen *obr, struct Object *ob, struct Object *par, int index, int psysindex, float mat[][4], int lay);
+struct ObjectInstanceRen *RE_addRenderInstance(struct Render *re, struct ObjectRen *obr, struct Object *ob, struct Object *par, int index, int psysindex, float mat[4][4], int lay);
 void RE_makeRenderInstances(struct Render *re);
-void RE_instanceTransformNormal(struct ObjectInstanceRen *obi, float *nor, float *tnor);
 
-float *RE_vertren_get_sticky(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *RE_vertren_get_stress(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *RE_vertren_get_rad(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *RE_vertren_get_strand(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *RE_vertren_get_tangent(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *RE_vertren_get_winspeed(struct ObjectInstanceRen *obi, struct VertRen *ver, int verify);
+int *RE_vertren_get_origindex(struct ObjectRen *obr, VertRen *ver, int verify);
 
 struct MTFace *RE_vlakren_get_tface(struct ObjectRen *obr, VlakRen *ren, int n, char **name, int verify);
 struct MCol *RE_vlakren_get_mcol(struct ObjectRen *obr, VlakRen *ren, int n, char **name, int verify);
+int *RE_vlakren_get_origindex(struct ObjectRen *obr, VlakRen *vlak, int verify);
 float *RE_vlakren_get_surfnor(struct ObjectRen *obr, VlakRen *ren, int verify);
 float *RE_vlakren_get_nmap_tangent(struct ObjectRen *obr, VlakRen *ren, int verify);
 RadFace **RE_vlakren_get_radface(struct ObjectRen *obr, VlakRen *ren, int verify);
@@ -135,6 +140,9 @@ struct VlakRen *RE_vlakren_copy(struct ObjectRen *obr, struct VlakRen *vlr);
 
 void RE_set_customdata_names(struct ObjectRen *obr, struct CustomData *data);
 
+void area_lamp_vectors(struct LampRen *lar);
+
+
 /* haloren->type: flags */
 #define HA_ONLYSKY		1
 #define HA_VECT			2
@@ -146,5 +154,5 @@ void init_render_world(Render *re);
 void RE_Database_FromScene_Vectors(Render *re, struct Main *bmain, struct Scene *sce, unsigned int lay);
 
 
-#endif /* RENDERDATABASE_H */
+#endif /* __RENDERDATABASE_H__ */
 

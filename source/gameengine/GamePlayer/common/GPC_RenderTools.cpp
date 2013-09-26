@@ -1,6 +1,4 @@
 /*
- * $Id: GPC_RenderTools.cpp 35170 2011-02-25 13:35:11Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -103,23 +101,23 @@ void GPC_RenderTools::ProcessLighting(RAS_IRasterizer *rasty, bool uselights, co
 	int layer= -1;
 
 	/* find the layer */
-	if(uselights) {
-		if(m_clientobject)
+	if (uselights) {
+		if (m_clientobject)
 			layer = static_cast<KX_GameObject*>(m_clientobject)->GetLayer();
 	}
 
 	/* avoid state switching */
-	if(m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo)
+	if (m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo)
 		return;
 
 	m_lastlightlayer = layer;
 	m_lastauxinfo = m_auxilaryClientInfo;
 
 	/* enable/disable lights as needed */
-	if(layer >= 0)
+	if (layer >= 0)
 		enable = applyLights(layer, viewmat);
 
-	if(enable)
+	if (enable)
 		EnableOpenGLLights(rasty);
 	else
 		DisableOpenGLLights();
@@ -127,7 +125,7 @@ void GPC_RenderTools::ProcessLighting(RAS_IRasterizer *rasty, bool uselights, co
 
 void GPC_RenderTools::EnableOpenGLLights(RAS_IRasterizer *rasty)
 {
-	if(m_lastlighting == true)
+	if (m_lastlighting == true)
 		return;
 
 	glEnable(GL_LIGHTING);
@@ -144,7 +142,7 @@ void GPC_RenderTools::EnableOpenGLLights(RAS_IRasterizer *rasty)
 
 void GPC_RenderTools::DisableOpenGLLights()
 {
-	if(m_lastlighting == false)
+	if (m_lastlighting == false)
 		return;
 
 	glDisable(GL_LIGHTING);
@@ -165,7 +163,7 @@ void GPC_RenderTools::SetClientObject(RAS_IRasterizer *rasty, void* obj)
 	}
 }
 
-bool GPC_RenderTools::RayHit(KX_ClientObjectInfo* client, KX_RayCast* result, void * const data)
+bool GPC_RenderTools::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void * const data)
 {
 	double* const oglmatrix = (double* const) data;
 	MT_Point3 resultpoint(result->m_hitPoint);
@@ -175,11 +173,11 @@ bool GPC_RenderTools::RayHit(KX_ClientObjectInfo* client, KX_RayCast* result, vo
 	left = (dir.cross(resultnormal)).safe_normalized();
 	// for the up vector, we take the 'resultnormal' returned by the physics
 	
-	double maat[16]={
-			left[0],        left[1],        left[2], 0,
-				dir[0],         dir[1],         dir[2], 0,
-		resultnormal[0],resultnormal[1],resultnormal[2], 0,
-				0,              0,              0, 1};
+	double maat[16] = {left[0],         left[1],         left[2],         0,
+	                   dir[0],          dir[1],          dir[2],          0,
+	                   resultnormal[0], resultnormal[1], resultnormal[2], 0,
+	                   0,               0,               0,               1};
+
 	glTranslated(resultpoint[0],resultpoint[1],resultpoint[2]);
 	//glMultMatrixd(oglmatrix);
 	glMultMatrixd(maat);
@@ -207,7 +205,7 @@ void GPC_RenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmatrix,in
 		//page 360/361 3D Game Engine Design, David Eberly for a discussion
 		// on screen aligned and axis aligned billboards
 		// assumed is that the preprocessor transformed all billboard polygons
-		// so that their normal points into the positive x direction (1.0 , 0.0 , 0.0)
+		// so that their normal points into the positive x direction (1.0, 0.0, 0.0)
 		// when new parenting for objects is done, this rotation
 		// will be moved into the object
 		
@@ -218,7 +216,7 @@ void GPC_RenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmatrix,in
 
 		KX_GameObject* gameobj = (KX_GameObject*) this->m_clientobject;
 		// get scaling of halo object
-		MT_Vector3  size = gameobj->GetSGNode()->GetLocalScale();
+		MT_Vector3  size = gameobj->GetSGNode()->GetWorldScaling();
 		
 		bool screenaligned = (objectdrawmode & RAS_IPolyMaterial::BILLBOARD_SCREENALIGNED)!=0;//false; //either screen or axisaligned
 		if (screenaligned)
@@ -238,16 +236,16 @@ void GPC_RenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmatrix,in
 		left *= size[0];
 		dir  *= size[1];
 		up   *= size[2];
-		double maat[16]={
-			left[0], left[1],left[2], 0,
-				dir[0], dir[1],dir[2],0,
-				up[0],up[1],up[2],0,
-				0,0,0,1};
-			glTranslated(objpos[0],objpos[1],objpos[2]);
-			glMultMatrixd(maat);
-			
-	} else
-	{
+
+		double maat[16] = {left[0], left[1], left[2], 0,
+		                   dir[0],  dir[1],  dir[2],  0,
+		                   up[0],   up[1],   up[2],   0,
+		                   0,       0,       0,       1};
+
+		glTranslated(objpos[0],objpos[1],objpos[2]);
+		glMultMatrixd(maat);
+	}
+	else {
 		if (objectdrawmode & RAS_IPolyMaterial::SHADOW)
 		{
 			// shadow must be cast to the ground, physics system needed here!
@@ -285,6 +283,78 @@ void GPC_RenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmatrix,in
 	}
 }
 
+void GPC_RenderTools::RenderBox2D(int xco,
+										int yco,
+										int width,
+										int height,
+										float percentage)
+{
+	// Save and change OpenGL settings
+	int texture2D;
+	glGetIntegerv(GL_TEXTURE_2D, (GLint*)&texture2D);
+	glDisable(GL_TEXTURE_2D);
+	int fog;
+	glGetIntegerv(GL_FOG, (GLint*)&fog);
+	glDisable(GL_FOG);
+	
+	int light;
+	glGetIntegerv(GL_LIGHTING, (GLint*)&light);
+	glDisable(GL_LIGHTING);
+	
+	glDisable(GL_DEPTH_TEST);
+	
+	// Set up viewing settings
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	glOrtho(0, width, 0, height, -1, 1);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+	
+	yco = height - yco;
+	int barsize = 50;
+	
+	// draw in black first
+	glColor3ub(0, 0, 0);
+	glBegin(GL_QUADS);
+	glVertex2f(xco + 1 + 1 + barsize * percentage, yco - 1 + 10);
+	glVertex2f(xco + 1, yco - 1 + 10);
+	glVertex2f(xco + 1, yco - 1);
+	glVertex2f(xco + 1 + 1 + barsize * percentage, yco - 1);
+	glEnd();
+	
+	glColor3ub(255, 255, 255);
+	glBegin(GL_QUADS);
+	glVertex2f(xco + 1 + barsize * percentage, yco + 10);
+	glVertex2f(xco, yco + 10);
+	glVertex2f(xco, yco);
+	glVertex2f(xco + 1 + barsize * percentage, yco);
+	glEnd();
+	
+	// Restore view settings
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+	
+	// Restore OpenGL Settings
+	if (fog)
+		glEnable(GL_FOG);
+	else
+		glDisable(GL_FOG);
+	
+	if (texture2D)
+		glEnable(GL_TEXTURE_2D);
+	else
+		glDisable(GL_TEXTURE_2D);
+	if (light)
+		glEnable(GL_LIGHTING);
+	else
+		glDisable(GL_LIGHTING);
+}
+
+
 void GPC_RenderTools::RenderText3D(	int fontid,
 									const char* text,
 									int size,
@@ -293,8 +363,33 @@ void GPC_RenderTools::RenderText3D(	int fontid,
 									double* mat,
 									float aspect)
 {
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); /* needed for texture fonts otherwise they render as wireframe */
+
+	if (GLEW_ARB_multitexture) {
+		for (int i=0; i<MAXTEX; i++) {
+			glActiveTextureARB(GL_TEXTURE0_ARB+i);
+
+			if (GLEW_ARB_texture_cube_map)
+				if (glIsEnabled(GL_TEXTURE_CUBE_MAP_ARB))
+					glDisable(GL_TEXTURE_CUBE_MAP_ARB);
+
+			if (glIsEnabled(GL_TEXTURE_2D))
+				glDisable(GL_TEXTURE_2D);
+		}
+
+		glActiveTextureARB(GL_TEXTURE0_ARB);
+	}
+	else {
+		if (GLEW_ARB_texture_cube_map)
+			if (glIsEnabled(GL_TEXTURE_CUBE_MAP_ARB))
+				glDisable(GL_TEXTURE_CUBE_MAP_ARB);
+
+		if (glIsEnabled(GL_TEXTURE_2D))
+			glDisable(GL_TEXTURE_2D);
+	}
+
 	/* the actual drawing */
-	glColor3fv(color);
+	glColor4fv(color);
  
 	/* multiply the text matrix by the object matrix */
 	BLF_enable(fontid, BLF_MATRIX|BLF_ASPECT);
@@ -307,7 +402,7 @@ void GPC_RenderTools::RenderText3D(	int fontid,
 
 	BLF_size(fontid, size, dpi);
 	BLF_position(fontid, 0, 0, 0);
-	BLF_draw(fontid, (char *)text, strlen(text));
+	BLF_draw(fontid, text, 65535);
 
 	BLF_disable(fontid, BLF_MATRIX|BLF_ASPECT);
 	glEnable(GL_DEPTH_TEST);
@@ -338,7 +433,8 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 	glGetIntegerv(GL_LIGHTING, (GLint*)&light);
 	glDisable(GL_LIGHTING);
 
-	
+	glDisable(GL_DEPTH_TEST);
+
 	// Set up viewing settings
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
@@ -352,11 +448,11 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 	if (mode == RAS_IRenderTools::RAS_TEXT_PADDED)
 	{
 		glColor3ub(0, 0, 0);
-		BLF_draw_default(xco+1, height-yco-1, 0.f, text, strlen(text));
+		BLF_draw_default(xco+1, height-yco-1, 0.f, text, 65536);
 	}
 
 	glColor3ub(255, 255, 255);
-	BLF_draw_default(xco, height-yco, 0.f, text, strlen(text));
+	BLF_draw_default(xco, height-yco, 0.f, text, 65536);
 
 	// Restore view settings
 	glMatrixMode(GL_PROJECTION);
@@ -394,7 +490,7 @@ void GPC_RenderTools::RenderText(
 	struct MTFace* tface = 0;
 	unsigned int *col = 0;
 
-	if(flag & RAS_BLENDERMAT) {
+	if (flag & RAS_BLENDERMAT) {
 		KX_BlenderMaterial *bl_mat = static_cast<KX_BlenderMaterial*>(polymat);
 		tface = bl_mat->GetMTFace();
 		col = bl_mat->GetMCol();
@@ -421,13 +517,13 @@ void GPC_RenderTools::PopMatrix()
 
 int GPC_RenderTools::applyLights(int objectlayer, const MT_Transform& viewmat)
 {
-	// taken from blender source, incompatibility between Blender Object / GameObject	
+	// taken from blender source, incompatibility between Blender Object / GameObject
 	KX_Scene* kxscene = (KX_Scene*)m_auxilaryClientInfo;
 	float glviewmat[16];
 	unsigned int count;
 	std::vector<struct	RAS_LightObject*>::iterator lit = m_lights.begin();
 
-	for(count=0; count<m_numgllights; count++)
+	for (count=0; count<m_numgllights; count++)
 		glDisable((GLenum)(GL_LIGHT0+count));
 
 	viewmat.getValue(glviewmat);
@@ -439,7 +535,7 @@ int GPC_RenderTools::applyLights(int objectlayer, const MT_Transform& viewmat)
 		RAS_LightObject* lightdata = (*lit);
 		KX_LightObject *kxlight = (KX_LightObject*)lightdata->m_light;
 
-		if(kxlight->ApplyLight(kxscene, objectlayer, count))
+		if (kxlight->ApplyLight(kxscene, objectlayer, count))
 			count++;
 	}
 	glPopMatrix();
@@ -451,16 +547,16 @@ void GPC_RenderTools::MotionBlur(RAS_IRasterizer* rasterizer)
 {
 	int state = rasterizer->GetMotionBlurState();
 	float motionblurvalue;
-	if(state)
+	if (state)
 	{
 		motionblurvalue = rasterizer->GetMotionBlurValue();
-		if(state==1)
+		if (state==1)
 		{
 			//bugfix:load color buffer into accum buffer for the first time(state=1)
 			glAccum(GL_LOAD, 1.0);
 			rasterizer->SetMotionBlurState(2);
 		}
-		else if(motionblurvalue>=0.0 && motionblurvalue<=1.0)
+		else if (motionblurvalue>=0.0 && motionblurvalue<=1.0)
 		{
 			glAccum(GL_MULT, motionblurvalue);
 			glAccum(GL_ACCUM, 1-motionblurvalue);

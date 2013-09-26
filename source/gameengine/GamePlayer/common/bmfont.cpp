@@ -3,7 +3,6 @@
  *
  * 04-10-2000 frank
  *
- * $Id: bmfont.cpp 35170 2011-02-25 13:35:11Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -44,7 +43,7 @@
  *   detects if an image buffer contains a bitmap font. It makes the
  *   specific bitmap data which is stored in the bitmap invisible to blender.
  *
- * void matrixGlyph(ImBuf * ibuf, unsigned short unicode, *float x 7)
+ * void matrixGlyph(ImBuf *ibuf, unsigned short unicode, *float x 7)
  *   returns all the information about the character (unicode) in the floats
  *
  * Room for improvement:
@@ -63,8 +62,8 @@
 #include "BKE_bmfont.h"
 #include "BKE_bmfont_types.h"
 
-/*MAART:
-void printfGlyph(bmGlyph * glyph)
+#if 0
+void printfGlyph(bmGlyph *glyph)
 {
 	printf("unicode: %d '%c'\n", glyph->unicode, glyph->unicode);
 	printf(" locx: %4d locy: %4d\n", glyph->locx, glyph->locy);
@@ -72,12 +71,9 @@ void printfGlyph(bmGlyph * glyph)
 	printf(" ofsx:  %3d ofsy:  %3d\n", glyph->ofsx, glyph->ofsy);
 	printf(" advan: %3d reser: %3d\n", glyph->advance, glyph->reserved);
 }
-*/
+#endif
 
-#define MAX2(x,y)          ( (x)>(y) ? (x) : (y) )
-#define MAX3(x,y,z)                MAX2( MAX2((x),(y)) , (z) )  
-
-void calcAlpha(ImBuf * ibuf)
+void calcAlpha(ImBuf *ibuf)
 {
 	int i;
 	char * rect;
@@ -91,7 +87,7 @@ void calcAlpha(ImBuf * ibuf)
 	}
 }
 
-void readBitmapFontVersion0(ImBuf * ibuf, unsigned char * rect, int step)
+void readBitmapFontVersion0(ImBuf *ibuf, unsigned char *rect, int step)
 {
 	int glyphcount, bytes, i, index, linelength, ysize;
 	unsigned char * buffer;
@@ -105,13 +101,13 @@ void readBitmapFontVersion0(ImBuf * ibuf, unsigned char * rect, int step)
 	ysize = (bytes + (ibuf->x - 1)) / ibuf->x;
 	
 	if (ysize < ibuf->y) {
-		// we're first going to copy all data into a liniar buffer.
+		// we're first going to copy all data into a linear buffer.
 		// step can be 4 or 1 bytes, and the data is not sequential because
 		// the bitmap was flipped vertically.
 		
 		buffer = (unsigned char*)MEM_mallocN(bytes, "readBitmapFontVersion0:buffer");
 		
-		index = 0;	
+		index = 0;
 		for (i = 0; i < bytes; i++) {
 			buffer[i] = rect[index];
 			index += step;
@@ -148,7 +144,7 @@ void readBitmapFontVersion0(ImBuf * ibuf, unsigned char * rect, int step)
 			bmfont->glyphs[i].advance  = buffer[index++];
 			bmfont->glyphs[i].reserved = buffer[index++];
 			/* MAART:
-			if (G.f & G_DEBUG) {
+			if (G.debug & G_DEBUG) {
 				printfGlyph(&bmfont->glyphs[i]);
 			}
 			*/
@@ -157,7 +153,7 @@ void readBitmapFontVersion0(ImBuf * ibuf, unsigned char * rect, int step)
 		MEM_freeN(buffer);
 		
 		/* MAART:
-		if (G.f & G_DEBUG) {
+		if (G.debug & G_DEBUG) {
 			printf("Oldy = %d Newy = %d\n", ibuf->y, ibuf->y - ysize);
 			printf("glyphcount = %d\n", glyphcount);
 			printf("bytes = %d\n", bytes);
@@ -172,7 +168,7 @@ void readBitmapFontVersion0(ImBuf * ibuf, unsigned char * rect, int step)
 		ibuf->userdata = bmfont;
 		ibuf->userflags |= IB_BITMAPFONT;
 
-		if (ibuf->depth < 32) {
+		if (ibuf->planes < 32) {
 			// we're going to fake alpha here:
 			calcAlpha(ibuf);
 		}
@@ -190,7 +186,7 @@ void detectBitmapFont(ImBuf *ibuf)
 	long i;
 	
 	if (ibuf != NULL) {
-	        // bitmap must have an x size that is a power of two
+		// bitmap must have an x size that is a power of two
 		if (is_power_of_two(ibuf->x)) {
 			rect = (unsigned char *) (ibuf->rect + (ibuf->x * (ibuf->y - 1)));
 			// printf ("starts with: %s %c %c %c %c\n", rect, rect[0], rect[1], rect[2], rect[3]);
@@ -257,7 +253,7 @@ int locateGlyph(bmFont *bmfont, unsigned short unicode)
 	return(current);
 }
 
-void matrixGlyph(ImBuf * ibuf, unsigned short unicode,
+void matrixGlyph(ImBuf *ibuf, unsigned short unicode,
 		float *centerx, float *centery,
 		float *sizex,   float *sizey,
 		float *transx,  float *transy,
@@ -296,7 +292,7 @@ void matrixGlyph(ImBuf * ibuf, unsigned short unicode,
 				*advance = (float)(2.0 * bmfont->glyphs[index].advance / (float) bmfont->glyphs[0].advance);
 
 				// printfGlyph(&bmfont->glyphs[index]);
-				// printf("%c %d %0.5f %0.5f %0.5f %0.5f %0.5f \n", unicode, index, *sizex, *sizey, *transx, *transy, *advance);
+				// printf("%c %d %0.5f %0.5f %0.5f %0.5f %0.5f\n", unicode, index, *sizex, *sizey, *transx, *transy, *advance);
 			}
 		}
 	}

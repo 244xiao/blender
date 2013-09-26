@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_IInputDevice.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -34,8 +32,8 @@
  *
  */
 
-#ifndef KX_INPUTDEVICE_H
-#define KX_INPUTDEVICE_H
+#ifndef __SCA_IINPUTDEVICE_H__
+#define __SCA_IINPUTDEVICE_H__
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -71,7 +69,7 @@ class SCA_IInputDevice
 public:
 
 	SCA_IInputDevice();
-	virtual ~SCA_IInputDevice();	
+	virtual ~SCA_IInputDevice();
 
 	enum KX_EnumInputs {
 	
@@ -122,17 +120,17 @@ public:
 		KX_RETKEY = 13,
 		KX_SPACEKEY = 32,
 		KX_PADASTERKEY = 42,
-		KX_COMMAKEY = 44,		
-		KX_MINUSKEY = 45,		
+		KX_COMMAKEY = 44,
+		KX_MINUSKEY = 45,
 		KX_PERIODKEY = 46,
 		KX_ZEROKEY = 48,
 		
 		KX_ONEKEY,		// =49
-		KX_TWOKEY,		
+		KX_TWOKEY,
 		KX_THREEKEY,
-		KX_FOURKEY,		
-		KX_FIVEKEY,		
-		KX_SIXKEY,		
+		KX_FOURKEY,
+		KX_FIVEKEY,
+		KX_SIXKEY,
 		KX_SEVENKEY,
 		KX_EIGHTKEY,
 		KX_NINEKEY,		// = 57
@@ -169,17 +167,17 @@ public:
 		KX_CAPSLOCKKEY, // 123
 		
 		KX_LEFTCTRLKEY,	// 124
-		KX_LEFTALTKEY, 		
-		KX_RIGHTALTKEY, 	
-		KX_RIGHTCTRLKEY, 	
-		KX_RIGHTSHIFTKEY,	
+		KX_LEFTALTKEY,
+		KX_RIGHTALTKEY,
+		KX_RIGHTCTRLKEY,
+		KX_RIGHTSHIFTKEY,
 		KX_LEFTSHIFTKEY,// 129
 		
 		KX_ESCKEY, // 130
 		KX_TABKEY, //131
 		
 		
-		KX_LINEFEEDKEY,	 // 132	
+		KX_LINEFEEDKEY,	 // 132
 		KX_BACKSPACEKEY,
 		KX_DELKEY,
 		KX_SEMICOLONKEY, // 135
@@ -190,13 +188,13 @@ public:
 		
 		KX_SLASHKEY,		//138
 		KX_BACKSLASHKEY,
-		KX_EQUALKEY,		
-		KX_LEFTBRACKETKEY,	
+		KX_EQUALKEY,
+		KX_LEFTBRACKETKEY,
 		KX_RIGHTBRACKETKEY,	// 142
 		
 		KX_LEFTARROWKEY, // 145
 		KX_DOWNARROWKEY,
-		KX_RIGHTARROWKEY,	
+		KX_RIGHTARROWKEY,
 		KX_UPARROWKEY,		// 148
 	
 		KX_PAD2	,
@@ -240,6 +238,8 @@ public:
 		KX_F17KEY,
 		KX_F18KEY,
 		KX_F19KEY,
+
+		KX_OSKEY,
 		
 		KX_PAUSEKEY,
 		KX_INSERTKEY,
@@ -271,19 +271,19 @@ public:
 
 		KX_MAX_KEYS
 		
-	} ; // enum  
+	}; // enum
 
 
 protected:
 	/**  
-		m_eventStatusTables are two tables that contain current and previous
-		status of all events
-	*/
+	 * m_eventStatusTables are two tables that contain current and previous
+	 * status of all events
+	 */
 
 	SCA_InputEvent	m_eventStatusTables[2][SCA_IInputDevice::KX_MAX_KEYS];
 	/**  
-		m_currentTable is index for m_keyStatusTable that toggle between 0 or 1 
-	*/
+	 * m_currentTable is index for m_keyStatusTable that toggle between 0 or 1
+	 */
 	int				m_currentTable; 
 	void			ClearStatusTable(int tableid);
 
@@ -297,32 +297,31 @@ public:
 	virtual int		GetNumActiveEvents();
 
 	/**
-	 * Get the number of ramping events (just_activated, just_released)
+	 * Get the number of remapping events (just_activated, just_released)
 	 */
 	virtual int		GetNumJustEvents();
 	
 	virtual void		HookEscape();
 	
-	/* Next frame: we calculate the new key states. This goes as follows:
-	*
-	* KX_NO_INPUTSTATUS -> KX_NO_INPUTSTATUS
-	* KX_JUSTACTIVATED  -> KX_ACTIVE
-	* KX_ACTIVE         -> KX_ACTIVE
-	* KX_JUSTRELEASED   -> KX_NO_INPUTSTATUS
-	*
-	* Getting new events provides the
-	* KX_NO_INPUTSTATUS->KX_JUSTACTIVATED and
-	* KX_ACTIVE->KX_JUSTRELEASED transitions.
-	*/
+	/**
+	 * Next frame: we calculate the new key states. This goes as follows:
+	 *
+	 * KX_NO_INPUTSTATUS -> KX_NO_INPUTSTATUS
+	 * KX_JUSTACTIVATED  -> KX_ACTIVE
+	 * KX_ACTIVE         -> KX_ACTIVE
+	 * KX_JUSTRELEASED   -> KX_NO_INPUTSTATUS
+	 *
+	 * Getting new events provides the
+	 * KX_NO_INPUTSTATUS->KX_JUSTACTIVATED and
+	 * KX_ACTIVE->KX_JUSTRELEASED transitions.
+	 */
 	virtual void	NextFrame();
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SCA_InputEvent"); }
-	void operator delete(void *mem) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_InputEvent")
 #endif
 };
 
-#endif	//KX_INPUTDEVICE_H
+#endif	 /* __SCA_IINPUTDEVICE_H__ */
 

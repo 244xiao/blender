@@ -1,6 +1,4 @@
 /*
- * $Id: script_edit.c 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -38,9 +36,12 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
+#include "BKE_report.h"
+#include "BKE_global.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
+#include "wm_event_system.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -48,7 +49,7 @@
 #include "ED_screen.h"
 
 
-#include "script_intern.h"	// own include
+#include "script_intern.h"  // own include
 
 #ifdef WITH_PYTHON
 #include "BPY_extern.h" /* BPY_script_exec */
@@ -59,8 +60,8 @@ static int run_pyfile_exec(bContext *C, wmOperator *op)
 	char path[512];
 	RNA_string_get(op->ptr, "filepath", path);
 #ifdef WITH_PYTHON
-	if(BPY_filepath_exec(C, path, op->reports)) {
-		ARegion *ar= CTX_wm_region(C);
+	if (BPY_filepath_exec(C, path, op->reports)) {
+		ARegion *ar = CTX_wm_region(C);
 		ED_region_tag_redraw(ar);
 		return OPERATOR_FINISHED;
 	}
@@ -73,22 +74,53 @@ static int run_pyfile_exec(bContext *C, wmOperator *op)
 void SCRIPT_OT_python_file_run(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Run python file";
-	ot->description= "Run Python file";
-	ot->idname= "SCRIPT_OT_python_file_run";
+	ot->name = "Run Python File";
+	ot->description = "Run Python file";
+	ot->idname = "SCRIPT_OT_python_file_run";
 	ot->flag = OPTYPE_UNDO;
 
 	/* api callbacks */
-	ot->exec= run_pyfile_exec;
-	ot->poll= ED_operator_areaactive;
+	ot->exec = run_pyfile_exec;
+	ot->poll = ED_operator_areaactive;
 
-	RNA_def_string_file_path(ot->srna, "filepath", "", 512, "Path", "");
+	RNA_def_string_file_path(ot->srna, "filepath", "", FILE_MAX, "Path", "");
 }
 
+#ifdef WITH_PYTHON
+static bool script_test_modal_operators(bContext *C)
+{
+	wmWindowManager *wm;
+	wmWindow *win;
 
-static int script_reload_exec(bContext *C, wmOperator *UNUSED(op))
+	wm = CTX_wm_manager(C);
+
+	for (win = wm->windows.first; win; win = win->next) {
+		wmEventHandler *handler;
+
+		for (handler = win->modalhandlers.first; handler; handler = handler->next) {
+			if (handler->op) {
+				wmOperatorType *ot = handler->op->type;
+				if (ot->ext.srna) {
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+#endif
+
+static int script_reload_exec(bContext *C, wmOperator *op)
 {
 #ifdef WITH_PYTHON
+
+	/* clear running operators */
+	if (script_test_modal_operators(C)) {
+		BKE_report(op->reports, RPT_ERROR, "Can't reload with running modal operators");
+		return OPERATOR_CANCELLED;
+	}
+
 	/* TODO, this crashes on netrender and keying sets, need to look into why
 	 * disable for now unless running in debug mode */
 	WM_cursor_wait(1);
@@ -97,18 +129,38 @@ static int script_reload_exec(bContext *C, wmOperator *UNUSED(op))
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 	return OPERATOR_FINISHED;
 #else
-	(void)C; /* unused */
-#endif
+	(void)C, (void)op; /* unused */
 	return OPERATOR_CANCELLED;
+#endif
 }
 
 void SCRIPT_OT_reload(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Reload Scripts";
-	ot->description= "Reload Scripts";
-	ot->idname= "SCRIPT_OT_reload";
+	ot->name = "Reload Scripts";
+	ot->description = "Reload Scripts";
+	ot->idname = "SCRIPT_OT_reload";
 
 	/* api callbacks */
-	ot->exec= script_reload_exec;
+	ot->exec = script_reload_exec;
+}
+
+static int script_autoexec_warn_clear_exec(bContext *UNUSED(C), wmOperator *UNUSED(op))
+{
+	G.f |= G_SCRIPT_AUTOEXEC_FAIL_QUIET;
+	return OPERATOR_FINISHED;
+}
+
+void SCRIPT_OT_autoexec_warn_clear(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Continue Untrusted";
+	ot->description = "Ignore autoexec warning";
+	ot->idname = "SCRIPT_OT_autoexec_warn_clear";
+
+	/* flags */
+	ot->flag = OPTYPE_INTERNAL;
+
+	/* api callbacks */
+	ot->exec = script_autoexec_warn_clear_exec;
 }

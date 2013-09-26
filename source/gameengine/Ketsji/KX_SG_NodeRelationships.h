@@ -1,6 +1,4 @@
 /*
- * $Id: KX_SG_NodeRelationships.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -41,8 +39,8 @@
  * inherited by the child. 
  */
 
-#ifndef __KX_SG_NODERELATIONS_H__
-#define __KX_SG_NODERELATIONS_H__
+#ifndef __KX_SG_NODERELATIONSHIPS_H__
+#define __KX_SG_NODERELATIONSHIPS_H__
 
 #include "SG_Spatial.h"
 #include "SG_ParentRelation.h"
@@ -59,7 +57,7 @@ public :
 	static 
 		KX_NormalParentRelation *
 	New(
-	);		
+	);
 
 	/** 
 	 * Method inherited from KX_ParentRelation
@@ -69,7 +67,7 @@ public :
 	UpdateChildCoordinates(
 		SG_Spatial * child,
 		const SG_Spatial * parent,
-		bool& parentUpdated	
+		bool& parentUpdated
 	);
 
 	/** 
@@ -90,9 +88,7 @@ private :
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_NormalParentRelation"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_NormalParentRelation")
 #endif
 };
 
@@ -110,7 +106,7 @@ public :
 	static 
 		KX_VertexParentRelation *
 	New(
-	);		
+	);
 
 	/** 
 	 * Method inherited from KX_ParentRelation
@@ -120,7 +116,7 @@ public :
 	UpdateChildCoordinates(
 		SG_Spatial * child,
 		const SG_Spatial * parent,
-		bool& parentUpdated	
+		bool& parentUpdated
 	);
 
 	/** 
@@ -147,9 +143,7 @@ private :
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_VertexParentRelation"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_VertexParentRelation")
 #endif
 };
 
@@ -168,7 +162,7 @@ public :
 		KX_SlowParentRelation *
 	New(
 		MT_Scalar relaxation
-	);		
+	);
 
 	/** 
 	 * Method inherited from KX_ParentRelation
@@ -178,7 +172,7 @@ public :
 	UpdateChildCoordinates(
 		SG_Spatial * child,
 		const SG_Spatial * parent,
-		bool& parentUpdated	
+		bool& parentUpdated
 	);
 
 	/** 
@@ -230,9 +224,7 @@ private :
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_SlowParentRelation"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_SlowParentRelation")
 #endif
 };
 

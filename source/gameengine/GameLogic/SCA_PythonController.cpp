@@ -1,7 +1,6 @@
 /*
  * Execute Python scripts
  *
- * $Id: SCA_PythonController.cpp 35386 2011-03-07 11:53:40Z campbellbarton $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -72,21 +71,19 @@ SCA_PythonController::SCA_PythonController(SCA_IObject* gameobj, int mode)
 	
 }
 
-/*
+#if 0
 //debugging
-CValue*		SCA_PythonController::AddRef()
+CValue *SCA_PythonController::AddRef()
 {
 	//printf("AddRef refcount = %i\n",GetRefCount());
 	return CValue::AddRef();
 }
-int			SCA_PythonController::Release()
+int SCA_PythonController::Release()
 {
 	//printf("Release refcount = %i\n",GetRefCount());
 	return CValue::Release();
 }
-*/
-
-
+#endif
 
 SCA_PythonController::~SCA_PythonController()
 {
@@ -123,13 +120,14 @@ CValue* SCA_PythonController::GetReplica()
 	if (m_pythondictionary)
 		replica->m_pythondictionary = PyDict_Copy(m_pythondictionary);
 		
-	/*
+#if 0
 	// The other option is to incref the replica->m_pythondictionary -
 	// the replica objects can then share data.
 	if (m_pythondictionary)
 		Py_INCREF(replica->m_pythondictionary);
-	*/
 #endif
+
+#endif /* WITH_PYTHON */
 	
 	// this will copy properties and so on...
 	replica->ProcessReplica();
@@ -165,25 +163,29 @@ void SCA_PythonController::SetNamespace(PyObject*	pythondictionary)
 	
 	/* Without __file__ set the sys.argv[0] is used for the filename
 	 * which ends up with lines from the blender binary being printed in the console */
-	PyDict_SetItemString(m_pythondictionary, "__file__", PyUnicode_FromString(m_scriptName.Ptr()));
+	PyDict_SetItemString(m_pythondictionary, "__file__", PyUnicode_From_STR_String(m_scriptName));
 	
 }
 #endif
 
-int SCA_PythonController::IsTriggered(class SCA_ISensor* sensor)
+bool SCA_PythonController::IsTriggered(class SCA_ISensor* sensor)
 {
 	if (std::find(m_triggeredSensors.begin(), m_triggeredSensors.end(), sensor) != 
 		m_triggeredSensors.end())
-		return 1;
-	return 0;
+	{
+		return true;
+	}
+	else {
+		return false;
+	}
 }
 
 #ifdef WITH_PYTHON
 
 /* warning, self is not the SCA_PythonController, its a PyObjectPlus_Proxy */
-PyObject* SCA_PythonController::sPyGetCurrentController(PyObject *self)
+PyObject *SCA_PythonController::sPyGetCurrentController(PyObject *self)
 {
-	if(m_sCurrentController==NULL)
+	if (m_sCurrentController==NULL)
 	{
 		PyErr_SetString(PyExc_SystemError, "bge.logic.getCurrentController(), this function is being run outside the python controllers context, or blenders internal state is corrupt.");
 		return NULL;
@@ -200,27 +202,26 @@ SCA_IActuator* SCA_PythonController::LinkedActuatorFromPy(PyObject *value)
 	
 	if (PyUnicode_Check(value)) {
 		/* get the actuator from the name */
-		char *name= _PyUnicode_AsString(value);
-		for(it = lacts.begin(); it!= lacts.end(); ++it) {
-			if( name == (*it)->GetName() ) {
+		const char *name= _PyUnicode_AsString(value);
+		for (it = lacts.begin(); it!= lacts.end(); ++it) {
+			if ( name == (*it)->GetName() ) {
 				return *it;
 			}
 		}
 	}
 	else if (PyObject_TypeCheck(value, &SCA_IActuator::Type)) {
 		PyObjectPlus *value_plus= BGE_PROXY_REF(value);
-		for(it = lacts.begin(); it!= lacts.end(); ++it) {
-			if( static_cast<SCA_IActuator*>(value_plus) == (*it) ) {
+		for (it = lacts.begin(); it!= lacts.end(); ++it) {
+			if (static_cast<SCA_IActuator*>(value_plus) == (*it)) {
 				return *it;
 			}
 		}
 	}
-	
+
 	/* set the exception */
-	PyObject *value_str = PyObject_Repr(value); /* new ref */
-	PyErr_Format(PyExc_ValueError, "'%s' not in this python controllers actuator list", _PyUnicode_AsString(value_str));
-	Py_DECREF(value_str);
-	
+	PyErr_Format(PyExc_ValueError,
+	             "%R not in this python controllers actuator list", value);
+
 	return NULL;
 }
 
@@ -267,14 +268,14 @@ void SCA_PythonController::ErrorPrint(const char *error_msg)
 	
 	/* Added in 2.48a, the last_traceback can reference Objects for example, increasing
 	 * their user count. Not to mention holding references to wrapped data.
-	 * This is especially bad when the PyObject for the wrapped data is free'd, after blender 
+	 * This is especially bad when the PyObject for the wrapped data is freed, after blender
 	 * has already dealocated the pointer */
-	PySys_SetObject( (char *)"last_traceback", NULL);
+	PySys_SetObject("last_traceback", NULL);
 	PyErr_Clear(); /* just to be sure */
 }
 
 bool SCA_PythonController::Compile()
-{	
+{
 	//printf("py script modified '%s'\n", m_scriptName.Ptr());
 	m_bModified= false;
 	
@@ -300,7 +301,7 @@ bool SCA_PythonController::Import()
 	//printf("py module modified '%s'\n", m_scriptName.Ptr());
 	m_bModified= false;
 
-	/* incase we re-import */
+	/* in case we re-import */
 	Py_XDECREF(m_function);
 	m_function= NULL;
 	
@@ -310,7 +311,7 @@ bool SCA_PythonController::Import()
 
 	function_string= strrchr(mod_path, '.');
 
-	if(function_string == NULL) {
+	if (function_string == NULL) {
 		printf("Python module name formatting error in object '%s', controller '%s':\n\texpected 'SomeModule.Func', got '%s'\n", GetParent()->GetName().Ptr(), GetName().Ptr(), m_scriptText.Ptr());
 		return false;
 	}
@@ -326,7 +327,7 @@ bool SCA_PythonController::Import()
 		return false;
 	}
 
-	if(m_debug)
+	if (m_debug)
 		mod = PyImport_ReloadModule(mod);
 
 	if (mod == NULL) {
@@ -340,34 +341,27 @@ bool SCA_PythonController::Import()
 	// DECREF the module as we don't need it anymore
 	Py_DECREF(mod);
 
-	if(m_function==NULL) {
-		if(PyErr_Occurred())
+	if (m_function==NULL) {
+		if (PyErr_Occurred())
 			ErrorPrint("Python controller found the module but could not access the function");
 		else
 			printf("Python module error in object '%s', controller '%s':\n '%s' module found but function missing\n", GetParent()->GetName().Ptr(), GetName().Ptr(), m_scriptText.Ptr());
 		return false;
 	}
 	
-	if(!PyCallable_Check(m_function)) {
+	if (!PyCallable_Check(m_function)) {
 		Py_DECREF(m_function);
 		m_function = NULL;
 		printf("Python module function error in object '%s', controller '%s':\n '%s' not callable\n", GetParent()->GetName().Ptr(), GetName().Ptr(), m_scriptText.Ptr());
 		return false;
 	}
 	
-	m_function_argc = 0; /* rare cases this could be a function that isnt defined in python, assume zero args */
+	m_function_argc = 0; /* rare cases this could be a function that isn't defined in python, assume zero args */
 	if (PyFunction_Check(m_function)) {
-		PyObject *py_arg_count = PyObject_GetAttrString(PyFunction_GET_CODE(m_function), "co_argcount");
-		if(py_arg_count) {
-			m_function_argc = PyLong_AsLong(py_arg_count);
-			Py_DECREF(py_arg_count);
-		}
-		else {
-			PyErr_Clear(); /* unlikely to fail but just incase */
-		}
+		m_function_argc= ((PyCodeObject *)PyFunction_GET_CODE(m_function))->co_argcount;
 	}
 	
-	if(m_function_argc > 1) {
+	if (m_function_argc > 1) {
 		Py_DECREF(m_function);
 		m_function = NULL;
 		printf("Python module function in object '%s', controller '%s':\n '%s' takes %d args, should be zero or 1 controller arg\n", GetParent()->GetName().Ptr(), GetName().Ptr(), m_scriptText.Ptr(), m_function_argc);
@@ -384,131 +378,130 @@ void SCA_PythonController::Trigger(SCA_LogicManager* logicmgr)
 	m_sCurrentLogicManager = logicmgr;
 	
 	PyObject *excdict=		NULL;
-	PyObject* resultobj=	NULL;
+	PyObject *resultobj=	NULL;
 	
-	switch(m_mode) {
-	case SCA_PYEXEC_SCRIPT:
-	{
-		if (m_bModified)
-			if (Compile()==false) // sets m_bModified to false
+	switch (m_mode) {
+		case SCA_PYEXEC_SCRIPT:
+		{
+			if (m_bModified)
+				if (Compile()==false) // sets m_bModified to false
+					return;
+			if (!m_bytecode)
 				return;
-		if (!m_bytecode)
-			return;
-		
-		/*
-		 * This part here with excdict is a temporary patch
-		 * to avoid python/gameengine crashes when python
-		 * inadvertently holds references to game objects
-		 * in global variables.
-		 * 
-		 * The idea is always make a fresh dictionary, and
-		 * destroy it right after it is used to make sure
-		 * python won't hold any gameobject references.
-		 * 
-		 * Note that the PyDict_Clear _is_ necessary before
-		 * the Py_DECREF() because it is possible for the
-		 * variables inside the dictionary to hold references
-		 * to the dictionary (ie. generate a cycle), so we
-		 * break it by hand, then DECREF (which in this case
-		 * should always ensure excdict is cleared).
-		 */
 
-		excdict= PyDict_Copy(m_pythondictionary);
+			/*
+			 * This part here with excdict is a temporary patch
+			 * to avoid python/gameengine crashes when python
+			 * inadvertently holds references to game objects
+			 * in global variables.
+			 *
+			 * The idea is always make a fresh dictionary, and
+			 * destroy it right after it is used to make sure
+			 * python won't hold any gameobject references.
+			 *
+			 * Note that the PyDict_Clear _is_ necessary before
+			 * the Py_DECREF() because it is possible for the
+			 * variables inside the dictionary to hold references
+			 * to the dictionary (ie. generate a cycle), so we
+			 * break it by hand, then DECREF (which in this case
+			 * should always ensure excdict is cleared).
+			 */
 
-		resultobj = PyEval_EvalCode((PyObject *)m_bytecode, excdict, excdict);
+			excdict= PyDict_Copy(m_pythondictionary);
 
-		/* PyRun_SimpleString(m_scriptText.Ptr()); */
-		break;
-	}
-	case SCA_PYEXEC_MODULE:
-	{
-		if (m_bModified || m_debug)
-			if (Import()==false) // sets m_bModified to false
-				return;
-		if (!m_function)
-			return;
-		
-		PyObject *args= NULL;
-		
-		if(m_function_argc==1) {
-			args = PyTuple_New(1);
-			PyTuple_SET_ITEM(args, 0, GetProxy());
+			resultobj = PyEval_EvalCode((PyObject *)m_bytecode, excdict, excdict);
+
+			/* PyRun_SimpleString(m_scriptText.Ptr()); */
+			break;
 		}
-		
-		resultobj = PyObject_CallObject(m_function, args);
-		Py_XDECREF(args);
-		break;
-	}
-	
+		case SCA_PYEXEC_MODULE:
+		{
+			if (m_bModified || m_debug)
+				if (Import()==false) // sets m_bModified to false
+					return;
+			if (!m_function)
+				return;
+
+			PyObject *args= NULL;
+
+			if (m_function_argc==1) {
+				args = PyTuple_New(1);
+				PyTuple_SET_ITEM(args, 0, GetProxy());
+			}
+
+			resultobj = PyObject_CallObject(m_function, args);
+			Py_XDECREF(args);
+			break;
+		}
+
 	} /* end switch */
-	
-	
-	
+
+
 	/* Free the return value and print the error */
 	if (resultobj)
 		Py_DECREF(resultobj);
 	else
 		ErrorPrint("Python script error");
 	
-	if(excdict) /* Only for SCA_PYEXEC_SCRIPT types */
+	if (excdict) /* Only for SCA_PYEXEC_SCRIPT types */
 	{
 		/* clear after PyErrPrint - seems it can be using
 		 * something in this dictionary and crash? */
 		// This doesn't appear to be needed anymore
 		//PyDict_Clear(excdict);
 		Py_DECREF(excdict);
-	}	
+	}
 	
 	m_triggeredSensors.clear();
 	m_sCurrentController = NULL;
 }
 
-PyObject* SCA_PythonController::PyActivate(PyObject *value)
+PyObject *SCA_PythonController::PyActivate(PyObject *value)
 {
-	if(m_sCurrentController != this) {
+	if (m_sCurrentController != this) {
 		PyErr_SetString(PyExc_SystemError, "Cannot add an actuator from a non-active controller");
 		return NULL;
 	}
 	
 	SCA_IActuator* actu = LinkedActuatorFromPy(value);
-	if(actu==NULL)
+	if (actu==NULL)
 		return NULL;
 	
 	m_sCurrentLogicManager->AddActiveActuator((SCA_IActuator*)actu, true);
 	Py_RETURN_NONE;
 }
 
-PyObject* SCA_PythonController::PyDeActivate(PyObject *value)
+PyObject *SCA_PythonController::PyDeActivate(PyObject *value)
 {
-	if(m_sCurrentController != this) {
+	if (m_sCurrentController != this) {
 		PyErr_SetString(PyExc_SystemError, "Cannot add an actuator from a non-active controller");
 		return NULL;
 	}
 	
 	SCA_IActuator* actu = LinkedActuatorFromPy(value);
-	if(actu==NULL)
+	if (actu==NULL)
 		return NULL;
 	
 	m_sCurrentLogicManager->AddActiveActuator((SCA_IActuator*)actu, false);
 	Py_RETURN_NONE;
 }
 
-PyObject* SCA_PythonController::pyattr_get_script(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *SCA_PythonController::pyattr_get_script(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	//SCA_PythonController* self= static_cast<SCA_PythonController*>(static_cast<SCA_IController*>(static_cast<SCA_ILogicBrick*>(static_cast<CValue*>(static_cast<PyObjectPlus*>(self_v)))));
+	//SCA_PythonController* self = static_cast<SCA_PythonController*>(static_cast<SCA_IController*>(static_cast<SCA_ILogicBrick*>(static_cast<CValue*>(static_cast<PyObjectPlus*>(self_v)))));
 	// static_cast<void *>(dynamic_cast<Derived *>(obj)) - static_cast<void *>(obj)
 
-	SCA_PythonController* self= static_cast<SCA_PythonController*>(self_v);
-	return PyUnicode_FromString(self->m_scriptText);
+	SCA_PythonController* self = static_cast<SCA_PythonController*>(self_v);
+	return PyUnicode_From_STR_String(self->m_scriptText);
 }
 
 
 
 int SCA_PythonController::pyattr_set_script(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	SCA_PythonController* self= static_cast<SCA_PythonController*>(self_v);
+	SCA_PythonController* self = static_cast<SCA_PythonController*>(self_v);
 	
-	char *scriptArg = _PyUnicode_AsString(value);
+	const char *scriptArg = _PyUnicode_AsString(value);
 	
 	if (scriptArg==NULL) {
 		PyErr_SetString(PyExc_TypeError, "controller.script = string: Python Controller, expected a string script text");
@@ -516,7 +509,7 @@ int SCA_PythonController::pyattr_set_script(void *self_v, const KX_PYATTRIBUTE_D
 	}
 
 	/* set scripttext sets m_bModified to true, 
-		so next time the script is needed, a reparse into byte code is done */
+	 * so next time the script is needed, a reparse into byte code is done */
 	self->SetScriptText(scriptArg);
 		
 	return PY_SET_ATTR_SUCCESS;

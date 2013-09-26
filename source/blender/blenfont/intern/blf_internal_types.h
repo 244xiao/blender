@@ -1,6 +1,4 @@
 /*
- * $Id: blf_internal_types.h 35248 2011-02-27 20:42:42Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,27 +28,30 @@
  */
 
 
-#ifndef BLF_INTERNAL_TYPES_H
-#define BLF_INTERNAL_TYPES_H
+#ifndef __BLF_INTERNAL_TYPES_H__
+#define __BLF_INTERNAL_TYPES_H__
 
 typedef struct GlyphCacheBLF {
 	struct GlyphCacheBLF *next;
 	struct GlyphCacheBLF *prev;
 
 	/* font size. */
-	int size;
+	unsigned int size;
 
 	/* and dpi. */
-	int dpi;
+	unsigned int dpi;
 
 	/* and the glyphs. */
 	ListBase bucket[257];
+
+	/* fast ascii lookup */
+	struct GlyphBLF *glyph_ascii_table[256];
 
 	/* texture array, to draw the glyphs. */
 	GLuint *textures;
 
 	/* size of the array. */
-	int ntex;
+	unsigned int ntex;
 
 	/* and the last texture, aka. the current texture. */
 	int cur_tex;
@@ -62,7 +63,7 @@ typedef struct GlyphCacheBLF {
 	int y_offs;
 
 	/* and the space from one to other. */
-	unsigned int pad;
+	int pad;
 
 	/* and the bigger glyph in the font. */
 	int max_glyph_width;
@@ -130,6 +131,28 @@ typedef struct GlyphBLF {
 	short build_tex;
 } GlyphBLF;
 
+typedef struct FontBufInfoBLF {
+	/* for draw to buffer, always set this to NULL after finish! */
+	float *fbuf;
+
+	/* the same but unsigned char */
+	unsigned char *cbuf;
+
+	/* buffer size, keep signed so comparisons with negative values work */
+	int w;
+	int h;
+
+	/* number of channels. */
+	int ch;
+
+	/* display device used for color management */
+	struct ColorManagedDisplay *display;
+
+	/* and the color, the alphas is get from the glyph!
+	 * color is srgb space */
+	float col[4];
+} FontBufInfoBLF;
+
 typedef struct FontBLF {
 	/* font name. */
 	char *name;
@@ -143,7 +166,7 @@ typedef struct FontBLF {
 	/* initial position for draw the text. */
 	float pos[3];
 
-	/* angle in degrees. */
+	/* angle in radians. */
 	float angle;
 	
 	/* blur: 3 or 5 large kernel */
@@ -158,7 +181,10 @@ typedef struct FontBLF {
 
 	/* shadow color. */
 	float shadow_col[4];
-	
+
+	/* store color here when drawing shadow or blur. */
+	float orig_col[4];
+
 	/* Multiplied this matrix with the current one before
 	 * draw the text! see blf_draw__start.
 	 */
@@ -168,13 +194,16 @@ typedef struct FontBLF {
 	rctf clip_rec;
 
 	/* font dpi (default 72). */
-	int dpi;
+	unsigned int dpi;
 
 	/* font size. */
-	int size;
+	unsigned int size;
 
 	/* max texture size. */
 	int max_tex_size;
+
+	/* cache current OpenGL texture to save calls into the API */
+	unsigned int tex_bind_state;
 
 	/* font options. */
 	int flags;
@@ -184,31 +213,18 @@ typedef struct FontBLF {
 
 	/* current glyph cache, size and dpi. */
 	GlyphCacheBLF *glyph_cache;
-	
-	/* fast ascii lookip */
-	GlyphBLF *glyph_ascii_table[256];
 
 	/* freetype2 lib handle. */
 	FT_Library ft_lib;
 
+	/* Mutex lock for library */
+	SpinLock *ft_lib_mutex;
+
 	/* freetype2 face. */
 	FT_Face face;
 
-	/* for draw to buffer, always set this to NULL after finish! */
-	float *b_fbuf;
-
-	/* the same but unsigned char */
-	unsigned char *b_cbuf;
-
-	/* buffer size. */
-	unsigned int bw;
-	unsigned int bh;
-
-	/* number of channels. */
-	int bch;
-
-	/* and the color, the alphas is get from the glyph! */
-	float b_col[4];
+	/* data for buffer usage (drawing into a texture buffer) */
+	FontBufInfoBLF buf_info;
 } FontBLF;
 
 typedef struct DirBLF {
@@ -219,4 +235,4 @@ typedef struct DirBLF {
 	char *path;
 } DirBLF;
 
-#endif /* BLF_INTERNAL_TYPES_H */
+#endif /* __BLF_INTERNAL_TYPES_H__ */

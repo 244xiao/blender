@@ -1,6 +1,4 @@
 /*
- * $Id: BL_ActionActuator.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,10 +29,10 @@
  *  \ingroup bgeconv
  */
 
-#ifndef BL_ACTIONACTUATOR
-#define BL_ACTIONACTUATOR
+#ifndef __BL_ACTIONACTUATOR_H__
+#define __BL_ACTIONACTUATOR_H__
 
-#include "GEN_HashedPtr.h"
+#include "CTR_HashedPtr.h"
 #include "SCA_IActuator.h"
 #include "DNA_actuator_types.h"
 #include "MT_Point3.h"
@@ -42,7 +40,7 @@
 class BL_ActionActuator : public SCA_IActuator  
 {
 public:
-	Py_Header;
+	Py_Header
 	BL_ActionActuator(SCA_IObject* gameobj,
 						const STR_String& propname,
 						const STR_String& framepropname,
@@ -52,62 +50,36 @@ public:
 						short	playtype,
 						short	blendin,
 						short	priority,
+						short	layer,
+						float	layer_weight,
+						short	ipo_flags,
 						short	end_reset,
-						float	stride) 
-		: SCA_IActuator(gameobj, KX_ACT_ACTION),
-		
-		m_lastpos(0, 0, 0),
-		m_blendframe(0),
-		m_flag(0),
-		m_startframe (starttime),
-		m_endframe(endtime) ,
-		m_starttime(0),
-		m_localtime(starttime),
-		m_lastUpdate(-1),
-		m_blendin(blendin),
-		m_blendstart(0),
-		m_stridelength(stride),
-		m_playtype(playtype),
-		m_priority(priority),
-		m_end_reset(end_reset),
-		m_pose(NULL),
-		m_blendpose(NULL),
-		m_userpose(NULL),
-		m_action(action),
-		m_propname(propname),
-		m_framepropname(framepropname)		
-	{
-	};
+						float	stride);
+
 	virtual ~BL_ActionActuator();
 	virtual	bool Update(double curtime, bool frame);
 	virtual CValue* GetReplica();
 	virtual void ProcessReplica();
 	
-	void SetBlendTime (float newtime);
+	void SetBlendTime(float newtime);
+	void SetLocalTime(float curtime);
+	void ResetStartTime(float curtime);
 	
 	bAction*	GetAction() { return m_action; }
 	void		SetAction(bAction* act) { m_action= act; }
 
 #ifdef WITH_PYTHON
 
-	KX_PYMETHOD_O(BL_ActionActuator,GetChannel);
-	KX_PYMETHOD_DOC(BL_ActionActuator,setChannel);
+	KX_PYMETHOD_O(BL_ActionActuator,GetChannel)
+	KX_PYMETHOD_DOC(BL_ActionActuator,setChannel)
 
 	static PyObject*	pyattr_get_action(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_action(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_channel_names(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	/* attribute check */
-	static int CheckFrame(void *self, const PyAttributeDef*)
-	{
-		BL_ActionActuator* act = reinterpret_cast<BL_ActionActuator*>(self);
-
-		if (act->m_localtime < act->m_startframe)
-			act->m_localtime = act->m_startframe;
-		else if (act->m_localtime > act->m_endframe)
-			act->m_localtime = act->m_endframe;
-
-		return 0;
-	}
+	static PyObject*	pyattr_get_use_continue(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_use_continue(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_frame(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_frame(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	static int CheckBlendTime(void *self, const PyAttributeDef*)
 	{
@@ -136,14 +108,9 @@ public:
 				return 1;
 		}
 	}
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 	
 protected:
-
-	void SetStartTime(float curtime);
-	void SetLocalTime(float curtime);
-	bool ClampLocalTime();
-
 	MT_Point3	m_lastpos;
 	float	m_blendframe;
 	int		m_flag;
@@ -160,9 +127,11 @@ protected:
 	float	m_blendin;
 	float	m_blendstart;
 	float	m_stridelength;
+	float	m_layer_weight;
 	short	m_playtype;
 	short	m_priority;
-	bool	m_end_reset;
+	short	m_layer;
+	short	m_ipo_flags;
 	struct bPose* m_pose;
 	struct bPose* m_blendpose;
 	struct bPose* m_userpose;
@@ -171,11 +140,17 @@ protected:
 	STR_String	m_framepropname;
 };
 
+// Not all of these values are used in BL_ActionActuator anymore,
+// but BL_ShapeActionActuator still uses them, so we keep them around
+// for now.
 enum {
-	ACT_FLAG_REVERSE	= 0x00000001,
-	ACT_FLAG_LOCKINPUT	= 0x00000002,
-	ACT_FLAG_KEYUP		= 0x00000004,
-	ACT_FLAG_ACTIVE		= 0x00000008
+	ACT_FLAG_REVERSE	= 1<<0,
+	ACT_FLAG_LOCKINPUT	= 1<<1,
+	ACT_FLAG_KEYUP		= 1<<2,
+	ACT_FLAG_ACTIVE		= 1<<3,
+	ACT_FLAG_CONTINUE	= 1<<4,
+	ACT_FLAG_PLAY_END	= 1<<5,
+	ACT_FLAG_ATTEMPT_PLAY = 1<<6,
 };
 
 #endif

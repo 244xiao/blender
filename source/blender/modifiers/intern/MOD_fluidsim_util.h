@@ -1,6 +1,4 @@
 /*
- * $Id: MOD_fluidsim_util.h 35178 2011-02-25 13:57:17Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  */
 
 
-#ifndef MOD_FLUIDSIM_UTIL_H
-#define MOD_FLUIDSIM_UTIL_H
+#ifndef __MOD_FLUIDSIM_UTIL_H__
+#define __MOD_FLUIDSIM_UTIL_H__
 
 struct Object;
 struct Scene;

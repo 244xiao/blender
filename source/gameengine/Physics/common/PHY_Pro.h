@@ -1,6 +1,4 @@
 /*
- * $Id: PHY_Pro.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup phys
  */
 
-#ifndef PHY_PROPSH
-#define PHY_PROPSH
+#ifndef __PHY_PRO_H__
+#define __PHY_PRO_H__
 
 #include <MT_Scalar.h>
 
@@ -48,6 +46,9 @@ struct PHY_ShapeProps {
 	bool       m_do_anisotropic;        // Should I do anisotropic friction? 
 	bool       m_do_fh;                 // Should the object have a linear Fh spring?
 	bool       m_do_rot_fh;             // Should the object have an angular Fh spring?
+	MT_Scalar  m_step_height;			// Max height of climbable steps (Character)
+	MT_Scalar  m_jump_speed;			// Velocity of jumps (Character)
+	MT_Scalar  m_fall_speed;			// Max velocity of falling (Character)
 };
 
 
@@ -61,5 +62,4 @@ struct PHY_MaterialProps {
 	bool      m_fh_normal;             // Should the object slide off slopes?
 };
 
-#endif //PHY_PROPSH
-
+#endif  /* __PHY_PRO_H__ */

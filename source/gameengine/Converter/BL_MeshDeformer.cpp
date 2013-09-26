@@ -1,6 +1,4 @@
 /*
- * $Id: BL_MeshDeformer.cpp 35167 2011-02-25 13:30:41Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,11 +30,10 @@
  *  \ingroup bgeconv
  */
 
-
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-// This warning tells us about truncation of __long__ stl-generated names.
-// It can occasionally cause DevStudio to have internal compiler warnings.
-#pragma warning( disable : 4786 )     
+#ifdef _MSC_VER
+  /* This warning tells us about truncation of __long__ stl-generated names.
+   * It can occasionally cause DevStudio to have internal compiler warnings. */
+#  pragma warning( disable:4786 )
 #endif
 
 #include "RAS_IPolygonMaterial.h"
@@ -46,7 +43,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
-#include "GEN_Map.h"
+#include "CTR_Map.h"
 #include "STR_HashedString.h"
 #include "BLI_math.h"
 
@@ -55,21 +52,22 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial*)
 	size_t i;
 
 	// only apply once per frame if the mesh is actually modified
-	if(m_pMeshObject->MeshModified() &&
-	   m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
+	if (m_pMeshObject->MeshModified() &&
+	    m_lastDeformUpdate != m_gameobj->GetLastFrame())
+	{
 		// For each material
-		for(list<RAS_MeshMaterial>::iterator mit= m_pMeshObject->GetFirstMaterial();
+		for (list<RAS_MeshMaterial>::iterator mit= m_pMeshObject->GetFirstMaterial();
 			mit != m_pMeshObject->GetLastMaterial(); ++ mit) {
-			if(!mit->m_slots[(void*)m_gameobj])
+			if (!mit->m_slots[(void*)m_gameobj])
 				continue;
 
 			RAS_MeshSlot *slot = *mit->m_slots[(void*)m_gameobj];
 			RAS_MeshSlot::iterator it;
 
 			// for each array
-			for(slot->begin(it); !slot->end(it); slot->next(it)) {
+			for (slot->begin(it); !slot->end(it); slot->next(it)) {
 				//	For each vertex
-				for(i=it.startvertex; i<it.endvertex; i++) {
+				for (i=it.startvertex; i<it.endvertex; i++) {
 					RAS_TexVert& v = it.vertex[i];
 					v.SetXYZ(m_bmesh->mvert[v.getOrigIndex()].co);
 				}
@@ -85,7 +83,7 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial*)
 }
 
 BL_MeshDeformer::~BL_MeshDeformer()
-{	
+{
 	if (m_transverts)
 		delete [] m_transverts;
 	if (m_transnors)
@@ -101,7 +99,7 @@ void BL_MeshDeformer::ProcessReplica()
 	m_lastDeformUpdate = -1;
 }
 
-void BL_MeshDeformer::Relink(GEN_Map<class GEN_HashedPtr, void*>*map)
+void BL_MeshDeformer::Relink(CTR_Map<class CTR_HashedPtr, void*>*map)
 {
 	void **h_obj = (*map)[m_gameobj];
 
@@ -112,7 +110,7 @@ void BL_MeshDeformer::Relink(GEN_Map<class GEN_HashedPtr, void*>*map)
 }
 
 /**
- * @warning This function is expensive!
+ * \warning This function is expensive!
  */
 void BL_MeshDeformer::RecalcNormals()
 {
@@ -128,17 +126,17 @@ void BL_MeshDeformer::RecalcNormals()
 	memset(m_transnors, 0, sizeof(float)*3*m_bmesh->totvert);
 
 	/* add face normals to vertices. */
-	for(mit = m_pMeshObject->GetFirstMaterial();
+	for (mit = m_pMeshObject->GetFirstMaterial();
 		mit != m_pMeshObject->GetLastMaterial(); ++ mit) {
-		if(!mit->m_slots[(void*)m_gameobj])
+		if (!mit->m_slots[(void*)m_gameobj])
 			continue;
 
 		RAS_MeshSlot *slot = *mit->m_slots[(void*)m_gameobj];
 
-		for(slot->begin(it); !slot->end(it); slot->next(it)) {
+		for (slot->begin(it); !slot->end(it); slot->next(it)) {
 			int nvert = (int)it.array->m_type;
 
-			for(i=0; i<it.totindex; i+=nvert) {
+			for (i=0; i<it.totindex; i+=nvert) {
 				RAS_TexVert& v1 = it.vertex[it.index[i]];
 				RAS_TexVert& v2 = it.vertex[it.index[i+1]];
 				RAS_TexVert& v3 = it.vertex[it.index[i+2]];
@@ -152,31 +150,31 @@ void BL_MeshDeformer::RecalcNormals()
 				/* compute face normal */
 				float fnor[3], n1[3], n2[3];
 
-				if(nvert == 4) {
+				if (nvert == 4) {
 					v4 = &it.vertex[it.index[i+3]];
 					co4 = m_transverts[v4->getOrigIndex()];
 
-					n1[0]= co1[0]-co3[0];
-					n1[1]= co1[1]-co3[1];
-					n1[2]= co1[2]-co3[2];
+					n1[0] = co1[0] - co3[0];
+					n1[1] = co1[1] - co3[1];
+					n1[2] = co1[2] - co3[2];
 
-					n2[0]= co2[0]-co4[0];
-					n2[1]= co2[1]-co4[1];
-					n2[2]= co2[2]-co4[2];
+					n2[0] = co2[0] - co4[0];
+					n2[1] = co2[1] - co4[1];
+					n2[2] = co2[2] - co4[2];
 				}
 				else {
-					n1[0]= co1[0]-co2[0];
-					n2[0]= co2[0]-co3[0];
-					n1[1]= co1[1]-co2[1];
+					n1[0] = co1[0] - co2[0];
+					n2[0] = co2[0] - co3[0];
+					n1[1] = co1[1] - co2[1];
 
-					n2[1]= co2[1]-co3[1];
-					n1[2]= co1[2]-co2[2];
-					n2[2]= co2[2]-co3[2];
+					n2[1] = co2[1] - co3[1];
+					n1[2] = co1[2] - co2[2];
+					n2[2] = co2[2] - co3[2];
 				}
 
-				fnor[0]= n1[1]*n2[2] - n1[2]*n2[1];
-				fnor[1]= n1[2]*n2[0] - n1[0]*n2[2];
-				fnor[2]= n1[0]*n2[1] - n1[1]*n2[0];
+				fnor[0] = n1[1] * n2[2] - n1[2] * n2[1];
+				fnor[1] = n1[2] * n2[0] - n1[0] * n2[2];
+				fnor[2] = n1[0] * n2[1] - n1[1] * n2[0];
 				normalize_v3(fnor);
 
 				/* add to vertices for smooth normals */
@@ -188,17 +186,17 @@ void BL_MeshDeformer::RecalcNormals()
 				vn2[0] += fnor[0]; vn2[1] += fnor[1]; vn2[2] += fnor[2];
 				vn3[0] += fnor[0]; vn3[1] += fnor[1]; vn3[2] += fnor[2];
 
-				if(v4) {
+				if (v4) {
 					float *vn4 = m_transnors[v4->getOrigIndex()];
 					vn4[0] += fnor[0]; vn4[1] += fnor[1]; vn4[2] += fnor[2];
 				}
 
 				/* in case of flat - just assign, the vertices are split */
-				if(v1.getFlag() & RAS_TexVert::FLAT) {
+				if (v1.getFlag() & RAS_TexVert::FLAT) {
 					v1.SetNormal(fnor);
 					v2.SetNormal(fnor);
 					v3.SetNormal(fnor);
-					if(v4)
+					if (v4)
 						v4->SetNormal(fnor);
 				}
 			}
@@ -206,18 +204,18 @@ void BL_MeshDeformer::RecalcNormals()
 	}
 
 	/* assign smooth vertex normals */
-	for(mit = m_pMeshObject->GetFirstMaterial();
+	for (mit = m_pMeshObject->GetFirstMaterial();
 		mit != m_pMeshObject->GetLastMaterial(); ++ mit) {
-		if(!mit->m_slots[(void*)m_gameobj])
+		if (!mit->m_slots[(void*)m_gameobj])
 			continue;
 
 		RAS_MeshSlot *slot = *mit->m_slots[(void*)m_gameobj];
 
-		for(slot->begin(it); !slot->end(it); slot->next(it)) {
-			for(i=it.startvertex; i<it.endvertex; i++) {
+		for (slot->begin(it); !slot->end(it); slot->next(it)) {
+			for (i=it.startvertex; i<it.endvertex; i++) {
 				RAS_TexVert& v = it.vertex[i];
 
-				if(!(v.getFlag() & RAS_TexVert::FLAT))
+				if (!(v.getFlag() & RAS_TexVert::FLAT))
 					v.SetNormal(m_transnors[v.getOrigIndex()]); //.safe_normalized()
 			}
 		}
@@ -227,7 +225,7 @@ void BL_MeshDeformer::RecalcNormals()
 void BL_MeshDeformer::VerifyStorage()
 {
 	/* Ensure that we have the right number of verts assigned */
-	if (m_tvtot!=m_bmesh->totvert){
+	if (m_tvtot!=m_bmesh->totvert) {
 		if (m_transverts)
 			delete [] m_transverts;
 		if (m_transnors)

@@ -1,8 +1,4 @@
 /*
- * filter.h
- *
- * $Id: IMB_filter.h 33665 2010-12-14 18:02:41Z ton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -28,21 +24,25 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
 /**
  * \file IMB_filter.h
  * \ingroup imbuf
  * \brief Function declarations for filter.c
  */
 
-#ifndef IMB_FILTER_H
-#define IMB_FILTER_H
+#ifndef __IMB_FILTER_H__
+#define __IMB_FILTER_H__
 
 struct ImBuf;
 
 void imb_filterx(struct ImBuf *ibuf);
 
-void IMB_premultiply_rect(unsigned int *rect, int depth, int w, int h);
-void IMB_premultiply_rect_float(float *rect_float, int depth, int w, int h);
+void IMB_premultiply_rect(unsigned int *rect, char planes, int w, int h);
+void IMB_premultiply_rect_float(float *rect_float, char planes, int w, int h);
+
+void IMB_unpremultiply_rect(unsigned int *rect, char planes, int w, int h);
+void IMB_unpremultiply_rect_float(float *rect_float, char planes, int w, int h);
 
 void imb_onehalf_no_alloc(struct ImBuf *ibuf2, struct ImBuf *ibuf1);
 

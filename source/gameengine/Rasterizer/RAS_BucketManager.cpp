@@ -1,5 +1,4 @@
 /*
- * $Id: RAS_BucketManager.cpp 35174 2011-02-25 13:38:24Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,13 +29,11 @@
  *  \ingroup bgerast
  */
 
-
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-// don't show these anoying STL warnings
-#pragma warning (disable:4786)
+#ifdef _MSC_VER
+   /* don't show these anoying STL warnings */
+#  pragma warning (disable:4786)
 #endif
 
-#include "GEN_Map.h"
 #include "RAS_MaterialBucket.h"
 #include "STR_HashedString.h"
 #include "RAS_MeshObject.h"
@@ -120,7 +117,7 @@ void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList
 	for (bit = buckets.begin(); bit != buckets.end(); ++bit)
 	{
 		SG_DList::iterator<RAS_MeshSlot> mit((*bit)->GetActiveMeshSlots());
-		for(mit.begin(); !mit.end(); ++mit)
+		for (mit.begin(); !mit.end(); ++mit)
 			size++;
 	}
 
@@ -131,12 +128,12 @@ void RAS_BucketManager::OrderBuckets(const MT_Transform& cameratrans, BucketList
 		RAS_MaterialBucket* bucket = *bit;
 		RAS_MeshSlot* ms;
 		// remove the mesh slot form the list, it culls them automatically for next frame
-		while((ms = bucket->GetNextActiveMeshSlot())) {
+		while ((ms = bucket->GetNextActiveMeshSlot())) {
 			slots[i++].set(ms, bucket, pnorm);
 		}
 	}
 		
-	if(alpha)
+	if (alpha)
 		sort(slots.begin(), slots.end(), backtofront());
 	else
 		sort(slots.begin(), slots.end(), fronttoback());
@@ -151,14 +148,15 @@ void RAS_BucketManager::RenderAlphaBuckets(
 	// Having depth masks disabled/enabled gives different artifacts in
 	// case no sorting is done or is done inexact. For compatibility, we
 	// disable it.
-	rasty->SetDepthMask(RAS_IRasterizer::KX_DEPTHMASK_DISABLED);
+	if (rasty->GetDrawingMode() != RAS_IRasterizer::KX_SHADOW)
+		rasty->SetDepthMask(RAS_IRasterizer::KX_DEPTHMASK_DISABLED);
 
 	OrderBuckets(cameratrans, m_AlphaBuckets, slots, true);
 	
-	for(sit=slots.begin(); sit!=slots.end(); ++sit) {
+	for (sit=slots.begin(); sit!=slots.end(); ++sit) {
 		rendertools->SetClientObject(rasty, sit->m_ms->m_clientObj);
 
-		while(sit->m_bucket->ActivateMaterial(cameratrans, rasty, rendertools))
+		while (sit->m_bucket->ActivateMaterial(cameratrans, rasty, rendertools))
 			sit->m_bucket->RenderMeshSlot(cameratrans, rasty, rendertools, *(sit->m_ms));
 
 		// make this mesh slot culled automatically for next frame
@@ -181,8 +179,7 @@ void RAS_BucketManager::RenderSolidBuckets(
 		RAS_MaterialBucket* bucket = *bit;
 		RAS_MeshSlot* ms;
 		// remove the mesh slot form the list, it culls them automatically for next frame
-		while((ms = bucket->GetNextActiveMeshSlot()))
-		{
+		while ((ms = bucket->GetNextActiveMeshSlot())) {
 			rendertools->SetClientObject(rasty, ms->m_clientObj);
 			while (bucket->ActivateMaterial(cameratrans, rasty, rendertools))
 				bucket->RenderMeshSlot(cameratrans, rasty, rendertools, *ms);
@@ -218,10 +215,10 @@ void RAS_BucketManager::RenderSolidBuckets(
 
 	OrderBuckets(cameratrans, m_SolidBuckets, slots, false);
 
-	for(sit=slots.begin(); sit!=slots.end(); ++sit) {
+	for (sit=slots.begin(); sit!=slots.end(); ++sit) {
 		rendertools->SetClientObject(rasty, sit->m_ms->m_clientObj);
 
-		while(sit->m_bucket->ActivateMaterial(cameratrans, rasty, rendertools))
+		while (sit->m_bucket->ActivateMaterial(cameratrans, rasty, rendertools))
 			sit->m_bucket->RenderMeshSlot(cameratrans, rasty, rendertools, *(sit->m_ms));
 	}
 #endif
@@ -233,13 +230,39 @@ void RAS_BucketManager::Renderbuckets(
 	/* beginning each frame, clear (texture/material) caching information */
 	rasty->ClearCachingInfo();
 
-	RenderSolidBuckets(cameratrans, rasty, rendertools);	
-	RenderAlphaBuckets(cameratrans, rasty, rendertools);	
+	RenderSolidBuckets(cameratrans, rasty, rendertools);
+	RenderAlphaBuckets(cameratrans, rasty, rendertools);
+
+	/* All meshes should be up to date now */
+	/* Don't do this while processing buckets because some meshes are split between buckets */
+	BucketList::iterator bit;
+	list<RAS_MeshSlot>::iterator mit;
+	for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
+		/* This (and the similar lines of code for the alpha buckets) is kind of a hacky fix for #34382. If we're
+		 * drawing shadows and the material doesn't cast shadows, then the mesh is still modified, so we don't want to
+		 * set MeshModified to false yet. This will happen correctly in the main render pass.
+		 */
+		if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && !(*bit)->GetPolyMaterial()->CastsShadows())
+			continue;
+
+		for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
+			mit->m_mesh->SetMeshModified(false);
+		}
+	}
+	for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit) {
+		if (rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && !(*bit)->GetPolyMaterial()->CastsShadows())
+			continue;
+
+		for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
+			mit->m_mesh->SetMeshModified(false);
+		}
+	}
+	
 
 	rendertools->SetClientObject(rasty, NULL);
 }
 
-RAS_MaterialBucket* RAS_BucketManager::FindBucket(RAS_IPolyMaterial * material, bool &bucketCreated)
+RAS_MaterialBucket *RAS_BucketManager::FindBucket(RAS_IPolyMaterial *material, bool &bucketCreated)
 {
 	BucketList::iterator it;
 
@@ -284,7 +307,7 @@ void RAS_BucketManager::ReleaseDisplayLists(RAS_IPolyMaterial *mat)
 	for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
 		if (mat == NULL || (mat == (*bit)->GetPolyMaterial())) {
 			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
-				if(mit->m_DisplayList) {
+				if (mit->m_DisplayList) {
 					mit->m_DisplayList->Release();
 					mit->m_DisplayList = NULL;
 				}
@@ -295,7 +318,7 @@ void RAS_BucketManager::ReleaseDisplayLists(RAS_IPolyMaterial *mat)
 	for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit) {
 		if (mat == NULL || (mat == (*bit)->GetPolyMaterial())) {
 			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
-				if(mit->m_DisplayList) {
+				if (mit->m_DisplayList) {
 					mit->m_DisplayList->Release();
 					mit->m_DisplayList = NULL;
 				}
@@ -330,7 +353,7 @@ void RAS_BucketManager::RemoveMaterial(RAS_IPolyMaterial * mat)
 	int i;
 
 
-	for(i=0; i<m_SolidBuckets.size(); i++) {
+	for (i=0; i<m_SolidBuckets.size(); i++) {
 		RAS_MaterialBucket *bucket = m_SolidBuckets[i];
 		if (mat == bucket->GetPolyMaterial()) {
 			m_SolidBuckets.erase(m_SolidBuckets.begin()+i);
@@ -339,7 +362,7 @@ void RAS_BucketManager::RemoveMaterial(RAS_IPolyMaterial * mat)
 		}
 	}
 
-	for(int i=0; i<m_AlphaBuckets.size(); i++) {
+	for (int i=0; i<m_AlphaBuckets.size(); i++) {
 		RAS_MaterialBucket *bucket = m_AlphaBuckets[i];
 		if (mat == bucket->GetPolyMaterial()) {
 			m_AlphaBuckets.erase(m_AlphaBuckets.begin()+i);

@@ -1,6 +1,4 @@
 /*
- * $Id: action_intern.h 35590 2011-03-17 10:02:37Z aligorith $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,8 +28,8 @@
  *  \ingroup spaction
  */
 
-#ifndef ED_ACTION_INTERN_H
-#define ED_ACTION_INTERN_H
+#ifndef __ACTION_INTERN_H__
+#define __ACTION_INTERN_H__
 
 struct bContext;
 struct bAnimContext;
@@ -49,12 +47,6 @@ struct bAnimListElem;
 void draw_channel_names(struct bContext *C, struct bAnimContext *ac, struct ARegion *ar); 
 void draw_channel_strips(struct bAnimContext *ac, struct SpaceAction *saction, struct ARegion *ar);
 
-struct ActKeysInc *init_aki_data(struct bAnimContext *ac, struct bAnimListElem *ale);
-
-/* ***************************************** */
-/* action_header.c */
-void action_header_buttons(const struct bContext *C, struct ARegion *ar);
-
 /* ***************************************** */
 /* action_select.c */
 
@@ -68,19 +60,19 @@ void ACTION_OT_select_leftright(struct wmOperatorType *ot);
 void ACTION_OT_clickselect(struct wmOperatorType *ot);
 
 /* defines for left-right select tool */
-enum {
-	ACTKEYS_LRSEL_TEST	= 0,
+enum eActKeys_LeftRightSelect_Mode {
+	ACTKEYS_LRSEL_TEST = 0,
 	ACTKEYS_LRSEL_LEFT,
 	ACTKEYS_LRSEL_RIGHT
-} eActKeys_LeftRightSelect_Mode;
+};
 
 /* defines for column-select mode */
-enum {
-	ACTKEYS_COLUMNSEL_KEYS	= 0,
+enum eActKeys_ColumnSelect_Mode {
+	ACTKEYS_COLUMNSEL_KEYS = 0,
 	ACTKEYS_COLUMNSEL_CFRA,
 	ACTKEYS_COLUMNSEL_MARKERS_COLUMN,
 	ACTKEYS_COLUMNSEL_MARKERS_BETWEEN,
-} eActKeys_ColumnSelect_Mode;
+};
 
 /* ***************************************** */
 /* action_edit.c */
@@ -115,27 +107,27 @@ void ACTION_OT_markers_make_local(struct wmOperatorType *ot);
 /* defines for snap keyframes 
  * NOTE: keep in sync with eEditKeyframes_Snap (in ED_keyframes_edit.h)
  */
-enum {
+enum eActKeys_Snap_Mode {
 	ACTKEYS_SNAP_CFRA = 1,
 	ACTKEYS_SNAP_NEAREST_FRAME,
 	ACTKEYS_SNAP_NEAREST_SECOND,
-	ACTKEYS_SNAP_NEAREST_MARKER,	
-} eActKeys_Snap_Mode;
+	ACTKEYS_SNAP_NEAREST_MARKER,
+};
 
 /* defines for mirror keyframes 
  * NOTE: keep in sync with eEditKeyframes_Mirror (in ED_keyframes_edit.h)
  */
-enum {
+enum eActKeys_Mirror_Mode {
 	ACTKEYS_MIRROR_CFRA = 1,
 	ACTKEYS_MIRROR_YAXIS,
 	ACTKEYS_MIRROR_XAXIS,
-	ACTKEYS_MIRROR_MARKER,	
-} eActKeys_Mirror_Mode;
+	ACTKEYS_MIRROR_MARKER,
+};
 	
 /* ***************************************** */
 /* action_ops.c */
 void action_operatortypes(void);
 void action_keymap(struct wmKeyConfig *keyconf);
 
-#endif /* ED_ACTION_INTERN_H */
+#endif /* __ACTION_INTERN_H__ */
 

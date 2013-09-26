@@ -1,6 +1,4 @@
 /*
- * $Id: Image.h 35239 2011-02-27 20:23:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributors: Amorilia (amorilia@gamebox.net)
+ * Contributors: Amorilia (amorilia@users.sourceforge.net)
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -36,8 +34,8 @@
 
 // This code is in the public domain -- castanyo@yahoo.es
 
-#ifndef _DDS_IMAGE_H
-#define _DDS_IMAGE_H
+#ifndef __IMAGE_H__
+#define __IMAGE_H__
 
 #include <Common.h>
 #include <Color.h>
@@ -57,12 +55,12 @@ public:
 	~Image();
 	
 	void allocate(uint w, uint h);
-	/*
-	bool load(const char * name);
+#if 0
+	bool load(const char *name);
 	
-	void wrap(void * data, uint w, uint h);
+	void wrap(void *data, uint w, uint h);
 	void unwrap();
-	*/
+#endif
 	
 	uint width() const;
 	uint height() const;
@@ -103,4 +101,4 @@ inline Color32 & Image::pixel(uint x, uint y)
 	return pixel(y * width() + x);
 }
 
-#endif // _DDS_IMAGE_H
+#endif  /* __IMAGE_H__ */

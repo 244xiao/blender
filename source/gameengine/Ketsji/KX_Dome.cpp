@@ -1,29 +1,32 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Contributor(s): Dalai Felinto
+ *
+ * This code is originally inspired on some of the ideas and codes from Paul Bourke.
+ * Developed as part of a Research and Development project for
+ * SAT - La Société des arts technologiques.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
 /** \file gameengine/Ketsji/KX_Dome.cpp
  *  \ingroup ketsji
  */
-/* $Id: KX_Dome.cpp 35171 2011-02-25 13:35:59Z jesterking $
------------------------------------------------------------------------------
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-Contributor(s): Dalai Felinto
-
-This code is originally inspired on some of the ideas and codes from Paul Bourke.
-Developed as part of a Research and Development project for SAT - La Société des arts technologiques.
------------------------------------------------------------------------------
-*/
 
 #include "KX_Dome.h"
 
@@ -42,34 +45,34 @@ Developed as part of a Research and Development project for SAT - La Société d
 
 // constructor
 KX_Dome::KX_Dome (
-	RAS_ICanvas* canvas,
-    /// rasterizer
-    RAS_IRasterizer* rasterizer,
-    /// render tools
-    RAS_IRenderTools* rendertools,
-    /// engine
-    KX_KetsjiEngine* engine,
+        RAS_ICanvas* canvas,
+        /// rasterizer
+        RAS_IRasterizer* rasterizer,
+        /// render tools
+        RAS_IRenderTools* rendertools,
+        /// engine
+        KX_KetsjiEngine* engine,
 
-	short res,		//resolution of the mesh
-	short mode,		//mode - fisheye, truncated, warped, panoramic, ...
-	short angle,
-	float resbuf,	//size adjustment of the buffer
-	short tilt,
-	struct Text* warptext
+        short res,		//resolution of the mesh
+        short mode,		//mode - fisheye, truncated, warped, panoramic, ...
+        short angle,
+        float resbuf,	//size adjustment of the buffer
+        short tilt,
+        struct Text* warptext
 
-):
-	dlistSupported(false),
-	canvaswidth(-1), canvasheight(-1),
-	m_drawingmode(engine->GetDrawType()),
-	m_resolution(res),
-	m_mode(mode),
-	m_angle(angle),
-	m_resbuffer(resbuf),
-	m_tilt(tilt),
-	m_canvas(canvas),
-	m_rasterizer(rasterizer),
-	m_rendertools(rendertools),
-	m_engine(engine)
+        ):
+    dlistSupported(false),
+    canvaswidth(-1), canvasheight(-1),
+    m_drawingmode(engine->GetDrawType()),
+    m_resolution(res),
+    m_mode(mode),
+    m_angle(angle),
+    m_resbuffer(resbuf),
+    m_tilt(tilt),
+    m_canvas(canvas),
+    m_rasterizer(rasterizer),
+    m_rendertools(rendertools),
+    m_engine(engine)
 {
 	warp.usemesh = false;
 	fboSupported = false;
@@ -89,14 +92,13 @@ KX_Dome::KX_Dome (
 	}
 
 	//setting the viewport size
-	GLuint	viewport[4]={0};
-	glGetIntegerv(GL_VIEWPORT,(GLint *)viewport);
+	const int *viewport = m_canvas->GetViewPort();
 
 	SetViewPort(viewport);
 
-	switch(m_mode){
+	switch (m_mode) {
 		case DOME_FISHEYE:
-			if (m_angle <= 180){
+			if (m_angle <= 180) {
 				cubetop.resize(1);
 				cubebottom.resize(1);
 				cubeleft.resize(2);
@@ -104,7 +106,8 @@ KX_Dome::KX_Dome (
 
 				CreateMeshDome180();
 				m_numfaces = 4;
-			}else if (m_angle > 180){
+			}
+			else if (m_angle > 180) {
 				cubetop.resize(2);
 				cubebottom.resize(2);
 				cubeleft.resize(2);
@@ -131,7 +134,7 @@ KX_Dome::KX_Dome (
 			m_numfaces = 6;
 			break;
 		default: //DOME_TRUNCATED_FRONT and DOME_TRUNCATED_REAR
-			if (m_angle <= 180){
+			if (m_angle <= 180) {
 				cubetop.resize(1);
 				cubebottom.resize(1);
 				cubeleft.resize(2);
@@ -139,7 +142,8 @@ KX_Dome::KX_Dome (
 
 				CreateMeshDome180();
 				m_numfaces = 4;
-			}else if (m_angle > 180){
+			}
+			else if (m_angle > 180) {
 				cubetop.resize(2);
 				cubebottom.resize(2);
 				cubeleft.resize(2);
@@ -157,7 +161,7 @@ KX_Dome::KX_Dome (
 
 	CreateGLImages();
 
-	if(warp.usemesh)
+	if (warp.usemesh)
 		fboSupported = CreateFBO();
 
 	dlistSupported = CreateDL();
@@ -168,16 +172,16 @@ KX_Dome::~KX_Dome (void)
 {
 	ClearGLImages();
 
-	if(fboSupported)
+	if (fboSupported)
 		glDeleteFramebuffersEXT(1, &warp.fboId);
 
-	if(dlistSupported)
+	if (dlistSupported)
 		glDeleteLists(dlistId, (GLsizei) m_numimages);
 }
 
-void KX_Dome::SetViewPort(GLuint viewport[4])
+void KX_Dome::SetViewPort(const int viewport[4])
 {
-	if(canvaswidth != m_viewport.GetWidth() || canvasheight != m_viewport.GetHeight())
+	if (canvaswidth != m_viewport.GetWidth() || canvasheight != m_viewport.GetHeight())
 	{
 		m_viewport.SetLeft(viewport[0]); 
 		m_viewport.SetBottom(viewport[1]);
@@ -192,20 +196,20 @@ void KX_Dome::CreateGLImages(void)
 {
 	glGenTextures(m_numimages, (GLuint*)&domefacesId);
 
-	for (int j=0;j<m_numfaces;j++){
+	for (int j=0;j<m_numfaces;j++) {
 		glBindTexture(GL_TEXTURE_2D, domefacesId[j]);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, m_imagesize, m_imagesize, 0, GL_RGB8,
-				GL_UNSIGNED_BYTE, 0);
+		             GL_UNSIGNED_BYTE, NULL);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 0, 0, m_imagesize, m_imagesize, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	}
-	if(warp.usemesh){
+	if (warp.usemesh) {
 		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, warp.imagesize, warp.imagesize, 0, GL_RGB8,
-				GL_UNSIGNED_BYTE, 0);
+		             GL_UNSIGNED_BYTE, NULL);
 		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 0, 0, warp.imagesize, warp.imagesize, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -217,46 +221,32 @@ void KX_Dome::CreateGLImages(void)
 void KX_Dome::ClearGLImages(void)
 {
 	glDeleteTextures(m_numimages, (GLuint*)&domefacesId);
-/*
+#if 0
 	for (int i=0;i<m_numimages;i++)
-		if(glIsTexture(domefacesId[i]))
+		if (glIsTexture(domefacesId[i]))
 			glDeleteTextures(1, (GLuint*)&domefacesId[i]);
-*/
+#endif
 }
 
 void KX_Dome::CalculateImageSize(void)
 {
-/*
-- determine the minimum buffer size
-- reduce the buffer for better performace
-- create a power of 2 texture bigger than the buffer
-*/
-/*
-Blender handles Canvas size differently when in fullscreen mode.
-We are manually checking for that. Although it's a hack, it works.
-
-Bug reported here: #18655 - Inconsistency of pixels in canvas dimensions when in maximized mode (affecting BGE Dome)
-http://projects.blender.org/tracker/?func=detail&aid=18655&group_id=9&atid=125
-*/
-
+	/*
+	 * - determine the minimum buffer size
+	 * - reduce the buffer for better performance
+	 * - create a power of 2 texture bigger than the buffer
+	 */
 	canvaswidth = m_canvas->GetWidth();
 	canvasheight = m_canvas->GetHeight();
-
-	bool fullscreen(false); //XXX HACK
-	fullscreen = (canvaswidth != m_viewport.GetWidth());
 
 	m_buffersize = (canvaswidth > canvasheight?canvasheight:canvaswidth);
 	m_buffersize = (int)(m_buffersize*m_resbuffer); //reduce buffer size for better performance
 	
-	if (fullscreen) //XXX HACK
-		m_buffersize --;
-
 	int i = 0;
 	while ((1 << i) <= m_buffersize)
 		i++;
 	m_imagesize = (1 << i);
 
-	if (warp.usemesh){
+	if (warp.usemesh) {
 		// warp FBO needs to be up to twice as big as m_buffersize to get more resolution
 		warp.imagesize = m_imagesize;
 		if (m_buffersize == m_imagesize)
@@ -266,16 +256,13 @@ http://projects.blender.org/tracker/?func=detail&aid=18655&group_id=9&atid=125
 		warp.bufferwidth  = canvaswidth;
 		warp.bufferheight = canvasheight;
 	}
-
-	//XXX HACK
-	canvaswidth  = m_viewport.GetWidth();
-	canvasheight = m_viewport.GetHeight();
 }
 
-bool KX_Dome::CreateDL(){
+bool KX_Dome::CreateDL()
+{
 	dlistId = glGenLists((GLsizei) m_numimages);
 	if (dlistId != 0) {
-		if(m_mode == DOME_FISHEYE || m_mode == DOME_TRUNCATED_FRONT || m_mode == DOME_TRUNCATED_REAR){
+		if (m_mode == DOME_FISHEYE || m_mode == DOME_TRUNCATED_FRONT || m_mode == DOME_TRUNCATED_REAR) {
 			glNewList(dlistId, GL_COMPILE);
 				GLDrawTriangles(cubetop, nfacestop);
 			glEndList();
@@ -292,7 +279,7 @@ bool KX_Dome::CreateDL(){
 				GLDrawTriangles(cuberight, nfacesright);
 			glEndList();
 
-			if (m_angle > 180){
+			if (m_angle > 180) {
 				glNewList(dlistId+4, GL_COMPILE);
 					GLDrawTriangles(cubefront, nfacesfront);
 				glEndList();
@@ -325,7 +312,7 @@ bool KX_Dome::CreateDL(){
 			glEndList();
 		}
 
-		if(warp.usemesh){
+		if (warp.usemesh) {
 			glNewList((dlistId + m_numfaces), GL_COMPILE);
 				GLDrawWarpQuads();
 			glEndList();
@@ -356,7 +343,7 @@ bool KX_Dome::CreateFBO(void)
 	}
 
 	glGenFramebuffersEXT(1, &warp.fboId);
-	if(warp.fboId==0)
+	if (warp.fboId==0)
 	{
 		printf("Dome Error: Invalid frame buffer object. Using low resolution warp image.");
 		return false;
@@ -369,12 +356,12 @@ bool KX_Dome::CreateFBO(void)
 
 	GLenum status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
 
-	if(status == GL_FRAMEBUFFER_UNSUPPORTED_EXT)
+	if (status == GL_FRAMEBUFFER_UNSUPPORTED_EXT)
 	{
 		printf("Dome Error: FrameBuffer settings unsupported. Using low resolution warp image.");
 		return false;
 	}
-	else if(status != GL_FRAMEBUFFER_COMPLETE_EXT)
+	else if (status != GL_FRAMEBUFFER_COMPLETE_EXT)
 	{
 		glDeleteFramebuffersEXT(1, &warp.fboId);
 		return false;
@@ -407,11 +394,11 @@ void KX_Dome::GLDrawWarpQuads(void)
 	float uv_width = (float)(warp.bufferwidth) / warp.imagesize;
 	float uv_height = (float)(warp.bufferheight) / warp.imagesize;
 
-	if(warp.mode ==2 ){
+	if (warp.mode ==2 ) {
 		glBegin(GL_QUADS);
 		for (i=0;i<warp.n_height-1;i++) {
 			for (j=0;j<warp.n_width-1;j++) {
-				if(warp.nodes[i][j].i < 0 || warp.nodes[i+1][j].i < 0 || warp.nodes[i+1][j+1].i < 0 || warp.nodes[i][j+1].i < 0)
+				if (warp.nodes[i][j].i < 0 || warp.nodes[i+1][j].i < 0 || warp.nodes[i+1][j+1].i < 0 || warp.nodes[i][j+1].i < 0)
 					continue;
 
 				glColor3f(warp.nodes[i][j].i, warp.nodes[i][j].i, warp.nodes[i][j].i);
@@ -433,7 +420,7 @@ void KX_Dome::GLDrawWarpQuads(void)
 		}
 		glEnd();
 	}
-	else if (warp.mode == 1){
+	else if (warp.mode == 1) {
 		glBegin(GL_QUADS);
 		for (i=0;i<warp.n_height-1;i++) {
 			for (j=0;j<warp.n_width-1;j++) {
@@ -442,26 +429,27 @@ void KX_Dome::GLDrawWarpQuads(void)
 				if (warp.nodes[i][j].i < 0 || warp.nodes[i2][j].i < 0 || warp.nodes[i2][j+1].i < 0 || warp.nodes[i][j+1].i < 0)
 					continue;
 
-				 glColor3f(warp.nodes[i][j].i,warp.nodes[i][j].i,warp.nodes[i][j].i);
-				 glTexCoord2f((warp.nodes[i][j].u * uv_width), (warp.nodes[i][j].v * uv_height));
-				 glVertex3f(warp.nodes[i][j].x,warp.nodes[i][j].y,0.0);
+				glColor3f(warp.nodes[i][j].i,warp.nodes[i][j].i,warp.nodes[i][j].i);
+				glTexCoord2f((warp.nodes[i][j].u * uv_width), (warp.nodes[i][j].v * uv_height));
+				glVertex3f(warp.nodes[i][j].x,warp.nodes[i][j].y,0.0);
 
-				 glColor3f(warp.nodes[i2][j].i,warp.nodes[i2][j].i,warp.nodes[i2][j].i);
-				 glTexCoord2f((warp.nodes[i2][j].u * uv_width), (warp.nodes[i2][j].v * uv_height));
-				 glVertex3f(warp.nodes[i2][j].x,warp.nodes[i2][j].y,0.0);
+				glColor3f(warp.nodes[i2][j].i,warp.nodes[i2][j].i,warp.nodes[i2][j].i);
+				glTexCoord2f((warp.nodes[i2][j].u * uv_width), (warp.nodes[i2][j].v * uv_height));
+				glVertex3f(warp.nodes[i2][j].x,warp.nodes[i2][j].y,0.0);
 
-				 glColor3f(warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i);
-				 glTexCoord2f((warp.nodes[i2][j+1].u * uv_width), (warp.nodes[i2][j+1].v * uv_height));
-				 glVertex3f(warp.nodes[i2][j+1].x,warp.nodes[i2][j+1].y,0.0);
+				glColor3f(warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i);
+				glTexCoord2f((warp.nodes[i2][j+1].u * uv_width), (warp.nodes[i2][j+1].v * uv_height));
+				glVertex3f(warp.nodes[i2][j+1].x,warp.nodes[i2][j+1].y,0.0);
 
-				 glColor3f(warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i);
-				 glTexCoord2f((warp.nodes[i2][j+1].u * uv_width), (warp.nodes[i2][j+1].v * uv_height));
-				 glVertex3f(warp.nodes[i2][j+1].x,warp.nodes[i2][j+1].y,0.0);
+				glColor3f(warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i);
+				glTexCoord2f((warp.nodes[i2][j+1].u * uv_width), (warp.nodes[i2][j+1].v * uv_height));
+				glVertex3f(warp.nodes[i2][j+1].x,warp.nodes[i2][j+1].y,0.0);
 
 			}
 		}
 		glEnd();
-	} else{
+	}
+	else {
 		printf("Dome Error: Warp Mode %d unsupported. Try 1 for Polar Mesh or 2 for Fisheye.\n", warp.mode);
 	}
 }
@@ -469,43 +457,43 @@ void KX_Dome::GLDrawWarpQuads(void)
 
 bool KX_Dome::ParseWarpMesh(STR_String text)
 {
-/*
-//Notes about the supported data format:
-File example::
-	mode
-	width height
-	n0_x n0_y n0_u n0_v n0_i
-	n1_x n1_y n1_u n1_v n1_i
-	n2_x n1_y n2_u n2_v n2_i
-	n3_x n3_y n3_u n3_v n3_i
-	(...)
-First line is the image type the mesh is support to be applied to: 2 = fisheye, 1=radial
-Tthe next line has the mesh dimensions
-Rest of the lines are the nodes of the mesh. Each line has x y u v i
-  (x,y) are the normalised screen coordinates
-  (u,v) texture coordinates
-  i a multiplicative intensity factor
-
-x varies from -screen aspect to screen aspect
-y varies from -1 to 1
-u and v vary from 0 to 1
-i ranges from 0 to 1, if negative don't draw that mesh node
-*/
+	/*
+	 * //Notes about the supported data format:
+	 * File example::
+	 * 	mode
+	 * 	width height
+	 * 	n0_x n0_y n0_u n0_v n0_i
+	 * 	n1_x n1_y n1_u n1_v n1_i
+	 * 	n2_x n1_y n2_u n2_v n2_i
+	 * 	n3_x n3_y n3_u n3_v n3_i
+	 * 	(...)
+	 * First line is the image type the mesh is support to be applied to: 2 = fisheye, 1=radial
+	 * The next line has the mesh dimensions
+	 * Rest of the lines are the nodes of the mesh. Each line has x y u v i
+	 *   (x,y) are the normalized screen coordinates
+	 *   (u,v) texture coordinates
+	 *   i a multiplicative intensity factor
+	 *
+	 * x varies from -screen aspect to screen aspect
+	 * y varies from -1 to 1
+	 * u and v vary from 0 to 1
+	 * i ranges from 0 to 1, if negative don't draw that mesh node
+	 */
 	int i;
 	int nodeX=0, nodeY=0;
 
 	vector<STR_String> columns, lines;
 
 	lines = text.Explode('\n');
-	if(lines.size() < 6){
+	if (lines.size() < 6) {
 		printf("Dome Error: Warp Mesh File with insufficient data!\n");
 		return false;
 	}
 	columns = lines[1].Explode(' ');
-	if(columns.size() == 1)
+	if (columns.size() == 1)
 		columns = lines[1].Explode('\t');
 
-	if(columns.size() !=2){
+	if (columns.size() !=2) {
 		printf("Dome Error: Warp Mesh File incorrect. The second line should contain: width height.\n");
 		return false;
 	}
@@ -515,18 +503,19 @@ i ranges from 0 to 1, if negative don't draw that mesh node
 	warp.n_width = atoi(columns[0]);
 	warp.n_height = atoi(columns[1]);
 
-	if ((int)lines.size() < 2 + (warp.n_width * warp.n_height)){
+	if ((int)lines.size() < 2 + (warp.n_width * warp.n_height)) {
 		printf("Dome Error: Warp Mesh File with insufficient data!\n");
 		return false;
-	}else{
+	}
+	else {
 		warp.nodes = vector<vector<WarpMeshNode> > (warp.n_height, vector<WarpMeshNode>(warp.n_width));
 
-		for(i=2; i-2 < (warp.n_width*warp.n_height); i++){
+		for (i=2; i-2 < (warp.n_width*warp.n_height); i++) {
 			columns = lines[i].Explode(' ');
-			if(columns.size() == 1)
+			if (columns.size() == 1)
 				columns = lines[i].Explode('\t');
 
-			if (columns.size() == 5){
+			if (columns.size() == 5) {
 				nodeX = (i-2)%warp.n_width;
 				nodeY = ((i-2) - nodeX) / warp.n_width;
 
@@ -536,7 +525,7 @@ i ranges from 0 to 1, if negative don't draw that mesh node
 				warp.nodes[nodeY][nodeX].v = atof(columns[3]);
 				warp.nodes[nodeY][nodeX].i = atof(columns[4]);
 			}
-			else{
+			else {
 				warp.nodes.clear();
 				printf("Dome Error: Warp Mesh File with wrong number of fields. You should use 5: x y u v i.\n");
 				return false;
@@ -548,20 +537,20 @@ i ranges from 0 to 1, if negative don't draw that mesh node
 
 void KX_Dome::CreateMeshDome180(void)
 {
-/*
-1)-  Define the faces of half of a cube 
- - each face is made out of 2 triangles
-2) Subdivide the faces
- - more resolution == more curved lines
-3) Spherize the cube
- - normalize the verts
-4) Flatten onto xz plane
- - transform it onto an equidistant spherical projection techniques to transform the sphere onto a dome image
-*/
+	/*
+	 * 1)-  Define the faces of half of a cube
+	 *  - each face is made out of 2 triangles
+	 * 2) Subdivide the faces
+	 *  - more resolution == more curved lines
+	 * 3) Spherize the cube
+	 *  - normalize the verts
+	 * 4) Flatten onto xz plane
+	 *  - transform it onto an equidistant spherical projection techniques to transform the sphere onto a dome image
+	 */
 	int i,j;
 	float uv_ratio = (float)(m_buffersize-1) / m_imagesize;
 
-	m_radangle = m_angle * M_PI/180.0;//calculates the radians angle, used for flattening
+	m_radangle = DEG2RADF(m_angle); //calculates the radians angle, used for flattening
 
 	//creating faces for the env mapcube 180deg Dome
 	// Top Face - just a triangle
@@ -604,12 +593,12 @@ void KX_Dome::CreateMeshDome180(void)
 	cubebottom[0].u[2] = 0.0;
 	cubebottom[0].v[2] = 0.0;
 
-	nfacesbottom = 1;	
+	nfacesbottom = 1;
 	
 	/* Left face - two triangles */
 	
 	cubeleft[0].verts[0][0] = -M_SQRT2 / 2.0;
-	cubeleft[0].verts[0][1] = .0;
+	cubeleft[0].verts[0][1] = 0.0;
 	cubeleft[0].verts[0][2] = -0.5;
 	cubeleft[0].u[0] = 0.0;
 	cubeleft[0].v[0] = 0.0;
@@ -690,53 +679,53 @@ void KX_Dome::CreateMeshDome180(void)
 	//Refine a triangular mesh by bisecting each edge forms 3 new triangles for each existing triangle on each iteration
 	//Could be made more efficient for drawing if the triangles were ordered in a fan. Not that important since we are using DisplayLists
 
-	for(i=0;i<m_resolution;i++){
+	for (i=0;i<m_resolution;i++) {
 		cubetop.resize(4*nfacestop);
 		SplitFace(cubetop,&nfacestop);
 		cubebottom.resize(4*nfacesbottom);
-		SplitFace(cubebottom,&nfacesbottom);	
+		SplitFace(cubebottom,&nfacesbottom);
 		cubeleft.resize(4*nfacesleft);
 		SplitFace(cubeleft,&nfacesleft);
 		cuberight.resize(4*nfacesright);
 		SplitFace(cuberight,&nfacesright);
-	}		
+	}
 
 	// Turn into a hemisphere
-	for(j=0;j<3;j++){
-		for(i=0;i<nfacestop;i++)
+	for (j=0;j<3;j++) {
+		for (i=0;i<nfacestop;i++)
 			cubetop[i].verts[j].normalize();
-		for(i=0;i<nfacesbottom;i++)
+		for (i=0;i<nfacesbottom;i++)
 			cubebottom[i].verts[j].normalize();
-		for(i=0;i<nfacesleft;i++)
+		for (i=0;i<nfacesleft;i++)
 			cubeleft[i].verts[j].normalize();
-		for(i=0;i<nfacesright;i++)
+		for (i=0;i<nfacesright;i++)
 			cuberight[i].verts[j].normalize();
 	}
 
 	//flatten onto xz plane
-	for(i=0;i<nfacestop;i++)
+	for (i=0;i<nfacestop;i++)
 		FlattenDome(cubetop[i].verts);
-	for(i=0;i<nfacesbottom;i++)
+	for (i=0;i<nfacesbottom;i++)
 		FlattenDome(cubebottom[i].verts);
-	for(i=0;i<nfacesleft;i++)
+	for (i=0;i<nfacesleft;i++)
 		FlattenDome(cubeleft[i].verts);
-	for(i=0;i<nfacesright;i++)
+	for (i=0;i<nfacesright;i++)
 		FlattenDome(cuberight[i].verts);
 
 }
 
 void KX_Dome::CreateMeshDome250(void)
 {
-/*
-1)-  Define the faces of a cube without the back face
- - each face is made out of 2 triangles
-2) Subdivide the faces
- - more resolution == more curved lines
-3) Spherize the cube
- - normalize the verts
-4) Flatten onto xz plane
- - transform it onto an equidistant spherical projection techniques to transform the sphere onto a dome image
-*/
+	/*
+	 * 1)-  Define the faces of a cube without the back face
+	 *  - each face is made out of 2 triangles
+	 * 2) Subdivide the faces
+	 *  - more resolution == more curved lines
+	 * 3) Spherize the cube
+	 *  - normalize the verts
+	 * 4) Flatten onto xz plane
+	 *  - transform it onto an equidistant spherical projection techniques to transform the sphere onto a dome image
+	 */
 
 	int i,j;
 	float uv_height, uv_base;
@@ -746,24 +735,24 @@ void KX_Dome::CreateMeshDome250(void)
 	float uv_ratio = (float)(m_buffersize-1) / m_imagesize;
 
 	m_radangle = m_angle * M_PI/180.0;//calculates the radians angle, used for flattening
-/*
-verts_height is the exactly needed height of the cube faces (not always 1.0).
-When we want some horizontal information (e.g. for horizontal 220deg domes) we don't need to create and tesselate the whole cube.
-Therefore the lateral cube faces could be small, and the tesselate mesh would be completely used.
-(if we always worked with verts_height = 1.0, we would be discarding a lot of the calculated and tesselated geometry).
+	/*
+	 * verts_height is the exactly needed height of the cube faces (not always 1.0).
+	 * When we want some horizontal information (e.g. for horizontal 220deg domes) we don't need to create and tessellate the whole cube.
+	 * Therefore the lateral cube faces could be small, and the tessellate mesh would be completely used.
+	 * (if we always worked with verts_height = 1.0, we would be discarding a lot of the calculated and tessellated geometry).
+	 *
+	 * So I came out with this formula:
+	 * verts_height = tan((rad_ang/2) - (MT_PI/2))*sqrt(2.0);
+	 *
+	 * Here we take half the sphere(rad_ang/2) and subtract a quarter of it (MT_PI/2)
+	 * Therefore we have the length in radians of the dome/sphere over the horizon.
+	 * Once we take the tangent of that angle, you have the verts coordinate corresponding to the verts on the side faces.
+	 * Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on the diagonal of the original cube.
+	 */
+	verts_height = tanf((rad_ang / 2.0f) - (float)(MT_PI / 2.0)) * (float)M_SQRT2;
 
-So I came out with this formula:
-verts_height = tan((rad_ang/2) - (MT_PI/2))*sqrt(2.0);
-
-Here we take half the sphere(rad_ang/2) and subtract a quarter of it (MT_PI/2)
-Therefore we have the length in radians of the dome/sphere over the horizon.
-Once we take the tangent of that angle, you have the verts coordinate corresponding to the verts on the side faces.
-Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on the diagonal of the original cube.
-*/
-	verts_height = tan((rad_ang/2) - (MT_PI/2))*M_SQRT2;
-
-	uv_height = uv_ratio * ((verts_height/2) + 0.5);
-	uv_base = uv_ratio * (1.0 - ((verts_height/2) + 0.5));
+	uv_height = uv_ratio * (       (verts_height / 2.0f) + 0.5f);
+	uv_base   = uv_ratio * (1.0 - ((verts_height / 2.0f) + 0.5f));
 	
 	//creating faces for the env mapcube 180deg Dome
 	// Front Face - 2 triangles
@@ -775,13 +764,13 @@ Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on t
 
 	cubefront[0].verts[1][0] = 1.0;
 	cubefront[0].verts[1][1] = 1.0;
-	cubefront[0].verts[1][2] = 1.0;	
+	cubefront[0].verts[1][2] = 1.0;
 	cubefront[0].u[1] = uv_ratio;
 	cubefront[0].v[1] = uv_ratio;
 
 	cubefront[0].verts[2][0] =-1.0;
 	cubefront[0].verts[2][1] = 1.0;
-	cubefront[0].verts[2][2] = 1.0;	
+	cubefront[0].verts[2][2] = 1.0;
 	cubefront[0].u[2] = 0.0;
 	cubefront[0].v[2] = uv_ratio;
 
@@ -794,13 +783,13 @@ Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on t
 
 	cubefront[1].verts[1][0] =-1.0;
 	cubefront[1].verts[1][1] = 1.0;
-	cubefront[1].verts[1][2] =-1.0;	
+	cubefront[1].verts[1][2] =-1.0;
 	cubefront[1].u[1] = 0.0;
 	cubefront[1].v[1] = 0.0;
 
 	cubefront[1].verts[2][0] = 1.0;
 	cubefront[1].verts[2][1] = 1.0;
-	cubefront[1].verts[2][2] =-1.0;	
+	cubefront[1].verts[2][2] =-1.0;
 	cubefront[1].u[2] = uv_ratio;
 	cubefront[1].v[2] = 0.0;
 
@@ -815,13 +804,13 @@ Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on t
 
 	cubeleft[0].verts[1][0] =-1.0;
 	cubeleft[0].verts[1][1] =-verts_height;
-	cubeleft[0].verts[1][2] = 1.0;	
+	cubeleft[0].verts[1][2] = 1.0;
 	cubeleft[0].u[1] = uv_base;
 	cubeleft[0].v[1] = uv_ratio;
 
 	cubeleft[0].verts[2][0] =-1.0;
 	cubeleft[0].verts[2][1] =-verts_height;
-	cubeleft[0].verts[2][2] =-1.0;	
+	cubeleft[0].verts[2][2] =-1.0;
 	cubeleft[0].u[2] = uv_base;
 	cubeleft[0].v[2] = 0.0;
 
@@ -834,13 +823,13 @@ Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on t
 
 	cubeleft[1].verts[1][0] =-1.0;
 	cubeleft[1].verts[1][1] = 1.0;
-	cubeleft[1].verts[1][2] =-1.0;	
+	cubeleft[1].verts[1][2] =-1.0;
 	cubeleft[1].u[1] = uv_ratio;
 	cubeleft[1].v[1] = 0.0;
 
 	cubeleft[1].verts[2][0] =-1.0;
 	cubeleft[1].verts[2][1] = 1.0;
-	cubeleft[1].verts[2][2] = 1.0;	
+	cubeleft[1].verts[2][2] = 1.0;
 	cubeleft[1].u[2] = uv_ratio;
 	cubeleft[1].v[2] = uv_ratio;
 
@@ -855,13 +844,13 @@ Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on t
 
 	cuberight[0].verts[1][0] = 1.0;
 	cuberight[0].verts[1][1] =-verts_height;
-	cuberight[0].verts[1][2] =-1.0;	
+	cuberight[0].verts[1][2] =-1.0;
 	cuberight[0].u[1] = uv_height;
 	cuberight[0].v[1] = 0.0;
 
 	cuberight[0].verts[2][0] = 1.0;
 	cuberight[0].verts[2][1] =-verts_height;
-	cuberight[0].verts[2][2] = 1.0;	
+	cuberight[0].verts[2][2] = 1.0;
 	cuberight[0].u[2] = uv_height;
 	cuberight[0].v[2] = uv_ratio;
 
@@ -874,13 +863,13 @@ Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on t
 
 	cuberight[1].verts[1][0] = 1.0;
 	cuberight[1].verts[1][1] = 1.0;
-	cuberight[1].verts[1][2] = 1.0;	
+	cuberight[1].verts[1][2] = 1.0;
 	cuberight[1].u[1] = 0.0;
 	cuberight[1].v[1] = uv_ratio;
 
 	cuberight[1].verts[2][0] = 1.0;
 	cuberight[1].verts[2][1] = 1.0;
-	cuberight[1].verts[2][2] =-1.0;	
+	cuberight[1].verts[2][2] =-1.0;
 	cuberight[1].u[2] = 0.0;
 	cuberight[1].v[2] = 0.0;
 
@@ -895,13 +884,13 @@ Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on t
 
 	cubetop[0].verts[1][0] = 1.0;
 	cubetop[0].verts[1][1] =-verts_height;
-	cubetop[0].verts[1][2] = 1.0;	
+	cubetop[0].verts[1][2] = 1.0;
 	cubetop[0].u[1] = uv_ratio;
 	cubetop[0].v[1] = uv_height;
 
 	cubetop[0].verts[2][0] =-1.0;
 	cubetop[0].verts[2][1] =-verts_height;
-	cubetop[0].verts[2][2] = 1.0;	
+	cubetop[0].verts[2][2] = 1.0;
 	cubetop[0].u[2] = 0.0;
 	cubetop[0].v[2] = uv_height;
 
@@ -914,13 +903,13 @@ Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on t
 
 	cubetop[1].verts[1][0] =-1.0;
 	cubetop[1].verts[1][1] = 1.0;
-	cubetop[1].verts[1][2] = 1.0;	
+	cubetop[1].verts[1][2] = 1.0;
 	cubetop[1].u[1] = 0.0;
 	cubetop[1].v[1] = 0.0;
 
 	cubetop[1].verts[2][0] = 1.0;
 	cubetop[1].verts[2][1] = 1.0;
-	cubetop[1].verts[2][2] = 1.0;	
+	cubetop[1].verts[2][2] = 1.0;
 	cubetop[1].u[2] = uv_ratio;
 	cubetop[1].v[2] = 0.0;
 
@@ -935,13 +924,13 @@ Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on t
 
 	cubebottom[0].verts[1][0] = 1.0;
 	cubebottom[0].verts[1][1] = 1.0;
-	cubebottom[0].verts[1][2] =-1.0;	
+	cubebottom[0].verts[1][2] =-1.0;
 	cubebottom[0].u[1] = uv_ratio;
 	cubebottom[0].v[1] = uv_ratio;
 
 	cubebottom[0].verts[2][0] =-1.0;
 	cubebottom[0].verts[2][1] = 1.0;
-	cubebottom[0].verts[2][2] =-1.0;	
+	cubebottom[0].verts[2][2] =-1.0;
 	cubebottom[0].u[2] = 0.0;
 	cubebottom[0].v[2] = uv_ratio;
 
@@ -954,13 +943,13 @@ Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on t
 
 	cubebottom[1].verts[1][0] =-1.0;
 	cubebottom[1].verts[1][1] =-verts_height;
-	cubebottom[1].verts[1][2] =-1.0;	
+	cubebottom[1].verts[1][2] =-1.0;
 	cubebottom[1].u[1] = 0.0;
 	cubebottom[1].v[1] = uv_base;
 
 	cubebottom[1].verts[2][0] = 1.0;
 	cubebottom[1].verts[2][1] =-verts_height;
-	cubebottom[1].verts[2][2] =-1.0;	
+	cubebottom[1].verts[2][2] =-1.0;
 	cubebottom[1].u[2] = uv_ratio;
 	cubebottom[1].v[2] = uv_base;
 
@@ -969,13 +958,13 @@ Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on t
 	//Refine a triangular mesh by bisecting each edge forms 3 new triangles for each existing triangle on each iteration
 	//It could be made more efficient for drawing if the triangles were ordered in a strip!
 
-	for(i=0;i<m_resolution;i++){
+	for (i=0;i<m_resolution;i++) {
 		cubefront.resize(4*nfacesfront);
 		SplitFace(cubefront,&nfacesfront);
 		cubetop.resize(4*nfacestop);
 		SplitFace(cubetop,&nfacestop);
 		cubebottom.resize(4*nfacesbottom);
-		SplitFace(cubebottom,&nfacesbottom);	
+		SplitFace(cubebottom,&nfacesbottom);
 		cubeleft.resize(4*nfacesleft);
 		SplitFace(cubeleft,&nfacesleft);
 		cuberight.resize(4*nfacesright);
@@ -983,44 +972,44 @@ Then we need to multiply it by sqrt(2.0) to get the coordinate of the verts on t
 	}
 
 	// Turn into a hemisphere/sphere
-	for(j=0;j<3;j++){
-		for(i=0;i<nfacesfront;i++)
+	for (j=0;j<3;j++) {
+		for (i=0;i<nfacesfront;i++)
 			cubefront[i].verts[j].normalize();
-		for(i=0;i<nfacestop;i++)
+		for (i=0;i<nfacestop;i++)
 			cubetop[i].verts[j].normalize();
-		for(i=0;i<nfacesbottom;i++)
+		for (i=0;i<nfacesbottom;i++)
 			cubebottom[i].verts[j].normalize();
-		for(i=0;i<nfacesleft;i++)
+		for (i=0;i<nfacesleft;i++)
 			cubeleft[i].verts[j].normalize();
-		for(i=0;i<nfacesright;i++)
+		for (i=0;i<nfacesright;i++)
 			cuberight[i].verts[j].normalize();
 	}
 
 	//flatten onto xz plane
-	for(i=0;i<nfacesfront;i++)
-		FlattenDome(cubefront[i].verts);	
-	for(i=0;i<nfacestop;i++)
+	for (i=0;i<nfacesfront;i++)
+		FlattenDome(cubefront[i].verts);
+	for (i=0;i<nfacestop;i++)
 		FlattenDome(cubetop[i].verts);
-	for(i=0;i<nfacesbottom;i++)
+	for (i=0;i<nfacesbottom;i++)
 		FlattenDome(cubebottom[i].verts);
-	for(i=0;i<nfacesleft;i++)
-		FlattenDome(cubeleft[i].verts);		
-	for(i=0;i<nfacesright;i++)
+	for (i=0;i<nfacesleft;i++)
+		FlattenDome(cubeleft[i].verts);
+	for (i=0;i<nfacesright;i++)
 		FlattenDome(cuberight[i].verts);
 }
 
 void KX_Dome::CreateMeshPanorama(void)
 {
-/*
-1)-  Define the faces of a cube without the top and bottom faces
- - each face is made out of 2 triangles
-2) Subdivide the faces
- - more resolution == more curved lines
-3) Spherize the cube
- - normalize the verts t
-4) Flatten onto xz plane
- - use spherical projection techniques to transform the sphere onto a flat panorama
-*/
+	/*
+	 * 1)-  Define the faces of a cube without the top and bottom faces
+	 *  - each face is made out of 2 triangles
+	 * 2) Subdivide the faces
+	 *  - more resolution == more curved lines
+	 * 3) Spherize the cube
+	 *  - normalize the verts t
+	 * 4) Flatten onto xz plane
+	 *  - use spherical projection techniques to transform the sphere onto a flat panorama
+	 */
 	int i,j;
 
 	float uv_ratio = (float)(m_buffersize-1) / m_imagesize;
@@ -1268,7 +1257,7 @@ void KX_Dome::CreateMeshPanorama(void)
 	nfacesrightback = 2;
 
 	// Subdivide the faces
-	for(i=0;i<m_resolution;i++)
+	for (i=0;i<m_resolution;i++)
 	{
 		cubetop.resize(4*nfacestop);
 		SplitFace(cubetop,&nfacestop);
@@ -1290,44 +1279,44 @@ void KX_Dome::CreateMeshPanorama(void)
 	}
 
 	// Spherize the cube
-	for(j=0;j<3;j++)
+	for (j=0;j<3;j++)
 	{
-		for(i=0;i<nfacestop;i++)
+		for (i=0;i<nfacestop;i++)
 			cubetop[i].verts[j].normalize();
 
-		for(i=0;i<nfacesbottom;i++)
+		for (i=0;i<nfacesbottom;i++)
 			cubebottom[i].verts[j].normalize();
 
-		for(i=0;i<nfacesleftback;i++)
+		for (i=0;i<nfacesleftback;i++)
 			cubeleftback[i].verts[j].normalize();
 
-		for(i=0;i<nfacesleft;i++)
+		for (i=0;i<nfacesleft;i++)
 			cubeleft[i].verts[j].normalize();
 
-		for(i=0;i<nfacesright;i++)
+		for (i=0;i<nfacesright;i++)
 			cuberight[i].verts[j].normalize();
 
-		for(i=0;i<nfacesrightback;i++)
+		for (i=0;i<nfacesrightback;i++)
 			cuberightback[i].verts[j].normalize();
 	}
 
 	//Flatten onto xz plane
-	for(i=0;i<nfacesleftback;i++)
+	for (i=0;i<nfacesleftback;i++)
 		FlattenPanorama(cubeleftback[i].verts);
 
-	for(i=0;i<nfacesleft;i++)
+	for (i=0;i<nfacesleft;i++)
 		FlattenPanorama(cubeleft[i].verts);
 
-	for(i=0;i<nfacesright;i++)
+	for (i=0;i<nfacesright;i++)
 		FlattenPanorama(cuberight[i].verts);
 
-	for(i=0;i<nfacesrightback;i++)
+	for (i=0;i<nfacesrightback;i++)
 		FlattenPanorama(cuberightback[i].verts);
 
-	for(i=0;i<nfacestop;i++)
+	for (i=0;i<nfacestop;i++)
 		FlattenPanorama(cubetop[i].verts);
 
-	for(i=0;i<nfacesbottom;i++)
+	for (i=0;i<nfacesbottom;i++)
 		FlattenPanorama(cubebottom[i].verts);
 }
 
@@ -1335,9 +1324,9 @@ void KX_Dome::FlattenDome(MT_Vector3 verts[3])
 {
 	double phi, r;
 
-	for (int i=0;i<3;i++){
+	for (int i=0;i<3;i++) {
 		r = atan2(sqrt(verts[i][0]*verts[i][0] + verts[i][2]*verts[i][2]), verts[i][1]);
-		r /= m_radangle/2;
+		r /= (double)this->m_radangle / 2.0;
 
 		phi = atan2(verts[i][2], verts[i][0]);
 
@@ -1345,7 +1334,7 @@ void KX_Dome::FlattenDome(MT_Vector3 verts[3])
 		verts[i][1] = 0;
 		verts[i][2] = r * sin(phi);
 
-		if (r > 1.0){
+		if (r > 1.0) {
 		//round the border
 			verts[i][0] = cos(phi);
 			verts[i][1] = -3.0;
@@ -1358,10 +1347,10 @@ void KX_Dome::FlattenPanorama(MT_Vector3 verts[3])
 {
 // it creates a full spherical panoramic (360deg)
 	int i;
-	double phi;
+	double phi, theta;
 	bool edge=false;
 
-	for (i=0;i<3;i++){
+	for (i=0;i<3;i++) {
 		phi = atan2(verts[i][1], verts[i][0]);
 		phi *= -1.0; //flipping
 
@@ -1371,21 +1360,21 @@ void KX_Dome::FlattenPanorama(MT_Vector3 verts[3])
 		verts[i][0] = phi / MT_PI;
 		verts[i][1] = 0;
 
-		verts[i][2] = atan2(verts[i][2], 1.0);
-		verts[i][2] /= MT_PI / 2;
+		theta = asin(verts[i][2]);
+		verts[i][2] = theta / MT_PI;
 	}
-	if(edge){
+	if (edge) {
 		bool right=false;
 
-		for (i=0;i<3;i++){
-			if(fmod(verts[i][0],1.0) > 0.0){
+		for (i=0;i<3;i++) {
+			if (fmod(verts[i][0],1.0) > 0.0) {
 				right=true;
 				break;
 			}
 		}
-		if(right){
-			for (i=0;i<3;i++){
-				if(verts[i][0] < 0.0)
+		if (right) {
+			for (i=0;i<3;i++) {
+				if (verts[i][0] < 0.0)
 					verts[i][0] *= -1.0;
 			}
 		}
@@ -1399,7 +1388,7 @@ void KX_Dome::SplitFace(vector <DomeFace>& face, int *nfaces)
 
 	n1 = n2 = *nfaces;
 
-	for(i=0;i<n1;i++){
+	for (i=0;i<n1;i++) {
 
 		face[n2].verts[0] = (face[i].verts[0] + face[i].verts[1]) /2;
 		face[n2].verts[1] =  face[i].verts[1];
@@ -1429,29 +1418,29 @@ void KX_Dome::SplitFace(vector <DomeFace>& face, int *nfaces)
 		face[n2+2].u[2]	  = (face[i].u[2] + face[i].u[0]) /2;
 		face[n2+2].v[0]	  = (face[i].v[0] + face[i].v[1]) /2;
 		face[n2+2].v[1]	  = (face[i].v[1] + face[i].v[2]) /2;
-		face[n2+2].v[2]	  = (face[i].v[2] + face[i].v[0]) /2;		
+		face[n2+2].v[2]	  = (face[i].v[2] + face[i].v[0]) /2;
 
-		//face[i].verts[0] = face[i].verts[0] ;
+		//face[i].verts[0] = face[i].verts[0];
 		face[i].verts[1] = (face[i].verts[0] + face[i].verts[1]) /2;
 		face[i].verts[2] = (face[i].verts[0] + face[i].verts[2]) /2;
 		//face[i].u[0]	 =  face[i].u[0];
 		face[i].u[1]	 = (face[i].u[0] + face[i].u[1]) /2;
 		face[i].u[2]	 = (face[i].u[0] + face[i].u[2]) /2;
-		//face[i].v[0]	 = face[i].v[0] ;
+		//face[i].v[0]	 = face[i].v[0];
 		face[i].v[1]	 = (face[i].v[0] + face[i].v[1]) /2;
-		face[i].v[2]	 = (face[i].v[0] + face[i].v[2]) /2;		
+		face[i].v[2]	 = (face[i].v[0] + face[i].v[2]) /2;
 
 		n2 += 3; // number of faces
 	}
 	*nfaces = n2;
 }
 
-void KX_Dome::CalculateFrustum(KX_Camera * cam)
+void KX_Dome::CalculateFrustum(KX_Camera *cam)
 {
-	/*
+#if 0
 	// manually creating a 90deg Field of View Frustum 
 
-	the original formula:
+	// the original formula:
 	top = tan(fov*3.14159/360.0) * near [for fov in degrees]
 	fov*0.5 = arctan ((top-bottom)*0.5 / near) [for fov in radians]
 	bottom = -top
@@ -1462,7 +1451,7 @@ void KX_Dome::CalculateFrustum(KX_Camera * cam)
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	gluPerspective(90.0,1.0,cam->GetCameraNear(),cam->GetCameraFar());
-	*/
+#endif
 
 	RAS_FrameFrustum m_frustrum; //90 deg. Frustum
 
@@ -1485,10 +1474,10 @@ void KX_Dome::CalculateFrustum(KX_Camera * cam)
 void KX_Dome::CalculateCameraOrientation()
 {
 /*
-Uses 4 cameras for angles up to 180deg
-Uses 5 cameras for angles up to 250deg
-Uses 6 cameras for angles up to 360deg
-*/
+ * Uses 4 cameras for angles up to 180deg
+ * Uses 5 cameras for angles up to 250deg
+ * Uses 6 cameras for angles up to 360deg
+ */
 	int i;
 	float deg45 = MT_PI / 4;
 	MT_Scalar c = cos(deg45);
@@ -1496,7 +1485,7 @@ Uses 6 cameras for angles up to 360deg
 
 	if (m_angle <= 180 && (m_mode == DOME_FISHEYE 
 		|| m_mode == DOME_TRUNCATED_FRONT
-		|| m_mode == DOME_TRUNCATED_REAR)){
+		|| m_mode == DOME_TRUNCATED_REAR)) {
 
 		m_locRot[0] = MT_Matrix3x3( // 90deg - Top
 						c, -s, 0.0,
@@ -1520,7 +1509,7 @@ Uses 6 cameras for angles up to 360deg
 
 	} else if (m_mode == DOME_ENVMAP || (m_angle > 180 && (m_mode == DOME_FISHEYE
 		|| m_mode == DOME_TRUNCATED_FRONT 
-		|| m_mode == DOME_TRUNCATED_REAR))){
+		|| m_mode == DOME_TRUNCATED_REAR))) {
 
 		m_locRot[0] = MT_Matrix3x3( // 90deg - Top
 						 1.0, 0.0, 0.0,
@@ -1552,7 +1541,7 @@ Uses 6 cameras for angles up to 360deg
 						 0.0, 1.0, 0.0,
 						 0.0, 0.0,-1.0);
 
-	} else if (m_mode == DOME_PANORAM_SPH){
+	} else if (m_mode == DOME_PANORAM_SPH) {
 
 		m_locRot[0] = MT_Matrix3x3( // Top 
 						c, s, 0.0,
@@ -1561,7 +1550,7 @@ Uses 6 cameras for angles up to 360deg
 
 		m_locRot[1] = MT_Matrix3x3( // Bottom
 						c, s, 0.0,
-						0.0 ,0.0, 1.0,
+						0.0, 0.0, 1.0,
 						s, -c, 0.0);
 
 		m_locRot[2] = MT_Matrix3x3( // 45deg - Left
@@ -1626,14 +1615,14 @@ void KX_Dome::RotateCamera(KX_Camera* cam, int i)
 void KX_Dome::Draw(void)
 {
 
-	if (fboSupported){
+	if (fboSupported) {
 		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, warp.fboId);
 
 		glViewport(0,0,warp.imagesize, warp.imagesize);
 		glScissor(0,0,warp.imagesize, warp.imagesize);
 	}
 
-	switch(m_mode){
+	switch (m_mode) {
 		case DOME_FISHEYE:
 			DrawDomeFisheye();
 			break;
@@ -1651,9 +1640,9 @@ void KX_Dome::Draw(void)
 			break;
 	}
 
-	if(warp.usemesh)
+	if (warp.usemesh)
 	{
-		if(fboSupported)
+		if (fboSupported)
 		{
 			m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
 			glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
@@ -1684,10 +1673,11 @@ void KX_Dome::DrawEnvMap(void)
 		glOrtho((-1.0), 1.0, (-0.66), 0.66, -20.0, 10.0); //stretch the image to reduce resolution lost
 
 	else {
-		if (can_width/3 <= can_height/2){
+		if (can_width/3 <= can_height/2) {
 			ortho_width = 1.0;
 			ortho_height = (float)can_height/can_width;
-		}else{
+		}
+		else {
 			ortho_height = 2.0f / 3;
 			ortho_width = (float)can_width/can_height * ortho_height;
 		}
@@ -1809,15 +1799,16 @@ void KX_Dome::DrawDomeFisheye(void)
 
 	float ortho_width, ortho_height;
 
-	if(m_mode == DOME_FISHEYE) {
+	if (m_mode == DOME_FISHEYE) {
 		if (warp.usemesh)
 			glOrtho((-1.0), 1.0, (-1.0), 1.0, -20.0, 10.0); //stretch the image to reduce resolution lost
 
 		else {
-			if (can_width < can_height){
+			if (can_width < can_height) {
 				ortho_width = 1.0;
 				ortho_height = (float)can_height/can_width;
-			}else{
+			}
+			else {
 				ortho_width = (float)can_width/can_height;
 				ortho_height = 1.0;
 			}
@@ -1825,16 +1816,16 @@ void KX_Dome::DrawDomeFisheye(void)
 			glOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_height, -20.0, 10.0);
 		}
 	}
-	else if(m_mode == DOME_TRUNCATED_FRONT)
+	else if (m_mode == DOME_TRUNCATED_FRONT)
 	{
 		ortho_width = 1.0;
-		ortho_height = 2 * ((float)can_height/can_width) - 1.0 ;
+		ortho_height = 2.0f * ((float)can_height / can_width) - 1.0f;
 
 		glOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_width, -20.0, 10.0);
 	}
 	else { //m_mode == DOME_TRUNCATED_REAR
 		ortho_width = 1.0;
-		ortho_height = 2 * ((float)can_height/can_width) - 1.0 ;
+		ortho_height = 2.0f * ((float)can_height / can_width) - 1.0f;
 
 		glOrtho((-ortho_width), ortho_width, (-ortho_width), ortho_height, -20.0, 10.0);
 	}
@@ -1845,7 +1836,7 @@ void KX_Dome::DrawDomeFisheye(void)
 	glLoadIdentity();
 	gluLookAt(0.0,-1.0,0.0, 0.0,0.0,0.0, 0.0,0.0,1.0);
 
-	if(m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
+	if (m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
 		glPolygonMode(GL_FRONT, GL_LINE);
 	else
 		glPolygonMode(GL_FRONT, GL_FILL);
@@ -1857,8 +1848,8 @@ void KX_Dome::DrawDomeFisheye(void)
 	glEnable(GL_TEXTURE_2D);
 	glColor3f(1.0,1.0,1.0);
 
-	if (dlistSupported){
-		for(i=0;i<m_numfaces;i++){
+	if (dlistSupported) {
+		for (i=0;i<m_numfaces;i++) {
 			glBindTexture(GL_TEXTURE_2D, domefacesId[i]);
 			glCallList(dlistId+i);
 		}
@@ -1868,7 +1859,7 @@ void KX_Dome::DrawDomeFisheye(void)
 		glBindTexture(GL_TEXTURE_2D, domefacesId[0]);
 		GLDrawTriangles(cubetop, nfacestop);
 
-		// bottom triangle	
+		// bottom triangle
 		glBindTexture(GL_TEXTURE_2D, domefacesId[1]);
 		GLDrawTriangles(cubebottom, nfacesbottom);
 
@@ -1880,7 +1871,7 @@ void KX_Dome::DrawDomeFisheye(void)
 		glBindTexture(GL_TEXTURE_2D, domefacesId[3]);
 		GLDrawTriangles(cuberight, nfacesright);
 
-		if (m_angle > 180){
+		if (m_angle > 180) {
 			// front triangle
 			glBindTexture(GL_TEXTURE_2D, domefacesId[4]);
 			GLDrawTriangles(cubefront, nfacesfront);
@@ -1910,12 +1901,13 @@ void KX_Dome::DrawPanorama(void)
 
 	else {
 		//using all the screen
-		if ((can_width / 2) <= (can_height)){
+		if ((can_width / 2) <= (can_height)) {
 			ortho_width = 1.0;
 			ortho_height = (float)can_height/can_width;
-		}else{
-			ortho_width = (float)can_width/can_height * 0.5;
-			ortho_height = 0.5;
+		}
+		else {
+			ortho_width = (float)can_width / can_height * 0.5f;
+			ortho_height = 0.5f;
 		}
 		
 		glOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_height, -20.0, 10.0);
@@ -1927,7 +1919,7 @@ void KX_Dome::DrawPanorama(void)
 	glLoadIdentity();
 	gluLookAt(0.0,-1.0,0.0, 0.0,0.0,0.0, 0.0,0.0,1.0);
 
-	if(m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
+	if (m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
 		glPolygonMode(GL_FRONT, GL_LINE);
 	else
 		glPolygonMode(GL_FRONT, GL_FILL);
@@ -1939,8 +1931,8 @@ void KX_Dome::DrawPanorama(void)
 	glEnable(GL_TEXTURE_2D);
 	glColor3f(1.0,1.0,1.0);
 
-	if (dlistSupported){
-		for(i=0;i<m_numfaces;i++){
+	if (dlistSupported) {
+		for (i=0;i<m_numfaces;i++) {
 			glBindTexture(GL_TEXTURE_2D, domefacesId[i]);
 			glCallList(dlistId+i);
 		}
@@ -1984,9 +1976,9 @@ void KX_Dome::DrawDomeWarped(void)
 	int can_width = m_viewport.GetRight();
 	int can_height = m_viewport.GetTop();
 
-	double screen_ratio = can_width/ (double) can_height;	
+	double screen_ratio = can_width/ (double) can_height;
 
-    glOrtho(-screen_ratio,screen_ratio,-1.0,1.0,-20.0,10.0);
+	glOrtho(-screen_ratio,screen_ratio,-1.0,1.0,-20.0,10.0);
 
 
 	glMatrixMode(GL_TEXTURE);
@@ -1995,7 +1987,7 @@ void KX_Dome::DrawDomeWarped(void)
 	glLoadIdentity();
 	gluLookAt(0.0, 0.0, 1.0, 0.0,0.0,0.0, 0.0,1.0,0.0);
 
-	if(m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
+	if (m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
 		glPolygonMode(GL_FRONT, GL_LINE);
 	else
 		glPolygonMode(GL_FRONT, GL_FILL);
@@ -2007,11 +1999,11 @@ void KX_Dome::DrawDomeWarped(void)
 	glEnable(GL_TEXTURE_2D);
 	glColor3f(1.0,1.0,1.0);
 
-	if (dlistSupported){
+	if (dlistSupported) {
 		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
 		glCallList(dlistId + m_numfaces);
 	}
-	else{
+	else {
 		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
 		GLDrawWarpQuads();
 	}

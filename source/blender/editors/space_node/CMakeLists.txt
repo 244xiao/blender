@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -23,31 +22,47 @@ set(INC
 	../include
 	../../blenfont
 	../../blenkernel
-	../../blenloader
 	../../blenlib
 	../../imbuf
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../nodes
-	../../windowmanager
 	../../render/extern/include
+	../../windowmanager
+	../../compositor
 	../../../../intern/guardedalloc
 	../../../../intern/opennl/extern
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
 	drawnode.c
+	node_add.c
 	node_buttons.c
 	node_draw.c
 	node_edit.c
-	node_header.c
+	node_group.c
 	node_ops.c
+	node_relationships.c
 	node_select.c
-	node_state.c
+	node_templates.c
+	node_toolbar.c
+	node_view.c
 	space_node.c
 
 	node_intern.h
 )
 
-blender_add_lib(bf_editor_space_node "${SRC}" "${INC}")
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_COMPOSITOR)
+	add_definitions(-DWITH_COMPOSITOR)
+endif()
+
+blender_add_lib(bf_editor_space_node "${SRC}" "${INC}" "${INC_SYS}")

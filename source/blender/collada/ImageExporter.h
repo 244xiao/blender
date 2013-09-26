@@ -1,6 +1,4 @@
 /*
- * $Id: ImageExporter.h 35613 2011-03-18 14:06:13Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -37,20 +35,26 @@
 #include "COLLADASWLibraryImages.h"
 
 #include "DNA_material_types.h"
+#include "DNA_image_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "ExportSettings.h"
+
 class ImagesExporter: COLLADASW::LibraryImages
 {
-	const char *mfilename;
-	std::vector<std::string> mImages; // contains list of written images, to avoid duplicates
 public:
-	ImagesExporter(COLLADASW::StreamWriter *sw, const char* filename);
+	ImagesExporter(COLLADASW::StreamWriter *sw, const ExportSettings *export_settings);
 	
 	void exportImages(Scene *sce);
 	void operator()(Material *ma, Object *ob);
 private:
+	std::vector<std::string> mImages; // contains list of written images, to avoid duplicates
+
+	void export_UV_Images(); 
+	void export_UV_Image(Image *image, bool use_texture_copies);
 	bool hasImages(Scene *sce);
+	const ExportSettings *export_settings;
 };
 
 #endif

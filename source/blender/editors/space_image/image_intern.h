@@ -1,6 +1,4 @@
 /*
- * $Id: image_intern.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  */
 
 
-#ifndef ED_IMAGE_INTERN_H
-#define ED_IMAGE_INTERN_H
+#ifndef __IMAGE_INTERN_H__
+#define __IMAGE_INTERN_H__
 
 /* internal exports only */
 struct bContext;
@@ -53,15 +51,10 @@ struct ARegion *image_has_scope_region(struct ScrArea *sa);
 
 extern const char *image_context_dir[]; /* doc access */
 
-/* image_header.c */
-void image_header_buttons(const struct bContext *C, struct ARegion *ar);
-
-void IMAGE_OT_toolbox(struct wmOperatorType *ot);
-
 /* image_draw.c */
-void draw_image_main(struct SpaceImage *sima, struct ARegion *ar, struct Scene *scene);
-void draw_image_info(struct ARegion *ar, int channels, int x, int y, char *cp, float *fp, int *zp, float *zpf);
+void draw_image_main(const struct bContext *C, struct ARegion *ar);
 void draw_image_grease_pencil(struct bContext *C, short onlyv2d);
+void draw_image_sample_line(struct SpaceImage *sima);
 
 /* image_ops.c */
 int space_image_main_area_poll(struct bContext *C);
@@ -73,9 +66,11 @@ void IMAGE_OT_view_zoom(struct wmOperatorType *ot);
 void IMAGE_OT_view_zoom_in(struct wmOperatorType *ot);
 void IMAGE_OT_view_zoom_out(struct wmOperatorType *ot);
 void IMAGE_OT_view_zoom_ratio(struct wmOperatorType *ot);
+void IMAGE_OT_view_ndof(struct wmOperatorType *ot);
 
 void IMAGE_OT_new(struct wmOperatorType *ot);
 void IMAGE_OT_open(struct wmOperatorType *ot);
+void IMAGE_OT_match_movie_length(struct wmOperatorType *ot);
 void IMAGE_OT_replace(struct wmOperatorType *ot);
 void IMAGE_OT_reload(struct wmOperatorType *ot);
 void IMAGE_OT_save(struct wmOperatorType *ot);
@@ -92,13 +87,11 @@ void IMAGE_OT_sample(struct wmOperatorType *ot);
 void IMAGE_OT_sample_line(struct wmOperatorType *ot);
 void IMAGE_OT_curves_point_set(struct wmOperatorType *ot);
 
-void IMAGE_OT_record_composite(struct wmOperatorType *ot);
-
 /* image_panels.c */
 struct ImageUser *ntree_get_active_iuser(struct bNodeTree *ntree);
 void image_buttons_register(struct ARegionType *art);
 void IMAGE_OT_properties(struct wmOperatorType *ot);
 void IMAGE_OT_scopes(struct wmOperatorType *ot);
 
-#endif /* ED_IMAGE_INTERN_H */
+#endif /* __IMAGE_INTERN_H__ */
 

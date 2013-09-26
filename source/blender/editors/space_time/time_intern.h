@@ -1,6 +1,4 @@
 /*
- * $Id: time_intern.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  */
 
 
-#ifndef ED_TIME_INTERN_H
-#define ED_TIME_INTERN_H
+#ifndef __TIME_INTERN_H__
+#define __TIME_INTERN_H__
 
 /* internal exports only */
 
@@ -42,8 +40,5 @@ struct wmWindowManager;
 void time_operatortypes(void);
 void time_keymap(struct wmKeyConfig *keyconf);
 
-/* time_header.c */
-void time_header_buttons(const bContext *C, ARegion *ar);
-
-#endif /* ED_TIME_INTERN_H */
+#endif /* __TIME_INTERN_H__ */
 

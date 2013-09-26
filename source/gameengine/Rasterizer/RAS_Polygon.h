@@ -1,6 +1,4 @@
 /*
- * $Id: RAS_Polygon.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_POLYGON
-#define __RAS_POLYGON
+#ifndef __RAS_POLYGON_H__
+#define __RAS_POLYGON_H__
 
 #include "RAS_TexVert.h"
 #include "RAS_MaterialBucket.h"
@@ -77,7 +75,6 @@ public:
 
 	void				SetVertexOffset(int i, unsigned short offset);
 	int					GetVertexOffset(int i);
-	int					GetVertexOffsetAbs(RAS_MeshObject *mesh, int i); /* accounts for quad and tri arrays, slower, for python */
 	
 	// each bit is for a visible edge, starting with bit 1 for the first edge, bit 2 for second etc.
 	// - Not used yet!
@@ -95,11 +92,10 @@ public:
 
 	RAS_MaterialBucket*	GetMaterial();
 	RAS_DisplayArray*	GetDisplayArray();
-	
+
+
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_Polygon"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_Polygon")
 #endif
 };
 

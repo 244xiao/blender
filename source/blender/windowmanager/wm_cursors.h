@@ -1,6 +1,4 @@
 /*
- * $Id: wm_cursors.h 35388 2011-03-07 14:56:19Z ton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -34,8 +32,8 @@
 
 
 
-#ifndef WM_CURSORS_H
-#define WM_CURSORS_H
+#ifndef __WM_CURSORS_H__
+#define __WM_CURSORS_H__
 
 void wm_init_cursor_data(void);
 
@@ -43,7 +41,7 @@ void wm_init_cursor_data(void);
 
 /* old cursors */
 enum {
-	CURSOR_FACESEL=BC_GHOST_CURSORS, 
+	CURSOR_FACESEL = BC_GHOST_CURSORS,
 	CURSOR_WAIT, 
 	CURSOR_EDIT, 
 	CURSOR_X_MOVE, 
@@ -82,7 +80,7 @@ typedef struct BCursor {
 
 #define SYSCURSOR 1
 enum {
-	BC_NW_ARROWCURSOR=2, 
+	BC_NW_ARROWCURSOR = 2,
 	BC_NS_ARROWCURSOR,
 	BC_EW_ARROWCURSOR,
 	BC_WAITCURSOR,
@@ -105,7 +103,7 @@ enum {
 
 
 enum {
-	BC_BLACK=0, 
+	BC_BLACK = 0,
 	BC_WHITE, 
 	BC_RED,
 	BC_BLUE,
@@ -113,8 +111,8 @@ enum {
 	BC_YELLOW
 };
 
-#define SMALL_CURSOR 	0
-#define BIG_CURSOR 		1
+#define SMALL_CURSOR    0
+#define BIG_CURSOR      1
 
 struct wmWindow;
 struct wmEvent;
@@ -122,5 +120,5 @@ struct wmEvent;
 int wm_cursor_arrow_move(struct wmWindow *win, struct wmEvent *event);
 
 
-#endif /* WM_CURSORS_H */
+#endif /* __WM_CURSORS_H__ */
 

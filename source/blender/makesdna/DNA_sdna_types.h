@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_sdna_types.h 34936 2011-02-17 16:17:40Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,12 +24,13 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_SDNA_H
-#define DNA_SDNA_H
 /**
  * \file DNA_sdna_types.h
  * \ingroup DNA
  */
+
+#ifndef __DNA_SDNA_TYPES_H__
+#define __DNA_SDNA_TYPES_H__
 
 #
 #
@@ -49,12 +48,15 @@ typedef struct SDNA {
 	short *typelens;	/* type lengths */
 
 	int nr_structs;		/* number of struct types */
-	short **structs;	/* sp= structs[a] is the address of a struct definintion
-						   sp[0] is struct type number, sp[1] amount of members
+	short **structs;	/* sp = structs[a] is the address of a struct definition
+	                     * sp[0] is struct type number, sp[1] amount of members
+	                     *
+	                     * (sp[2], sp[3]), (sp[4], sp[5]), .. are the member
+	                     * type and name numbers respectively */
 
-						   (sp[2], sp[3]), (sp[4], sp[5]), .. are the member
-						   type and name numbers respectively */
-	
+	struct GHash *structs_map; /* ghash for faster lookups,
+	                            * requires WITH_DNA_GHASH to be used for now */
+
 		/* wrong place for this really, its a simple
 		 * cache for findstruct_nr.
 		 */
@@ -79,12 +81,7 @@ typedef struct BHead4 {
 #
 typedef struct BHead8 {
 	int code, len;
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-	/* This is a compiler type! */
-	__int64 old;
-#else
-	long long old;
-#endif	
+	int64_t old;
 	int SDNAnr, nr;
 } BHead8;
 

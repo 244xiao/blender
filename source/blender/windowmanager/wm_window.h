@@ -1,6 +1,4 @@
 /*
- * $Id: wm_window.h 35179 2011-02-25 14:04:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  */
 
 
-#ifndef WM_WINDOW_H
-#define WM_WINDOW_H
+#ifndef __WM_WINDOW_H__
+#define __WM_WINDOW_H__
 
 struct bScreen;
 struct wmOperator;
@@ -42,23 +40,22 @@ void		wm_ghost_init			(bContext *C);
 void		wm_ghost_exit(void);
 
 void wm_get_screensize(int *width_r, int *height_r);
+void wm_get_screensize_all(int *width_r, int *height_r);
 
 wmWindow	*wm_window_new			(bContext *C);
 void		wm_window_free			(bContext *C, wmWindowManager *wm, wmWindow *win);
 void		wm_window_close			(bContext *C, wmWindowManager *wm, wmWindow *win);
 
 void		wm_window_title				(wmWindowManager *wm, wmWindow *win);
-void		wm_window_add_ghostwindows	(bContext *C, wmWindowManager *wm);
+void		wm_window_add_ghostwindows	(wmWindowManager *wm);
 void		wm_window_process_events	(const bContext *C);
 void		wm_window_process_events_nosleep(void);
 
-void		wm_window_make_drawable(bContext *C, wmWindow *win);
+void		wm_window_make_drawable(wmWindowManager *wm, wmWindow *win);
 
 void		wm_window_raise			(wmWindow *win);
 void		wm_window_lower			(wmWindow *win);
 void		wm_window_set_size		(wmWindow *win, int width, int height);
-void		wm_window_get_size		(wmWindow *win, int *width_r, int *height_r);
-void		wm_window_get_size_ghost	(wmWindow *win, int *width_r, int *height_r);
 void		wm_window_get_position	(wmWindow *win, int *posx_r, int *posy_r);
 void		wm_window_swap_buffers	(wmWindow *win);
 
@@ -72,5 +69,12 @@ void		wm_window_testbreak		(void);
 int			wm_window_duplicate_exec(bContext *C, struct wmOperator *op);
 int			wm_window_fullscreen_toggle_exec(bContext *C, struct wmOperator *op);
 
-#endif /* WM_WINDOW_H */
+/* Initial (unmaximized) size to start with for
+ * systems that can't find it for themselves (X11).
+ * Clamped by real desktop limits */
+#define WM_WIN_INIT_SIZE_X 1800
+#define WM_WIN_INIT_SIZE_Y 1000
+#define WM_WIN_INIT_PAD 40
+
+#endif /* __WM_WINDOW_H__ */
 

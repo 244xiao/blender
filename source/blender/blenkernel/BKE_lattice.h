@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_lattice.h 34962 2011-02-18 13:05:18Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BKE_LATTICE_H
-#define BKE_LATTICE_H
+#ifndef __BKE_LATTICE_H__
+#define __BKE_LATTICE_H__
 
 /** \file BKE_lattice.h
  *  \ingroup bke
@@ -37,45 +35,55 @@
  */
 
 struct Lattice;
+struct Main;
 struct Object;
 struct Scene;
 struct DerivedMesh;
 struct BPoint;
 struct MDeformVert;
 
-void resizelattice(struct Lattice *lt, int u, int v, int w, struct Object *ltOb);
-struct Lattice *add_lattice(const char *name);
-struct Lattice *copy_lattice(struct Lattice *lt);
-void free_lattice(struct Lattice *lt);
-void make_local_lattice(struct Lattice *lt);
-void calc_lat_fudu(int flag, int res, float *fu, float *du);
+void BKE_lattice_resize(struct Lattice *lt, int u, int v, int w, struct Object *ltOb);
+struct Lattice *BKE_lattice_add(struct Main *bmain, const char *name);
+struct Lattice *BKE_lattice_copy(struct Lattice *lt);
+void BKE_lattice_free(struct Lattice *lt);
+void BKE_lattice_make_local(struct Lattice *lt);
+void calc_lat_fudu(int flag, int res, float *r_fu, float *r_du);
 
 void init_latt_deform(struct Object *oblatt, struct Object *ob);
-void calc_latt_deform(struct Object *, float *co, float weight);
+void calc_latt_deform(struct Object *, float co[3], float weight);
 void end_latt_deform(struct Object *);
 
 int object_deform_mball(struct Object *ob, struct ListBase *dispbase);
 void outside_lattice(struct Lattice *lt);
 
-void curve_deform_verts(struct Scene *scene, struct Object *cuOb, struct Object *target, 
-						struct DerivedMesh *dm, float (*vertexCos)[3], 
-						int numVerts, char *vgroup, short defaxis);
-void curve_deform_vector(struct Scene *scene, struct Object *cuOb, struct Object *target, 
-						 float *orco, float *vec, float mat[][3], int no_rot_axis);
+void curve_deform_verts(struct Scene *scene, struct Object *cuOb, struct Object *target,
+                        struct DerivedMesh *dm, float (*vertexCos)[3],
+                        int numVerts, const char *vgroup, short defaxis);
+void curve_deform_vector(struct Scene *scene, struct Object *cuOb, struct Object *target,
+                         float orco[3], float vec[3], float mat[3][3], int no_rot_axis);
 
 void lattice_deform_verts(struct Object *laOb, struct Object *target,
-						  struct DerivedMesh *dm, float (*vertexCos)[3],
-						  int numVerts, char *vgroup);
+                          struct DerivedMesh *dm, float (*vertexCos)[3],
+                          int numVerts, const char *vgroup, float influence);
 void armature_deform_verts(struct Object *armOb, struct Object *target,
-						   struct DerivedMesh *dm, float (*vertexCos)[3],
-						   float (*defMats)[3][3], int numVerts, int deformflag, 
-						   float (*prevCos)[3], const char *defgrp_name);
+                           struct DerivedMesh *dm, float (*vertexCos)[3],
+                           float (*defMats)[3][3], int numVerts, int deformflag,
+                           float (*prevCos)[3], const char *defgrp_name);
 
-float (*lattice_getVertexCos(struct Object *ob, int *numVerts_r))[3];
-void lattice_applyVertexCos(struct Object *ob, float (*vertexCos)[3]);
-void lattice_calc_modifiers(struct Scene *scene, struct Object *ob);
+float (*BKE_lattice_vertexcos_get(struct Object *ob, int *numVerts_r))[3];
+void    BKE_lattice_vertexcos_apply(struct Object *ob, float (*vertexCos)[3]);
+void    BKE_lattice_modifiers_calc(struct Scene *scene, struct Object *ob);
 
-struct MDeformVert* lattice_get_deform_verts(struct Object *lattice);
+struct MDeformVert *BKE_lattice_deform_verts_get(struct Object *lattice);
+struct BPoint *BKE_lattice_active_point_get(struct Lattice *lt);
+
+void BKE_lattice_minmax(struct Lattice *lt, float min[3], float max[3]);
+void BKE_lattice_center_median(struct Lattice *lt, float cent[3]);
+void BKE_lattice_center_bounds(struct Lattice *lt, float cent[3]);
+void BKE_lattice_translate(struct Lattice *lt, float offset[3], int do_keys);
+
+int  BKE_lattice_index_from_uvw(struct Lattice *lt, const int u, const int v, const int w);
+void BKE_lattice_index_to_uvw(struct Lattice *lt, const int index, int *r_u, int *r_v, int *r_w);
 
 #endif
 

@@ -1,5 +1,4 @@
 /*
- * $Id: RAS_FramingManager.cpp 35174 2011-02-25 13:38:24Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -40,25 +39,35 @@ ComputeDefaultFrustum(
 	const float camnear,
 	const float camfar,
 	const float lens,
+	const float sensor_x, const float sensor_y,
+	const short sensor_fit,
 	const float design_aspect_ratio,
 	RAS_FrameFrustum & frustum
-){
-		
-	/*
-	 * Magic Blender calculation.
-	 * Blender does not give a Field of View as lens but a size
-	 * at 16 units away from the lens.
-	 */
-	float halfSize = 16.f * camnear / lens;
+) {
+	float halfSize;
 	float sizeX;
 	float sizeY;
 
-	if (design_aspect_ratio > 1.f) {
-		// halfsize defines the width
+	if (sensor_fit==RAS_SENSORFIT_AUTO) {
+		halfSize = (sensor_x / 2.f) * camnear / lens;
+
+		if (design_aspect_ratio > 1.f) {
+			// halfsize defines the width
+			sizeX = halfSize;
+			sizeY = halfSize/design_aspect_ratio;
+		} else {
+			// halfsize defines the height
+			sizeX = halfSize * design_aspect_ratio;
+			sizeY = halfSize;
+		}
+	}
+	else if (sensor_fit==RAS_SENSORFIT_HOR) {
+		halfSize = (sensor_x / 2.f) * camnear / lens;
 		sizeX = halfSize;
 		sizeY = halfSize/design_aspect_ratio;
-	} else {
-		// halfsize defines the height
+	}
+	else {
+		halfSize = (sensor_y / 2.f) * camnear / lens;
 		sizeX = halfSize * design_aspect_ratio;
 		sizeY = halfSize;
 	}
@@ -78,6 +87,7 @@ ComputeDefaultOrtho(
 	const float camfar,
 	const float scale,
 	const float design_aspect_ratio,
+	const short sensor_fit,
 	RAS_FrameFrustum & frustum
 )
 {
@@ -85,12 +95,22 @@ ComputeDefaultOrtho(
 	float sizeX;
 	float sizeY;
 
-	if (design_aspect_ratio > 1.f) {
-		// halfsize defines the width
+	if (sensor_fit==RAS_SENSORFIT_AUTO) {
+		if (design_aspect_ratio > 1.f) {
+			// halfsize defines the width
+			sizeX = halfSize;
+			sizeY = halfSize/design_aspect_ratio;
+		} else {
+			// halfsize defines the height
+			sizeX = halfSize * design_aspect_ratio;
+			sizeY = halfSize;
+		}
+	}
+	else if (sensor_fit==RAS_SENSORFIT_HOR) {
 		sizeX = halfSize;
 		sizeY = halfSize/design_aspect_ratio;
-	} else {
-		// halfsize defines the height
+	}
+	else {
 		sizeX = halfSize * design_aspect_ratio;
 		sizeY = halfSize;
 	}
@@ -99,7 +119,7 @@ ComputeDefaultOrtho(
 	frustum.x1 = -frustum.x2;
 	frustum.y2 = sizeY;
 	frustum.y1 = -frustum.y2;
-	frustum.camnear = -camfar;
+	frustum.camnear = camnear;
 	frustum.camfar = camfar;
 }
 
@@ -110,7 +130,7 @@ ComputeBestFitViewRect(
 	const RAS_Rect &availableViewport,
 	const float design_aspect_ratio,
 	RAS_Rect &viewport
-){
+) {
 	// try and honour the aspect ratio when setting the 
 	// drawable area. If we don't do this we are liable
 	// to get a lot of distortion in the rendered image.
@@ -145,7 +165,7 @@ ComputeViewport(
 	const RAS_FrameSettings &settings,
 	const RAS_Rect &availableViewport,
 	RAS_Rect &viewport
-){
+) {
 
 	RAS_FrameSettings::RAS_FrameType type = settings.FrameType();
 	const int winx = availableViewport.GetWidth();
@@ -182,7 +202,7 @@ ComputeViewport(
 		{
 			ComputeBestFitViewRect(
 				availableViewport,
-				design_aspect_ratio,	
+				design_aspect_ratio,
 				viewport
 			);
 		
@@ -200,10 +220,11 @@ ComputeFrustum(
 	const RAS_Rect &availableViewport,
 	const RAS_Rect &viewport,
 	const float lens,
+	const float sensor_x, const float sensor_y, const short sensor_fit,
 	const float camnear,
 	const float camfar,
 	RAS_FrameFrustum &frustum
-){
+) {
 
 	RAS_FrameSettings::RAS_FrameType type = settings.FrameType();
 
@@ -225,6 +246,9 @@ ComputeFrustum(
 		camnear,
 		camfar,
 		lens,
+		sensor_x,
+		sensor_y,
+		sensor_fit,
 		design_aspect_ratio,
 		frustum
 	);
@@ -233,19 +257,39 @@ ComputeFrustum(
 
 		case RAS_FrameSettings::e_frame_extend:
 		{
-			RAS_Rect vt;
-			ComputeBestFitViewRect(
-				availableViewport,
-				design_aspect_ratio,	
-				vt
-			);
+			float x_scale, y_scale;
+			switch (sensor_fit) {
+				case RAS_SENSORFIT_HOR:
+				{
+					x_scale = 1.0;
+					y_scale = float(viewport.GetHeight()) / float(viewport.GetWidth());
+					break;
+				}
+				case RAS_SENSORFIT_VERT:
+				{
+					x_scale = float(viewport.GetWidth()) / float(viewport.GetHeight());
+					y_scale = 1.0;
+					break;
+				}
+				case RAS_SENSORFIT_AUTO:
+				default:
+				{
+					RAS_Rect vt;
+					ComputeBestFitViewRect(
+						availableViewport,
+						design_aspect_ratio,
+						vt
+					);
 
-			// now scale the calculated frustum by the difference
-			// between vt and the viewport in each axis.
-			// These are always > 1
+					// now scale the calculated frustum by the difference
+					// between vt and the viewport in each axis.
+					// These are always > 1
 
-			float x_scale = float(viewport.GetWidth())/float(vt.GetWidth());
-			float y_scale = float(viewport.GetHeight())/float(vt.GetHeight());
+					x_scale = float(viewport.GetWidth())/float(vt.GetWidth());
+					y_scale = float(viewport.GetHeight())/float(vt.GetHeight());
+					break;
+				}
+			}
 
 			frustum.x1 *= x_scale;
 			frustum.x2 *= x_scale;
@@ -253,13 +297,13 @@ ComputeFrustum(
 			frustum.y2 *= y_scale;
 	
 			break;
-		}	
+		}
 		case RAS_FrameSettings::e_frame_scale :
 		case RAS_FrameSettings::e_frame_bars:
 		default :
 			break;
 	}
-}	
+}
 
 	void
 RAS_FramingManager::
@@ -270,6 +314,7 @@ RAS_FramingManager::
 		const float scale,
 		const float camnear,
 		const float camfar,
+		const short sensor_fit,
 		RAS_FrameFrustum &frustum
 	)
 {
@@ -294,6 +339,7 @@ RAS_FramingManager::
 		camfar,
 		scale,
 		design_aspect_ratio,
+		sensor_fit,
 		frustum
 	);
 
@@ -301,19 +347,39 @@ RAS_FramingManager::
 
 		case RAS_FrameSettings::e_frame_extend:
 		{
-			RAS_Rect vt;
-			ComputeBestFitViewRect(
-				availableViewport,
-				design_aspect_ratio,	
-				vt
-			);
+			float x_scale, y_scale;
+			switch (sensor_fit) {
+				case RAS_SENSORFIT_HOR:
+				{
+					x_scale = 1.0;
+					y_scale = float(viewport.GetHeight()) / float(viewport.GetWidth());
+					break;
+				}
+				case RAS_SENSORFIT_VERT:
+				{
+					x_scale = float(viewport.GetWidth()) / float(viewport.GetHeight());
+					y_scale = 1.0;
+					break;
+				}
+				case RAS_SENSORFIT_AUTO:
+				default:
+				{
+					RAS_Rect vt;
+					ComputeBestFitViewRect(
+						availableViewport,
+						design_aspect_ratio,
+						vt
+						);
 
-			// now scale the calculated frustum by the difference
-			// between vt and the viewport in each axis.
-			// These are always > 1
+					// now scale the calculated frustum by the difference
+					// between vt and the viewport in each axis.
+					// These are always > 1
 
-			float x_scale = float(viewport.GetWidth())/float(vt.GetWidth());
-			float y_scale = float(viewport.GetHeight())/float(vt.GetHeight());
+					x_scale = float(viewport.GetWidth())/float(vt.GetWidth());
+					y_scale = float(viewport.GetHeight())/float(vt.GetHeight());
+					break;
+				}
+			}
 
 			frustum.x1 *= x_scale;
 			frustum.x2 *= x_scale;
@@ -321,7 +387,7 @@ RAS_FramingManager::
 			frustum.y2 *= y_scale;
 	
 			break;
-		}	
+		}
 		case RAS_FrameSettings::e_frame_scale :
 		case RAS_FrameSettings::e_frame_bars:
 		default :

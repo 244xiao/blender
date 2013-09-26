@@ -1,6 +1,4 @@
 /*
- * $Id: ED_types.h 35016 2011-02-21 07:25:24Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,25 +28,20 @@
  *  \ingroup editors
  */
 
-#ifndef ED_TYPES_H
-#define ED_TYPES_H
+#ifndef __ED_TYPES_H__
+#define __ED_TYPES_H__
 
 /* **************** GENERAL EDITOR-WIDE TYPES AND DEFINES ************************** */
 
 /* old blender defines... should be depricated? */
 #define DESELECT 0
-#define SELECT	 1
-#define ACTIVE	 2
-
-/* buttons */
-#define XIC 20
-#define YIC 20
+#define SELECT   1
+#define ACTIVE   2
 
 /* proposal = put scene pointers on function calls? */
 // #define BASACT                    (scene->basact)
-// #define OBACT                     (BASACT? BASACT->object: NULL)
+// #define OBACT                     (BASACT ? BASACT->object : NULL)
 
 
 
-#endif /* ED_TYPES_H */
-
+#endif /* __ED_TYPES_H__ */

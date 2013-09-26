@@ -1,6 +1,4 @@
 /*
- * $Id: collada.h 35020 2011-02-21 08:38:53Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,20 +24,63 @@
  *  \ingroup collada
  */
 
-#ifndef BLENDER_COLLADA_H
-#define BLENDER_COLLADA_H
+#ifndef __COLLADA_H__
+#define __COLLADA_H__
+
+#include <stdlib.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "BLI_linklist.h"
+#include "BLI_path_util.h"
+#include "RNA_types.h"
+
+typedef enum BC_export_mesh_type {
+	BC_MESH_TYPE_VIEW,
+	BC_MESH_TYPE_RENDER
+} BC_export_mesh_type;
+
+typedef enum BC_export_transformation_type {
+	BC_TRANSFORMATION_TYPE_MATRIX,
+	BC_TRANSFORMATION_TYPE_TRANSROTLOC,
+	BC_TRANSFORMATION_TYPE_BOTH
+} BC_export_transformation_type;
 
 struct bContext;
 struct Scene;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-	/*
-	 * both return 1 on success, 0 on error
-	 */
-	int collada_import(bContext *C, const char *filepath);
-	int collada_export(Scene *sce, const char *filepath);
+/*
+ * both return 1 on success, 0 on error
+ */
+int collada_import(bContext *C,
+                   const char *filepath,
+                   int import_units);
+
+int collada_export(Scene *sce,
+                   const char *filepath,
+                   int apply_modifiers,
+                   BC_export_mesh_type export_mesh_type,
+
+                   int selected,
+                   int include_children,
+                   int include_armatures,
+                   int include_shapekeys,
+                   int deform_bones_only,
+
+                   int active_uv_only,
+                   int include_uv_textures,
+                   int include_material_textures,
+                   int use_texture_copies,
+
+                   int triangulate,
+                   int use_object_instantiation,
+                   int sort_by_name,
+                   BC_export_transformation_type export_transformation_type,
+                   int second_life);
+
+
+
 #ifdef __cplusplus
 }
 #endif

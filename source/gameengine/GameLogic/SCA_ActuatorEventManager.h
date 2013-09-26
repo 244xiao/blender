@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_ActuatorEventManager.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __KX_ACTUATOREVENTMANAGER
-#define __KX_ACTUATOREVENTMANAGER
+#ifndef __SCA_ACTUATOREVENTMANAGER_H__
+#define __SCA_ACTUATOREVENTMANAGER_H__
 
 #include "SCA_EventManager.h"
 
@@ -51,11 +49,8 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SCA_ActuatorEventManager"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_ActuatorEventManager")
 #endif
 };
 
-#endif //__KX_ACTUATOREVENTMANAGER
-
+#endif  /* __SCA_ACTUATOREVENTMANAGER_H__ */

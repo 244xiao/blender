@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -23,28 +22,41 @@ set(INC
 	../include
 	../../blenfont
 	../../blenkernel
-	../../blenloader
 	../../blenlib
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
 	space_text.c
+	text_autocomplete.c
 	text_draw.c
+	text_format.c
+	text_format_lua.c
+	text_format_osl.c
+	text_format_py.c
 	text_header.c
 	text_ops.c
-	text_python.c
 
+	text_format.h
 	text_intern.h
 )
 
 if(WITH_PYTHON)
-	list(APPEND INC ${PYTHON_INCLUDE_DIRS} ../../python)
+	list(APPEND INC
+		../../python
+	)
 	add_definitions(-DWITH_PYTHON)
 endif()
 
-blender_add_lib(bf_editor_text "${SRC}" "${INC}")
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+blender_add_lib(bf_editor_text "${SRC}" "${INC}" "${INC_SYS}")

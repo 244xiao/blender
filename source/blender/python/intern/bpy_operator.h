@@ -1,6 +1,4 @@
 /*
- * $Id: bpy_operator.h 35236 2011-02-27 20:10:08Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +24,8 @@
  *  \ingroup pythonintern
  */
 
-#ifndef BPY_OPERATOR_H
-#define BPY_OPERATOR_H
+#ifndef __BPY_OPERATOR_H__
+#define __BPY_OPERATOR_H__
 
 extern PyTypeObject pyop_base_Type;
 

@@ -1,6 +1,4 @@
 /*
- * $Id: RAS_OpenGLRasterizer.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,11 +29,11 @@
  *  \ingroup bgerastogl
  */
 
-#ifndef __RAS_OPENGLRASTERIZER
-#define __RAS_OPENGLRASTERIZER
+#ifndef __RAS_OPENGLRASTERIZER_H__
+#define __RAS_OPENGLRASTERIZER_H__
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable:4786)
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)
 #endif
 
 #include "MT_CmMatrix4x4.h"
@@ -43,16 +41,22 @@
 using namespace std;
 
 #include "RAS_IRasterizer.h"
+#include "RAS_IStorage.h"
 #include "RAS_MaterialBucket.h"
 #include "RAS_ICanvas.h"
 
 #define RAS_MAX_TEXCO	8	// match in BL_Material
 #define RAS_MAX_ATTRIB	16	// match in BL_BlenderShader
 
-struct	OglDebugLine
+struct	OglDebugShape
 {
-	MT_Vector3	m_from;
-	MT_Vector3	m_to;
+	enum SHAPE_TYPE{
+		LINE, CIRCLE
+	};
+	SHAPE_TYPE  m_type;
+	MT_Vector3	m_pos;
+	MT_Vector3	m_param;
+	MT_Vector3	m_param2;
 	MT_Vector3	m_color;
 };
 
@@ -80,7 +84,6 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	float			m_ambr;
 	float			m_ambg;
 	float			m_ambb;
-
 	double			m_time;
 	MT_Matrix4x4	m_viewmatrix;
 	MT_Matrix4x4	m_viewinvmatrix;
@@ -94,25 +97,37 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 	bool			m_setfocallength;
 	int				m_noOfScanlines;
 
+	short			m_prevafvalue;
+
 	//motion blur
 	int	m_motionblur;
 	float	m_motionblurvalue;
+
+	bool m_usingoverrideshader;
 
 protected:
 	int				m_drawingmode;
 	TexCoGen		m_texco[RAS_MAX_TEXCO];
 	TexCoGen		m_attrib[RAS_MAX_ATTRIB];
+	int				m_attrib_layer[RAS_MAX_ATTRIB];
 	int				m_texco_num;
 	int				m_attrib_num;
-	//int				m_last_blendmode;
+	//int				m_last_alphablend;
 	bool			m_last_frontface;
 
 	/** Stores the caching information for the last material activated. */
 	RAS_IPolyMaterial::TCachingInfo m_materialCachingInfo;
 
+	/**
+	 * Making use of a Strategy design pattern for storage behavior.
+	 * Examples of concrete strategies: Vertex Arrays, VBOs, Immediate Mode*/
+	int				m_storage_type;
+	RAS_IStorage*	m_storage;
+	RAS_IStorage*	m_failsafe_storage; //So derived mesh can use immediate mode
+
 public:
 	double GetTime();
-	RAS_OpenGLRasterizer(RAS_ICanvas* canv);
+	RAS_OpenGLRasterizer(RAS_ICanvas* canv, int storage=RAS_AUTO_STORAGE);
 	virtual ~RAS_OpenGLRasterizer();
 
 	/*enum DrawType
@@ -142,7 +157,7 @@ public:
 	virtual void	SetRenderArea();
 
 	virtual void	SetStereoMode(const StereoMode stereomode);
-    virtual RAS_IRasterizer::StereoMode GetStereoMode();
+	virtual RAS_IRasterizer::StereoMode GetStereoMode();
 	virtual bool	Stereo();
 	virtual bool	InterlacedStereo();
 	virtual void	SetEye(const StereoEye eye);
@@ -160,8 +175,6 @@ public:
 						class RAS_MeshSlot& ms,
 						class RAS_IPolyMaterial* polymat,
 						class RAS_IRenderTools* rendertools);
-
-	void			IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi);
 
 	virtual void	SetProjectionMatrix(MT_CmMatrix4x4 & mat);
 	virtual void	SetProjectionMatrix(const MT_Matrix4x4 & mat);
@@ -254,23 +267,37 @@ public:
 
 	virtual void	SetPolygonOffset(float mult, float add);
 
-	virtual	void	FlushDebugLines();
+	virtual	void	FlushDebugShapes();
 
-	virtual	void	DrawDebugLine(const MT_Vector3& from,const MT_Vector3& to,const MT_Vector3& color)
+	virtual	void DrawDebugLine(const MT_Vector3& from,const MT_Vector3& to,const MT_Vector3& color)
 	{
-		OglDebugLine line;
-		line.m_from = from;
-		line.m_to = to;
+		OglDebugShape line;
+		line.m_type = OglDebugShape::LINE;
+		line.m_pos= from;
+		line.m_param = to;
 		line.m_color = color;
-		m_debugLines.push_back(line);
+		m_debugShapes.push_back(line);
 	}
 
-	std::vector <OglDebugLine>	m_debugLines;
+	virtual	void DrawDebugCircle(const MT_Vector3& center, const MT_Scalar radius, const MT_Vector3& color,
+									const MT_Vector3& normal, int nsector)
+	{
+		OglDebugShape line;
+		line.m_type = OglDebugShape::CIRCLE;
+		line.m_pos= center;
+		line.m_param = normal;
+		line.m_color = color;
+		line.m_param2.x() = radius;
+		line.m_param2.y() = (float) nsector;
+		m_debugShapes.push_back(line);
+	}
+
+	std::vector <OglDebugShape>	m_debugShapes;
 
 	virtual void SetTexCoordNum(int num);
 	virtual void SetAttribNum(int num);
 	virtual void SetTexCoord(TexCoGen coords, int unit);
-	virtual void SetAttrib(TexCoGen coords, int unit);
+	virtual void SetAttrib(TexCoGen coords, int unit, int layer = 0);
 
 	void TexCoord(const RAS_TexVert &tv);
 
@@ -279,29 +306,33 @@ public:
 	
 	virtual void	EnableMotionBlur(float motionblurvalue);
 	virtual void	DisableMotionBlur();
-	virtual float	GetMotionBlurValue(){return m_motionblurvalue;};
-	virtual int		GetMotionBlurState(){return m_motionblur;};
+	virtual float	GetMotionBlurValue() { return m_motionblurvalue; }
+	virtual int		GetMotionBlurState() { return m_motionblur; }
 	virtual void	SetMotionBlurState(int newstate)
 	{
-		if(newstate<0) 
+		if (newstate < 0)
 			m_motionblur = 0;
-		else if(newstate>2)
+		else if (newstate > 2)
 			m_motionblur = 2;
 		else 
 			m_motionblur = newstate;
 	};
 
-	virtual void	SetBlendingMode(int blendmode);
+	virtual void	SetAlphaBlend(int alphablend);
 	virtual void	SetFrontFace(bool ccw);
 	
-	
+	virtual void	SetAnisotropicFiltering(short level);
+	virtual short	GetAnisotropicFiltering();
+
+	virtual void	SetMipmapping(MipmapOption val);
+	virtual MipmapOption GetMipmapping();
+
+	virtual void	SetUsingOverrideShader(bool val);
+	virtual bool	GetUsingOverrideShader();
+
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_OpenGLRasterizer"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_OpenGLRasterizer")
 #endif
 };
 
-#endif //__RAS_OPENGLRASTERIZER
-
-
+#endif  /* __RAS_OPENGLRASTERIZER_H__ */

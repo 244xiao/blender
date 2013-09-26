@@ -1,6 +1,4 @@
 /*
- * $Id: KX_PythonInitTypes.cpp 35171 2011-02-25 13:35:59Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,13 +29,9 @@
  *  \ingroup ketsji
  */
 
-
-
-
-#ifndef _adr_py_init_types_h_				// only process once,
-#define _adr_py_init_types_h_				// even if multiply included
-
 #ifdef WITH_PYTHON
+
+#include "KX_PythonInitTypes.h"
 
 /* Only for Class::Parents */
 #include "BL_BlenderShader.h"
@@ -46,11 +40,14 @@
 #include "BL_ArmatureConstraint.h"
 #include "BL_ArmatureObject.h"
 #include "BL_ArmatureChannel.h"
+#include "KX_ArmatureSensor.h"
 #include "KX_BlenderMaterial.h"
 #include "KX_CameraActuator.h"
+#include "KX_CharacterWrapper.h"
 #include "KX_ConstraintActuator.h"
 #include "KX_ConstraintWrapper.h"
 #include "KX_GameActuator.h"
+#include "KX_LibLoadStatus.h"
 #include "KX_Light.h"
 #include "KX_FontObject.h"
 #include "KX_MeshProxy.h"
@@ -59,7 +56,6 @@
 #include "KX_NetworkMessageSensor.h"
 #include "KX_ObjectActuator.h"
 #include "KX_ParentActuator.h"
-#include "KX_PhysicsObjectWrapper.h"
 #include "KX_PolyProxy.h"
 #include "KX_PolygonMaterial.h"
 #include "KX_PythonSeq.h"
@@ -68,6 +64,7 @@
 #include "KX_SCA_ReplaceMeshActuator.h"
 #include "KX_SceneActuator.h"
 #include "KX_StateActuator.h"
+#include "KX_SteeringActuator.h"
 #include "KX_TrackToActuator.h"
 #include "KX_VehicleWrapper.h"
 #include "KX_VertexProxy.h"
@@ -85,6 +82,7 @@
 #include "SCA_RandomSensor.h"
 #include "SCA_XNORController.h"
 #include "SCA_XORController.h"
+#include "SCA_PythonJoystick.h"
 #include "SCA_PythonKeyboard.h"
 #include "SCA_PythonMouse.h"
 #include "KX_IpoActuator.h"
@@ -99,6 +97,7 @@
 #include "SCA_PythonController.h"
 #include "SCA_RandomActuator.h"
 #include "SCA_IController.h"
+#include "KX_NavMeshObject.h"
 
 static void PyType_Attr_Set(PyGetSetDef *attr_getset, PyAttributeDef *attr)
 {
@@ -107,7 +106,7 @@ static void PyType_Attr_Set(PyGetSetDef *attr_getset, PyAttributeDef *attr)
 
 	attr_getset->get= reinterpret_cast<getter>(PyObjectPlus::py_get_attrdef);
 
-	if(attr->m_access==KX_PYATTRIBUTE_RO)
+	if (attr->m_access==KX_PYATTRIBUTE_RO)
 		attr_getset->set= NULL;
 	else
 		attr_getset->set= reinterpret_cast<setter>(PyObjectPlus::py_set_attrdef);
@@ -119,35 +118,35 @@ static void PyType_Ready_ADD(PyObject *dict, PyTypeObject *tp, PyAttributeDef *a
 {
 	PyAttributeDef *attr;
 
-	if(init_getset) {
+	if (init_getset) {
 		/* we need to do this for all types before calling PyType_Ready
 		 * since they will call the parents PyType_Ready and those might not have initialized vars yet */
 
-		//if(tp->tp_base==NULL)
+		//if (tp->tp_base==NULL)
 		//	printf("Debug: No Parents - '%s'\n" , tp->tp_name);
 
-		if(tp->tp_getset==NULL && ((attributes && attributes->m_name) || (attributesPtr && attributesPtr->m_name))) {
+		if (tp->tp_getset==NULL && ((attributes && attributes->m_name) || (attributesPtr && attributesPtr->m_name))) {
 			PyGetSetDef *attr_getset;
 			int attr_tot= 0;
 
 			if (attributes) {
-				for(attr= attributes; attr->m_name; attr++, attr_tot++)
+				for (attr= attributes; attr->m_name; attr++, attr_tot++)
 					attr->m_usePtr = false;
 			}
 			if (attributesPtr) {
-				for(attr= attributesPtr; attr->m_name; attr++, attr_tot++)
+				for (attr= attributesPtr; attr->m_name; attr++, attr_tot++)
 					attr->m_usePtr = true;
 			}
 
 			tp->tp_getset = attr_getset = reinterpret_cast<PyGetSetDef *>(PyMem_Malloc((attr_tot+1) * sizeof(PyGetSetDef))); // XXX - Todo, free
 
 			if (attributes) {
-				for(attr= attributes; attr->m_name; attr++, attr_getset++) {
+				for (attr= attributes; attr->m_name; attr++, attr_getset++) {
 					PyType_Attr_Set(attr_getset, attr);
 				}
 			}
 			if (attributesPtr) {
-				for(attr= attributesPtr; attr->m_name; attr++, attr_getset++) {
+				for (attr= attributesPtr; attr->m_name; attr++, attr_getset++) {
 					PyType_Attr_Set(attr_getset, attr);
 				}
 			}
@@ -166,20 +165,20 @@ static void PyType_Ready_ADD(PyObject *dict, PyTypeObject *tp, PyAttributeDef *a
 
 void initPyTypes(void)
 {
-	
+
 /*
-	initPyObjectPlusType(BL_ActionActuator::Parents);
-	.....
-*/
+ * initPyObjectPlusType(BL_ActionActuator::Parents);
+ * .....
+ */
 
 	/* For now just do PyType_Ready */
-	PyObject *mod= PyModule_New("GameTypes");
-	PyObject *dict= PyModule_GetDict(mod);
-	PyDict_SetItemString(PySys_GetObject((char *)"modules"), (char *)"GameTypes", mod);
+	PyObject *mod = PyModule_New("GameTypes");
+	PyObject *dict = PyModule_GetDict(mod);
+	PyDict_SetItemString(PySys_GetObject("modules"), "GameTypes", mod);
 	Py_DECREF(mod);
 	
 	
-	for(int init_getset= 1; init_getset > -1; init_getset--) { /* run twice, once to init the getsets another to run PyType_Ready */
+	for (int init_getset= 1; init_getset > -1; init_getset--) { /* run twice, once to init the getsets another to run PyType_Ready */
 		PyType_Ready_Attr(dict, BL_ActionActuator, init_getset);
 		PyType_Ready_Attr(dict, BL_Shader, init_getset);
 		PyType_Ready_Attr(dict, BL_ShapeActionActuator, init_getset);
@@ -188,16 +187,20 @@ void initPyTypes(void)
 		PyType_Ready_Attr(dict, BL_ArmatureConstraint, init_getset);
 		PyType_Ready_AttrPtr(dict, BL_ArmatureBone, init_getset);
 		PyType_Ready_AttrPtr(dict, BL_ArmatureChannel, init_getset);
+		// PyType_Ready_Attr(dict, CPropValue, init_getset);  // doesn't use Py_Header
 		PyType_Ready_Attr(dict, CListValue, init_getset);
 		PyType_Ready_Attr(dict, CValue, init_getset);
+		PyType_Ready_Attr(dict, KX_ArmatureSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_BlenderMaterial, init_getset);
 		PyType_Ready_Attr(dict, KX_Camera, init_getset);
 		PyType_Ready_Attr(dict, KX_CameraActuator, init_getset);
+		PyType_Ready_Attr(dict, KX_CharacterWrapper, init_getset);
 		PyType_Ready_Attr(dict, KX_ConstraintActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_ConstraintWrapper, init_getset);
 		PyType_Ready_Attr(dict, KX_GameActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_GameObject, init_getset);
 		PyType_Ready_Attr(dict, KX_IpoActuator, init_getset);
+		PyType_Ready_Attr(dict, KX_LibLoadStatus, init_getset);
 		PyType_Ready_Attr(dict, KX_LightObject, init_getset);
 		PyType_Ready_Attr(dict, KX_FontObject, init_getset);
 		PyType_Ready_Attr(dict, KX_MeshProxy, init_getset);
@@ -207,7 +210,6 @@ void initPyTypes(void)
 		PyType_Ready_Attr(dict, KX_NetworkMessageSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_ObjectActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_ParentActuator, init_getset);
-		PyType_Ready_Attr(dict, KX_PhysicsObjectWrapper, init_getset);
 		PyType_Ready_Attr(dict, KX_PolyProxy, init_getset);
 		PyType_Ready_Attr(dict, KX_PolygonMaterial, init_getset);
 		PyType_Ready_Attr(dict, KX_RadarSensor, init_getset);
@@ -217,9 +219,11 @@ void initPyTypes(void)
 		PyType_Ready_Attr(dict, KX_SCA_EndObjectActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_SCA_ReplaceMeshActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_Scene, init_getset);
+		PyType_Ready_Attr(dict, KX_NavMeshObject, init_getset);
 		PyType_Ready_Attr(dict, KX_SceneActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_SoundActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_StateActuator, init_getset);
+		PyType_Ready_Attr(dict, KX_SteeringActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_TouchSensor, init_getset);
 		PyType_Ready_Attr(dict, KX_TrackToActuator, init_getset);
 		PyType_Ready_Attr(dict, KX_VehicleWrapper, init_getset);
@@ -228,6 +232,7 @@ void initPyTypes(void)
 		PyType_Ready_Attr(dict, PyObjectPlus, init_getset);
 		PyType_Ready_Attr(dict, SCA_2DFilterActuator, init_getset);
 		PyType_Ready_Attr(dict, SCA_ANDController, init_getset);
+		// PyType_Ready_Attr(dict, SCA_Actuator, init_getset);  // doesn't use Py_Header
 		PyType_Ready_Attr(dict, SCA_ActuatorSensor, init_getset);
 		PyType_Ready_Attr(dict, SCA_AlwaysSensor, init_getset);
 		PyType_Ready_Attr(dict, SCA_DelaySensor, init_getset);
@@ -248,6 +253,7 @@ void initPyTypes(void)
 		PyType_Ready_Attr(dict, SCA_XNORController, init_getset);
 		PyType_Ready_Attr(dict, SCA_XORController, init_getset);
 		PyType_Ready_Attr(dict, SCA_IController, init_getset);
+		PyType_Ready_Attr(dict, SCA_PythonJoystick, init_getset);
 		PyType_Ready_Attr(dict, SCA_PythonKeyboard, init_getset);
 		PyType_Ready_Attr(dict, SCA_PythonMouse, init_getset);
 	}
@@ -264,5 +270,3 @@ void initPyTypes(void)
 }
 
 #endif // WITH_PYTHON
-
-#endif

@@ -1,6 +1,4 @@
 /*
- * $Id: KX_BlenderSystem.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  *  \brief Blender System embedding. Needed when gameengine runs embedded within Blender.
  */
 
-#ifndef __KX_BLENDERSYSTEM
-#define __KX_BLENDERSYSTEM
+#ifndef __KX_BLENDERSYSTEM_H__
+#define __KX_BLENDERSYSTEM_H__
 
 #include "KX_ISystem.h"
 
@@ -47,15 +45,12 @@ class KX_BlenderSystem : public KX_ISystem
 
 public:
 	KX_BlenderSystem();
-	virtual ~KX_BlenderSystem() {};
+	virtual ~KX_BlenderSystem() {}
 	virtual double GetTimeInSeconds();
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_BlenderSystem"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderSystem")
 #endif
 };
 
-#endif //__KX_BLENDERSYSTEM
-
+#endif  /* __KX_BLENDERSYSTEM_H__ */

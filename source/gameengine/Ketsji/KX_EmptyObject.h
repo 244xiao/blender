@@ -1,6 +1,4 @@
 /*
- * $Id: KX_EmptyObject.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_EMPTYOBJECT
-#define  __KX_EMPTYOBJECT
+#ifndef __KX_EMPTYOBJECT_H__
+#define  __KX_EMPTYOBJECT_H__
 #include "KX_GameObject.h"
 
 class KX_EmptyObject : public KX_GameObject
@@ -45,11 +43,8 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_EmptyObject"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_EmptyObject")
 #endif
 };
 
-#endif //__KX_EMPTYOBJECT
-
+#endif  /* __KX_EMPTYOBJECT_H__ */

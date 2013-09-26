@@ -1,6 +1,4 @@
 /*
- * $Id: KX_PhysicsPropertiesobsolete.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  *  \todo check if this file is still needed
  */
 
-#ifndef KX_PROPSH
-#define KX_PROPSH
+#ifndef __KX_PHYSICSPROPERTIESOBSOLETE_H__
+#define __KX_PHYSICSPROPERTIESOBSOLETE_H__
 
 #include <MT_Scalar.h>
 
@@ -60,5 +58,4 @@ struct KX_MaterialProps {
 	bool      m_fh_normal;             // Should the object slide off slopes?
 };
 
-#endif //KX_PROPSH
-
+#endif  /* __KX_PHYSICSPROPERTIESOBSOLETE_H__ */

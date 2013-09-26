@@ -1,6 +1,4 @@
 /*
- * $Id: RAS_MaterialBucket.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,11 +29,11 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_MATERIALBUCKET
-#define __RAS_MATERIALBUCKET
+#ifndef __RAS_MATERIALBUCKET_H__
+#define __RAS_MATERIALBUCKET_H__
 
 #include "RAS_TexVert.h"
-#include "GEN_Map.h"
+#include "CTR_Map.h"
 #include "STR_HashedString.h"
 #include "SG_QList.h"
 
@@ -56,7 +54,7 @@ class KX_ListSlot
 protected:
 	int m_refcount;
 public:
-	KX_ListSlot(){ m_refcount=1; }
+	KX_ListSlot() { m_refcount = 1; }
 	virtual ~KX_ListSlot() {}
 	virtual int Release() { 
 		if (--m_refcount > 0)
@@ -84,7 +82,7 @@ class RAS_DisplayArray
 public:
 	vector<RAS_TexVert> m_vertex;
 	vector<unsigned short> m_index;
-	/* LINE currently isnt used */
+	/* LINE currently isn't used */
 	enum { LINE = 2, TRIANGLE = 3, QUAD = 4 } m_type;
 	//RAS_MeshSlot *m_origSlot;
 	
@@ -177,12 +175,10 @@ public:
 	bool IsCulled() { return m_bCulled; }
 #endif
 	void SetCulled(bool culled) { m_bCulled = culled; }
-	
-	
+
+
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_MeshSlot"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MeshSlot")
 #endif
 };
 
@@ -193,13 +189,13 @@ class RAS_MeshMaterial
 public:
 	RAS_MeshSlot *m_baseslot;
 	class RAS_MaterialBucket *m_bucket;
-	GEN_Map<GEN_HashedPtr,RAS_MeshSlot*> m_slots;
+
+	/* the KX_GameObject is used as a key here */
+	CTR_Map<CTR_HashedPtr,RAS_MeshSlot*> m_slots;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_MeshMaterial"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MeshMaterial")
 #endif
 };
 
@@ -256,11 +252,8 @@ private:
 	
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_MaterialBucket"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_MaterialBucket")
 #endif
 };
 
-#endif //__RAS_MATERIAL_BUCKET
-
+#endif  /* __RAS_MATERIAL_BUCKET */

@@ -1,7 +1,4 @@
 /*
- *
- * $Id: DNA_object_force.h 35124 2011-02-24 13:37:53Z jhk $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,12 +24,13 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_OBJECT_FORCE_H
-#define DNA_OBJECT_FORCE_H
 
 /** \file DNA_object_force.h
  *  \ingroup DNA
  */
+
+#ifndef __DNA_OBJECT_FORCE_H__
+#define __DNA_OBJECT_FORCE_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,20 +40,21 @@ extern "C" {
 
 /* pd->forcefield:  Effector Fields types */
 typedef enum PFieldType {
-	PFIELD_NULL = 0,	/* (this is used for general effector weight)							*/
-	PFIELD_FORCE,		/* Force away/towards a point depending on force strength				*/
-	PFIELD_VORTEX,		/* Force around the effector normal										*/
-	PFIELD_MAGNET,		/* Force from the cross product of effector normal and point velocity	*/
-	PFIELD_WIND,		/* Force away and towards a point depending which side of the effector 	*/
-						/*	 normal the point is												*/
-	PFIELD_GUIDE,		/* Force along curve for dynamics, a shaping curve for hair paths		*/
-	PFIELD_TEXTURE,		/* Force based on texture values calculated at point coordinates		*/
-	PFIELD_HARMONIC,	/* Force of a harmonic (damped) oscillator								*/
-	PFIELD_CHARGE,		/* Force away/towards a point depending on point charge					*/
-	PFIELD_LENNARDJ,	/* Force due to a Lennard-Jones potential								*/
-	PFIELD_BOID,		/* Defines predator / goal for boids									*/
-	PFIELD_TURBULENCE,	/* Force defined by BLI_gTurbulence										*/
-	PFIELD_DRAG,		/* Linear & quadratic drag												*/
+	PFIELD_NULL   = 0,	/* (this is used for general effector weight)							*/
+	PFIELD_FORCE  = 1,	/* Force away/towards a point depending on force strength				*/
+	PFIELD_VORTEX = 2,	/* Force around the effector normal										*/
+	PFIELD_MAGNET = 3,	/* Force from the cross product of effector normal and point velocity	*/
+	PFIELD_WIND   = 4,	/* Force away and towards a point depending which side of the effector 	*/
+				/*	 normal the point is												*/
+	PFIELD_GUIDE      = 5,	/* Force along curve for dynamics, a shaping curve for hair paths		*/
+	PFIELD_TEXTURE    = 6,	/* Force based on texture values calculated at point coordinates		*/
+	PFIELD_HARMONIC   = 7,	/* Force of a harmonic (damped) oscillator								*/
+	PFIELD_CHARGE     = 8,	/* Force away/towards a point depending on point charge					*/
+	PFIELD_LENNARDJ   = 9,	/* Force due to a Lennard-Jones potential								*/
+	PFIELD_BOID       = 10,	/* Defines predator / goal for boids									*/
+	PFIELD_TURBULENCE = 11,	/* Force defined by BLI_gTurbulence										*/
+	PFIELD_DRAG       = 12,	/* Linear & quadratic drag												*/
+	PFIELD_SMOKEFLOW  = 13,	/* Force based on smoke simulation air flow								*/
 	NUM_PFIELD_TYPES
 } PFieldType;
 	
@@ -91,7 +90,7 @@ typedef struct PartDeflect {
 	float pdef_perm;	/* Chance of particle passing through mesh      */
 	float pdef_frict;	/* Friction factor for particle deflection		*/
 	float pdef_rfrict;	/* Random element of friction for deflection	*/
-	float pdef_stickness;/* surface particle stickness					*/
+	float pdef_stickness;/* surface particle stickiness				*/
 
 	float absorption;	/* used for forces */
 	
@@ -112,14 +111,17 @@ typedef struct PartDeflect {
 	struct RNG *rng;	/* random noise generator for e.g. wind */
 	float f_noise;		/* noise of force						*/
 	int seed;			/* noise random seed					*/
+
+	struct Object *f_source; /* force source object */
 } PartDeflect;
 
 typedef struct EffectorWeights {
 	struct Group *group;		/* only use effectors from this group of objects */
 	
-	float weight[13];			/* effector type specific weights */
+	float weight[14];			/* effector type specific weights */
 	float global_gravity;
 	short flag, rt[3];
+	int pad;
 } EffectorWeights;
 
 /* EffectorWeights->flag */
@@ -130,13 +132,14 @@ typedef struct EffectorWeights {
  * - to add new data types update:
  *		* BKE_ptcache_data_size()
  *		* ptcache_file_init_pointers()
-*/
+ */
 #define BPHYS_DATA_INDEX		0
 #define BPHYS_DATA_LOCATION		1
 #define BPHYS_DATA_SMOKE_LOW	1
 #define BPHYS_DATA_VELOCITY		2
 #define BPHYS_DATA_SMOKE_HIGH	2
 #define BPHYS_DATA_ROTATION		3
+#define BPHYS_DATA_DYNAMICPAINT 3
 #define BPHYS_DATA_AVELOCITY	4	/* used for particles */
 #define BPHYS_DATA_XCONST		4	/* used for cloth */
 #define BPHYS_DATA_SIZE			5
@@ -185,6 +188,8 @@ typedef struct PointCache {
 	int endframe;	/* simulation end frame */
 	int editframe;	/* frame being edited (runtime only) */
 	int last_exact; /* last exact frame that's cached */
+	int last_valid; /* used for editing cache - what is the last baked frame */
+	int pad;
 
 	/* for external cache files */
 	int totpoint;   /* number of cached points */
@@ -194,7 +199,7 @@ typedef struct PointCache {
 	char name[64];
 	char prev_name[64];
 	char info[64];
-	char path[240]; /* file path */
+	char path[1024]; /* file path, 1024 = FILE_MAX */
 	char *cached_frames;	/* array of length endframe-startframe+1 with flags to indicate cached frames */
 							/* can be later used for other per frame flags too if needed */
 	struct ListBase mem_cache;
@@ -273,9 +278,10 @@ typedef struct SoftBody {
 	
 	/* general options */
 	float nodemass;		/* softbody mass of *vertex* */
-	char  namedVG_Mass[32]; /* along with it introduce mass painting
-							starting to fix old bug .. nastyness that VG are indexes 
-								rather find them by name tag to find it -> jow20090613 */
+	char  namedVG_Mass[64]; /* MAX_VGROUP_NAME */
+	                        /* along with it introduce mass painting
+	                         * starting to fix old bug .. nastiness that VG are indexes
+	                         * rather find them by name tag to find it -> jow20090613 */
 	float grav;			/* softbody amount of gravitaion to apply */
 	float mediafrict;	/* friction to env */
 	float rklimit;		/* error limit for ODE solver */
@@ -288,17 +294,19 @@ typedef struct SoftBody {
 	float maxgoal;
 	float defgoal;		/* default goal for vertices without vgroup */
 	short vertgroup;	/* index starting at 1 */
-	char  namedVG_Softgoal[32]; /* starting to fix old bug .. nastyness that VG are indexes 
-								rather find them by name tag to find it -> jow20090613 */
+	char  namedVG_Softgoal[64]; /* MAX_VGROUP_NAME */
+	                            /* starting to fix old bug .. nastiness that VG are indexes
+	                             * rather find them by name tag to find it -> jow20090613 */
   
 	short fuzzyness;      /* */
 	
 	/* springs */
 	float inspring;		/* softbody inner springs */
 	float infrict;		/* softbody inner springs friction */
-	 char  namedVG_Spring_K[32]; /* along with it introduce Spring_K painting
-							starting to fix old bug .. nastyness that VG are indexes 
-								rather find them by name tag to find it -> jow20090613 */
+	char  namedVG_Spring_K[64]; /* MAX_VGROUP_NAME */
+	                            /* along with it introduce Spring_K painting
+	                             * starting to fix old bug .. nastiness that VG are indexes
+	                             * rather find them by name tag to find it -> jow20090613 */
 	
 	/* baking */
 	int sfra, efra;
@@ -321,8 +329,8 @@ typedef struct SoftBody {
 		maxloops,
 		choke,
 		solver_ID,
-		plastic,springpreload
-		;   
+		plastic, springpreload
+		;
 
 	struct SBScratch *scratch;	/* scratch pad/cache on live time not saved in file */
 	float shearstiff;
@@ -336,8 +344,8 @@ typedef struct SoftBody {
 	float lcom[3];
 	float lrot[3][3];
 	float lscale[3][3];
-	char  pad4[4];
 
+	int last_frame;
 } SoftBody;
 
 
@@ -361,6 +369,7 @@ typedef struct SoftBody {
 #define PFIELD_DO_LOCATION		(1<<14)
 #define PFIELD_DO_ROTATION		(1<<15)
 #define PFIELD_GUIDE_PATH_WEIGHT (1<<16)	/* apply curve weights */
+#define PFIELD_SMOKE_DENSITY    (1<<17)		/* multiply smoke force by density */
 
 /* pd->falloff */
 #define PFIELD_FALL_SPHERE		0
@@ -391,14 +400,15 @@ typedef struct SoftBody {
 //#define PTCACHE_BAKE_EDIT			16
 //#define PTCACHE_BAKE_EDIT_ACTIVE	32
 #define PTCACHE_DISK_CACHE			64
-#define PTCACHE_QUICK_CACHE			128
+//#define PTCACHE_QUICK_CACHE		128  /* removed since 2.64 - [#30974], could be added back in a more useful way */
 #define PTCACHE_FRAMES_SKIPPED		256
 #define PTCACHE_EXTERNAL			512
 #define PTCACHE_READ_INFO			1024
-/* dont use the filename of the blendfile the data is linked from (write a local cache) */
+/* don't use the filename of the blendfile the data is linked from (write a local cache) */
 #define PTCACHE_IGNORE_LIBPATH		2048
 /* high resolution cache is saved for smoke for backwards compatibility, so set this flag to know it's a "fake" cache */
 #define PTCACHE_FAKE_SMOKE			(1<<12)
+#define PTCACHE_IGNORE_CLEAR		(1<<13)
 
 /* PTCACHE_OUTDATED + PTCACHE_FRAMES_SKIPPED */
 #define PTCACHE_REDO_NEEDED			258
@@ -420,8 +430,8 @@ typedef struct SoftBody {
 #define OB_SB_SELF		512
 #define OB_SB_FACECOLL  1024
 #define OB_SB_EDGECOLL  2048
-#define OB_SB_COLLFINAL 4096
-#define OB_SB_BIG_UI	8192
+/* #define OB_SB_COLLFINAL 4096	*/ /* deprecated */
+/* #define OB_SB_BIG_UI	8192 */    /* deprecated */
 #define OB_SB_AERO_ANGLE	16384
 
 /* sb->solverflags */

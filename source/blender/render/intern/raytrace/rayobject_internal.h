@@ -1,9 +1,36 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2009 Blender Foundation.
+ * All rights reserved.
+ *
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): André Pinto.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
+#ifndef __RAYOBJECT_INTERNAL_H__
+#define __RAYOBJECT_INTERNAL_H__
+
 /** \file blender/render/intern/raytrace/rayobject_internal.h
  *  \ingroup render
  */
-
-#ifndef RE_RAYOBJECT_INTERNAL_H
-#define RE_RAYOBJECT_INTERNAL_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,11 +46,11 @@ extern "C" {
  *	...
  */	
 
-typedef int  (*RE_rayobjectcontrol_test_break_callback)(void *data);
+typedef int (*RE_rayobjectcontrol_test_break_callback)(void *data);
 
 typedef struct RayObjectControl {
 	void *data;
-	RE_rayobjectcontrol_test_break_callback test_break;	
+	RE_rayobjectcontrol_test_break_callback test_break;
 } RayObjectControl;
 
 /* Returns true if for some reason a heavy processing function should stop
@@ -33,40 +60,40 @@ typedef struct RayObjectControl {
 int RE_rayobjectcontrol_test_break(RayObjectControl *c);
 
 /* RayObject
-	
-	A ray object is everything where we can cast rays like:
-		* a face/triangle
-		* an octree
-		* a bvh tree
-		* an octree of bvh's
-		* a bvh of bvh's
-	
-		
-	All types of RayObjects can be created by implementing the
-	callbacks of the RayObject.
-
-	Due to high computing time evolved with casting on faces
-	there is a special type of RayObject (named RayFace)
-	which won't use callbacks like other generic nodes.
-	
-	In order to allow a mixture of RayFace+RayObjects,
-	all RayObjects must be 4byte aligned, allowing us to use the
-	2 least significant bits (with the mask 0x03) to define the
-	type of RayObject.
-	
-	This leads to 4 possible types of RayObject:
-
-	 addr&3  - type of object
-		0		Self (reserved for each structure)
-		1     	RayFace (tri/quad primitive)
-		2		RayObject (generic with API callbacks)
-		3		VlakPrimitive
-				(vlak primitive - to be used when we have a vlak describing the data
-				 eg.: on render code)
-
-	0 means it's reserved and has it own meaning inside each ray acceleration structure
-	(this way each structure can use the allign offset to determine if a node represents a
-	 RayObject primitive, which can be used to save memory)
+ *
+ *  A ray object is everything where we can cast rays like:
+ *      * a face/triangle
+ *      * an octree
+ *      * a bvh tree
+ *      * an octree of bvh's
+ *      * a bvh of bvh's
+ *
+ *
+ *  All types of RayObjects can be created by implementing the
+ *  callbacks of the RayObject.
+ *
+ *  Due to high computing time evolved with casting on faces
+ *  there is a special type of RayObject (named RayFace)
+ *  which won't use callbacks like other generic nodes.
+ *
+ *  In order to allow a mixture of RayFace+RayObjects,
+ *  all RayObjects must be 4byte aligned, allowing us to use the
+ *  2 least significant bits (with the mask 0x03) to define the
+ *  type of RayObject.
+ *
+ *  This leads to 4 possible types of RayObject:
+ *
+ *   addr&3  - type of object
+ *      0       Self (reserved for each structure)
+ *      1       RayFace (tri/quad primitive)
+ *      2       RayObject (generic with API callbacks)
+ *      3       VlakPrimitive
+ *              (vlak primitive - to be used when we have a vlak describing the data
+ *               eg.: on render code)
+ *
+ *  0 means it's reserved and has it own meaning inside each ray acceleration structure
+ *  (this way each structure can use the align offset to determine if a node represents a
+ *   RayObject primitive, which can be used to save memory)
  */
 
 /* used to test the type of ray object */
@@ -76,12 +103,12 @@ int RE_rayobjectcontrol_test_break(RayObjectControl *c);
 #define RE_rayobject_isVlakPrimitive(o)	((((intptr_t)o)&3) == 3)
 
 /* used to align a given ray object */
-#define RE_rayobject_align(o)					((RayObject*)(((intptr_t)o)&(~3)))
+#define RE_rayobject_align(o)					((RayObject *)(((intptr_t)o)&(~3)))
 
 /* used to unalign a given ray object */
-#define RE_rayobject_unalignRayFace(o)			((RayObject*)(((intptr_t)o)|1))
-#define RE_rayobject_unalignRayAPI(o)			((RayObject*)(((intptr_t)o)|2))
-#define RE_rayobject_unalignVlakPrimitive(o)	((RayObject*)(((intptr_t)o)|3))
+#define RE_rayobject_unalignRayFace(o)			((RayObject *)(((intptr_t)o)|1))
+#define RE_rayobject_unalignRayAPI(o)			((RayObject *)(((intptr_t)o)|2))
+#define RE_rayobject_unalignVlakPrimitive(o)	((RayObject *)(((intptr_t)o)|3))
 
 /*
  * This rayobject represents a generic object. With it's own callbacks for raytrace operations.
@@ -97,9 +124,9 @@ typedef int  (*RE_rayobject_raycast_callback)(RayObject *, struct Isect *);
 typedef void (*RE_rayobject_add_callback)(RayObject *raytree, RayObject *rayobject);
 typedef void (*RE_rayobject_done_callback)(RayObject *);
 typedef void (*RE_rayobject_free_callback)(RayObject *);
-typedef void (*RE_rayobject_merge_bb_callback)(RayObject *, float *min, float *max);
+typedef void (*RE_rayobject_merge_bb_callback)(RayObject *, float min[3], float max[3]);
 typedef float (*RE_rayobject_cost_callback)(RayObject *);
-typedef void (*RE_rayobject_hint_bb_callback)(RayObject *, struct RayHint *, float *, float *);
+typedef void (*RE_rayobject_hint_bb_callback)(RayObject *, struct RayHint *, float min[3], float max[3]);
 
 typedef struct RayObjectAPI {
 	RE_rayobject_raycast_callback	raycast;
@@ -127,5 +154,4 @@ int RE_rayobject_intersect(RayObject *r, struct Isect *i);
 }
 #endif
 
-#endif
-
+#endif  /* __RAYOBJECT_INTERNAL_H__ */

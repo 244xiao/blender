@@ -1,6 +1,4 @@
-/* 
- * $Id: bgl.h 35236 2011-02-27 20:10:08Z jesterking $
- *
+/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,15 +15,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * This is a new part of Blender.
- *
  * Contributor(s): Willian P. Germano
  *
  * ***** END GPL LICENSE BLOCK *****
-*/
+ */
 
 /** \file blender/python/generic/bgl.h
  *  \ingroup pygen
@@ -38,24 +31,24 @@
  * writers to make OpenGL calls in their Python scripts for Blender.  The
  * more important original comments are marked with an @ symbol. */
 
-#ifndef BGL_H
-#define BGL_H
+#ifndef __BGL_H__
+#define __BGL_H__
 
 PyObject *BPyInit_bgl(void);
 
 /*@ Create a buffer object */
 /*@ dimensions is an array of ndimensions integers representing the size of each dimension */
 /*@ initbuffer if not NULL holds a contiguous buffer with the correct format from which the buffer will be initialized */
-struct _Buffer *BGL_MakeBuffer( int type, int ndimensions, int *dimensions, void *initbuffer );
+struct _Buffer *BGL_MakeBuffer(int type, int ndimensions, int *dimensions, void *initbuffer);
 /*@ Return the size of buffer element, type must be one of GL_BYTE, GL_SHORT, GL_INT, GL_FLOAT or GL_DOUBLE */
 /*@ returns -1 otherwise */
-int BGL_typeSize( int type );
+int BGL_typeSize(int type);
 
 /*@ Buffer Object */
 /*@ For Python access to OpenGL functions requiring a pointer. */
 typedef struct _Buffer {
 	PyObject_VAR_HEAD 
-	PyObject * parent;
+	PyObject *parent;
 
 	int type;		/* GL_BYTE, GL_SHORT, GL_INT, GL_FLOAT */
 	int ndimensions;
@@ -77,7 +70,7 @@ extern PyTypeObject BGL_bufferType;
 
 /*@ By golly George! It looks like fancy pants macro time!!! */
 
-/*
+#if 0 /* unused so far */
 #define int_str       "i"
 #define int_var(number)   bgl_int##number
 #define int_ref(number)   &bgl_int##number
@@ -87,7 +80,7 @@ extern PyTypeObject BGL_bufferType;
 #define float_var(number) bgl_float##number
 #define float_ref(number) &bgl_float##number
 #define float_def(number) float float_var(number)
-*/
+#endif
 
 /* TYPE_str is the string to pass to Py_ArgParse (for the format) */
 /* TYPE_var is the name to pass to the GL function */
@@ -105,7 +98,7 @@ extern PyTypeObject BGL_bufferType;
 #define buffer_def(number)  Buffer *bgl_buffer##number
 
 /* GL Pointer fields, handled by buffer type */
-/* GLdoubleP, GLfloatP, GLintP, GLuintP, GLshortP */
+/* GLdoubleP, GLfloatP, GLintP, GLuintP, GLshortP, GLsizeiP, GLcharP */
 
 #define GLbooleanP_str      "O!"
 #define GLbooleanP_var(number)  (bgl_buffer##number)->buf.asvoid
@@ -161,6 +154,16 @@ extern PyTypeObject BGL_bufferType;
 #define GLvoidP_var(number) (bgl_buffer##number)->buf.asvoid
 #define GLvoidP_ref(number) &BGL_bufferType, &bgl_buffer##number
 #define GLvoidP_def(number) Buffer *bgl_buffer##number
+
+#define GLsizeiP_str     "O!"
+#define GLsizeiP_var(number) (bgl_buffer##number)->buf.asvoid
+#define GLsizeiP_ref(number) &BGL_bufferType, &bgl_buffer##number
+#define GLsizeiP_def(number) Buffer *bgl_buffer##number
+
+#define GLcharP_str     "O!"
+#define GLcharP_var(number) (bgl_buffer##number)->buf.asvoid
+#define GLcharP_ref(number) &BGL_bufferType, &bgl_buffer##number
+#define GLcharP_def(number) Buffer *bgl_buffer##number
 
 #define buffer_str      "O!"
 #define buffer_var(number)  (bgl_buffer##number)->buf.asvoid
@@ -241,6 +244,12 @@ extern PyTypeObject BGL_bufferType;
 #define GLfloat_ref(num)    &bgl_var##num
 #define GLfloat_def(num)    float GLfloat_var(num)
 
+/* typedef char *GLstring; */
+#define GLstring_str     "s"
+#define GLstring_var(number) bgl_var##number
+#define GLstring_ref(number) &bgl_var##number
+#define GLstring_def(number) char *GLstring_var(number)
+
 /* typedef float GLclampf; */
 #define GLclampf_str      "f"
 #define GLclampf_var(num)   bgl_var##num
@@ -314,30 +323,31 @@ extern PyTypeObject BGL_bufferType;
 #define ret_ret_void    return Py_INCREF(Py_None), Py_None
 
 #define ret_def_GLint   int ret_int
-#define ret_set_GLint   ret_int=
+#define ret_set_GLint   ret_int =
 #define ret_ret_GLint   return PyLong_FromLong(ret_int)
 
 #define ret_def_GLuint    unsigned int ret_uint
-#define ret_set_GLuint    ret_uint=
+#define ret_set_GLuint    ret_uint =
 #define ret_ret_GLuint    return PyLong_FromLong((long) ret_uint)
 
 #define ret_def_GLenum    unsigned int ret_uint
-#define ret_set_GLenum    ret_uint=
+#define ret_set_GLenum    ret_uint =
 #define ret_ret_GLenum    return PyLong_FromLong((long) ret_uint)
 
 #define ret_def_GLboolean unsigned char ret_bool
-#define ret_set_GLboolean ret_bool=
+#define ret_set_GLboolean ret_bool =
 #define ret_ret_GLboolean return PyLong_FromLong((long) ret_bool)
 
-#define ret_def_GLstring  const unsigned char *ret_str;
-#define ret_set_GLstring  ret_str=
+#define ret_def_GLstring  const unsigned char *ret_str
+#define ret_set_GLstring  ret_str =
 
-#define ret_ret_GLstring \
-	if (ret_str) {\
-		return PyUnicode_FromString((const char *)ret_str);\
-	} else {\
-		PyErr_SetString(PyExc_AttributeError, "could not get opengl string");\
-		return NULL;\
-	}
+#define ret_ret_GLstring                                                      \
+	if (ret_str) {                                                            \
+		return PyUnicode_FromString((const char *)ret_str);                   \
+	}                                                                         \
+	else {                                                                    \
+		PyErr_SetString(PyExc_AttributeError, "could not get opengl string"); \
+		return NULL;                                                          \
+	}                                                                         \
 
-#endif /* BGL_H */
+#endif /* __BGL_H__ */

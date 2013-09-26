@@ -1,6 +1,4 @@
 /*
- * $Id: NG_NetworkScene.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,10 +29,10 @@
  *  \ingroup bgenet
  *  \brief NetworkSceneManagement generic class
  */
-#ifndef __NG_NETWORKSCENE_H
-#define __NG_NETWORKSCENE_H
+#ifndef __NG_NETWORKSCENE_H__
+#define __NG_NETWORKSCENE_H__
 
-#include "GEN_Map.h"
+#include "CTR_Map.h"
 #include "STR_HashedString.h"
 #include <vector>
 
@@ -44,18 +42,20 @@
 
 //MSVC defines SendMessage as a win api function, even though we aren't using it
 #ifdef SendMessage
-	#undef SendMessage
+#  undef SendMessage
 #endif
+
+using namespace std;
 
 class NG_NetworkDeviceInterface;
 
 class NG_NetworkScene
 {
-	class NG_NetworkDeviceInterface *m_networkdevice;	
-	GEN_Map<STR_HashedString, class NG_NetworkObject *> m_networkObjects;
+	class NG_NetworkDeviceInterface *m_networkdevice;
+	CTR_Map<STR_HashedString, class NG_NetworkObject *> m_networkObjects;
 
-	// GEN_Maps used as a 'Bloom' filter
-	typedef GEN_Map<STR_HashedString, std::vector<class NG_NetworkMessage*>* > TMessageMap;
+	// CTR_Maps used as a 'Bloom' filter
+	typedef CTR_Map<STR_HashedString, std::vector<class NG_NetworkMessage*>* > TMessageMap;
 	TMessageMap m_messagesByDestinationName;
 	TMessageMap m_messagesBySenderName;
 	TMessageMap m_messagesBySubject;
@@ -105,17 +105,14 @@ protected:
 
 	/**
 	 * Releases messages for the given message map.
-	 * @param map	Message map with messages.
+	 * \param map	Message map with messages.
 	 */
-	void ClearMessageMap(TMessageMap& map);	
+	void ClearMessageMap(TMessageMap& map);
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:NG_NetworkScene"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:NG_NetworkScene")
 #endif
 };
 
-#endif //__NG_NETWORKSCENE_H
-
+#endif  /* __NG_NETWORKSCENE_H__ */

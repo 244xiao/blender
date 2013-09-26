@@ -1,6 +1,4 @@
 /*
- * $Id: BLI_linklist.c 35246 2011-02-27 20:37:56Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -37,13 +35,15 @@
 #include "BLI_linklist.h"
 #include "BLI_memarena.h"
 
-int BLI_linklist_length(LinkNode *list) {
+int BLI_linklist_length(LinkNode *list)
+{
 	if (0) {
-		return list?(1+BLI_linklist_length(list->next)):0;
-	} else {
+		return list ? (1 + BLI_linklist_length(list->next)) : 0;
+	}
+	else {
 		int len;
 
-		for (len=0; list; list= list->next)
+		for (len = 0; list; list = list->next)
 			len++;
 	
 		return len;
@@ -54,7 +54,7 @@ int BLI_linklist_index(LinkNode *list, void *ptr)
 {
 	int index;
 	
-	for (index = 0; list; list= list->next, index++)
+	for (index = 0; list; list = list->next, index++)
 		if (list->link == ptr)
 			return index;
 	
@@ -65,68 +65,74 @@ LinkNode *BLI_linklist_find(LinkNode *list, int index)
 {
 	int i;
 	
-	for (i = 0; list; list= list->next, i++)
+	for (i = 0; list; list = list->next, i++)
 		if (i == index)
 			return list;
 
 	return NULL;
 }
 
-void BLI_linklist_reverse(LinkNode **listp) {
-	LinkNode *rhead= NULL, *cur= *listp;
+void BLI_linklist_reverse(LinkNode **listp)
+{
+	LinkNode *rhead = NULL, *cur = *listp;
 	
 	while (cur) {
-		LinkNode *next= cur->next;
+		LinkNode *next = cur->next;
 		
-		cur->next= rhead;
-		rhead= cur;
+		cur->next = rhead;
+		rhead = cur;
 		
-		cur= next;
+		cur = next;
 	}
 	
-	*listp= rhead;
+	*listp = rhead;
 }
 
-void BLI_linklist_prepend(LinkNode **listp, void *ptr) {
-	LinkNode *nlink= MEM_mallocN(sizeof(*nlink), "nlink");
-	nlink->link= ptr;
+void BLI_linklist_prepend(LinkNode **listp, void *ptr)
+{
+	LinkNode *nlink = MEM_mallocN(sizeof(*nlink), "nlink");
+	nlink->link = ptr;
 	
-	nlink->next= *listp;
-	*listp= nlink;
+	nlink->next = *listp;
+	*listp = nlink;
 }
 
-void BLI_linklist_append(LinkNode **listp, void *ptr) {
-	LinkNode *nlink= MEM_mallocN(sizeof(*nlink), "nlink");
+void BLI_linklist_append(LinkNode **listp, void *ptr)
+{
+	LinkNode *nlink = MEM_mallocN(sizeof(*nlink), "nlink");
 	LinkNode *node = *listp;
 	
 	nlink->link = ptr;
 	nlink->next = NULL;
 	
-	if(node == NULL){
+	if (node == NULL) {
 		*listp = nlink;
-	} else {
-		while(node->next != NULL){
+	}
+	else {
+		while (node->next != NULL) {
 			node = node->next;   
 		}
 		node->next = nlink;
 	}
 }
 
-void BLI_linklist_prepend_arena(LinkNode **listp, void *ptr, MemArena *ma) {
-	LinkNode *nlink= BLI_memarena_alloc(ma, sizeof(*nlink));
-	nlink->link= ptr;
+void BLI_linklist_prepend_arena(LinkNode **listp, void *ptr, MemArena *ma)
+{
+	LinkNode *nlink = BLI_memarena_alloc(ma, sizeof(*nlink));
+	nlink->link = ptr;
 	
-	nlink->next= *listp;
-	*listp= nlink;
+	nlink->next = *listp;
+	*listp = nlink;
 }
 
-void BLI_linklist_insert_after(LinkNode **listp, void *ptr) {
-	LinkNode *nlink= MEM_mallocN(sizeof(*nlink), "nlink");
+void BLI_linklist_insert_after(LinkNode **listp, void *ptr)
+{
+	LinkNode *nlink = MEM_mallocN(sizeof(*nlink), "nlink");
 	LinkNode *node = *listp;
 
 	nlink->link = ptr;
 
-	if(node) {
+	if (node) {
 		nlink->next = node->next;
 		node->next = nlink;
 	}
@@ -136,19 +142,33 @@ void BLI_linklist_insert_after(LinkNode **listp, void *ptr) {
 	}
 }
 
-void BLI_linklist_free(LinkNode *list, LinkNodeFreeFP freefunc) {
+void BLI_linklist_free(LinkNode *list, LinkNodeFreeFP freefunc)
+{
 	while (list) {
-		LinkNode *next= list->next;
+		LinkNode *next = list->next;
 		
 		if (freefunc)
 			freefunc(list->link);
 		MEM_freeN(list);
 		
-		list= next;
+		list = next;
 	}
 }
 
-void BLI_linklist_apply(LinkNode *list, LinkNodeApplyFP applyfunc, void *userdata) {
-	for (; list; list= list->next)
+void BLI_linklist_freeN(LinkNode *list)
+{
+	while (list) {
+		LinkNode *next = list->next;
+
+		MEM_freeN(list->link);
+		MEM_freeN(list);
+
+		list = next;
+	}
+}
+
+void BLI_linklist_apply(LinkNode *list, LinkNodeApplyFP applyfunc, void *userdata)
+{
+	for (; list; list = list->next)
 		applyfunc(list->link, userdata);
 }

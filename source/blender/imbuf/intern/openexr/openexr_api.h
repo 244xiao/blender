@@ -1,6 +1,4 @@
 /*
- * $Id: openexr_api.h 35239 2011-02-27 20:23:21Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  */
 
 
-#ifndef _OPENEXR_API_H
-#define _OPENEXR_API_H
+#ifndef __OPENEXR_API_H__
+#define __OPENEXR_API_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,16 +39,18 @@ extern "C" {
   
 #include <stdio.h>
   
-  /**
+/**
  * Test presence of OpenEXR file.
- * @param mem pointer to loaded OpenEXR bitstream
+ * \param mem pointer to loaded OpenEXR bitstream
  */
-  
+
+void		imb_initopenexr					(void);
+
 int		imb_is_a_openexr			(unsigned char *mem);
 	
 int		imb_save_openexr			(struct ImBuf *ibuf, const char *name, int flags);
 
-struct ImBuf *imb_load_openexr		(unsigned char *mem, size_t size, int flags);
+struct ImBuf *imb_load_openexr		(unsigned char *mem, size_t size, int flags, char *colorspace);
 
 #ifdef __cplusplus
 }

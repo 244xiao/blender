@@ -1,33 +1,35 @@
-/* $Id: KX_Dome.h 35063 2011-02-22 10:33:14Z jesterking $
------------------------------------------------------------------------------
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
-
-Contributor(s): Dalai Felinto
-
-This source uses some of the ideas and code from Paul Bourke.
-Developed as part of a Research and Development project for SAT - La Soci�t� des arts technologiques.
------------------------------------------------------------------------------
-*/
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Contributor(s): Dalai Felinto
+ *
+ * This source uses some of the ideas and code from Paul Bourke.
+ * Developed as part of a Research and Development project for
+ * SAT - La Société des arts technologiques.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 /** \file KX_Dome.h
  *  \ingroup ketsji
  */
 
-#if !defined KX_DOME_H
-#define KX_DOME_H
+#ifndef __KX_DOME_H__
+#define __KX_DOME_H__
 
 #include "KX_Scene.h"
 #include "KX_Camera.h"
@@ -57,22 +59,21 @@ class KX_Dome
 {
 public:
 	/// constructor
-	KX_Dome (
-	RAS_ICanvas* m_canvas,
-    /// rasterizer
-    RAS_IRasterizer* m_rasterizer,
-    /// render tools
-    RAS_IRenderTools* m_rendertools,
-    /// engine
-    KX_KetsjiEngine* m_engine,
+	KX_Dome (RAS_ICanvas* m_canvas,
+	         /// rasterizer
+	         RAS_IRasterizer* m_rasterizer,
+	         /// render tools
+	         RAS_IRenderTools* m_rendertools,
+	         /// engine
+	         KX_KetsjiEngine* m_engine,
 
-	short res,
-	short mode,
-	short angle,
-	float resbuf,
-	short tilt,
-	struct Text* warptext
-	);
+	         short res,
+	         short mode,
+	         short angle,
+	         float resbuf,
+	         short tilt,
+	         struct Text* warptext
+	         );
 
 	/// destructor
 	virtual ~KX_Dome (void);
@@ -82,8 +83,9 @@ public:
 	bool	fboSupported;
 
 	//openGL names:
-	GLuint domefacesId[7];		// ID of the images -- room for 7 images, using only 4 for 180� x 360� dome, 6 for panoramic and +1 for warp mesh
-	GLuint dlistId;				// ID of the Display Lists of the images (used as an offset)
+	GLuint domefacesId[7];      /* ID of the images -- room for 7 images, using only 4 for 180deg x 360deg dome,
+	                             * 6 for panoramic and +1 for warp mesh */
+	GLuint dlistId;             /* ID of the Display Lists of the images (used as an offset) */
 	
 	typedef struct {
 		double u[3], v[3];
@@ -113,13 +115,13 @@ public:
 	int nfacestop, nfacesbottom, nfacesleft, nfacesright, nfacesfront, nfacesback;
 	int nfacesleftback, nfacesrightback;
 
-	int GetNumberRenders(){return m_numfaces;};
+	int GetNumberRenders() { return m_numfaces; }
 
 	void RenderDome(void);
 	void RenderDomeFrame(KX_Scene* scene, KX_Camera* cam, int i);
 	void BindImages(int i);
 
-	void SetViewPort(GLuint viewport[4]);
+	void SetViewPort(const int viewport[4]);
 	void CalculateFrustum(KX_Camera* cam);
 	void RotateCamera(KX_Camera* cam, int i);
 
@@ -164,7 +166,7 @@ protected:
 	int m_numfaces;		// 4 to 6 depending on the kind of dome image
 	int m_numimages;	//numfaces +1 if we have warp mesh
 
-	short m_resolution;	//resolution to tesselate the mesh
+	short m_resolution;	//resolution to tessellate the mesh
 	short m_mode;		// the mode (truncated, warped, panoramic,...)
 	short m_angle;		//the angle of the fisheye
 	float m_radangle;	//the angle of the fisheye in radians
@@ -175,27 +177,24 @@ protected:
 
 	MT_Matrix4x4 m_projmat;
 
-	MT_Matrix3x3 m_locRot [6];// the rotation matrix
+	MT_Matrix3x3 m_locRot[6]; // the rotation matrix
 
 	/// rendered scene
 	KX_Scene * m_scene;
 
-    /// canvas
-    RAS_ICanvas* m_canvas;
-    /// rasterizer
-    RAS_IRasterizer* m_rasterizer;
-    /// render tools
-    RAS_IRenderTools* m_rendertools;
-    /// engine
-    KX_KetsjiEngine* m_engine;
+	/// canvas
+	RAS_ICanvas* m_canvas;
+	/// rasterizer
+	RAS_IRasterizer* m_rasterizer;
+	/// render tools
+	RAS_IRenderTools* m_rendertools;
+	/// engine
+	KX_KetsjiEngine* m_engine;
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_Dome"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_Dome")
 #endif
 };
 
-#endif
-
+#endif /* __KX_DOME_H__ */

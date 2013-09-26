@@ -1,6 +1,4 @@
 /*
- * $Id: Common.h 35239 2011-02-27 20:23:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributors: Amorilia (amorilia@gamebox.net)
+ * Contributors: Amorilia (amorilia@users.sourceforge.net)
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -27,8 +25,8 @@
  */
 
 
-#ifndef _DDS_COMMON_H
-#define _DDS_COMMON_H
+#ifndef __COMMON_H__
+#define __COMMON_H__
 
 #ifndef min
 #define min(a,b) ((a) <= (b) ? (a) : (b))
@@ -44,9 +42,9 @@ template<typename T>
 inline void
 swap(T & a, T & b)
 {
-  T tmp = a;
-  a = b;
-  b = tmp;
+	T tmp = a;
+	a = b;
+	b = tmp;
 }
 
 typedef unsigned char      uint8;
@@ -54,5 +52,11 @@ typedef unsigned short     uint16;
 typedef unsigned int       uint;
 typedef unsigned int       uint32;
 typedef unsigned long long uint64;
+
+// copied from nvtt src/nvimage/nvimage.h
+inline uint computePitch(uint w, uint bitsize, uint alignment)
+{
+	return ((w * bitsize +  8 * alignment - 1) / (8 * alignment)) * alignment;
+}
 
 #endif

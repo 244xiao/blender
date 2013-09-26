@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 36024 2011-04-05 23:31:01Z campbellbarton $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -25,17 +24,20 @@
 # ***** END GPL LICENSE BLOCK *****
 
 set(INC
-	../../../../source/kernel/gen_system
+	..
+	../../BlenderRoutines
+	../../Ketsji
+	../../SceneGraph
+	../../../blender/blenkernel
+	../../../blender/blenlib
+	../../../blender/gpu
+	../../../blender/makesdna
+	../../../../intern/container
 	../../../../intern/string
+)
+
+set(INC_SYS
 	../../../../intern/moto/include
-	../../../../source/gameengine/Rasterizer
-	../../../../source/gameengine/Ketsji
-	../../../../source/gameengine/SceneGraph
-	../../../../source/blender/gpu
-	../../../../source/blender/makesdna
-	../../../../source/blender/blenkernel
-	../../../../source/blender/blenlib
-	../../../../source/blender/blenloader
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -43,14 +45,19 @@ set(SRC
 	RAS_GLExtensionManager.cpp
 	RAS_ListRasterizer.cpp
 	RAS_OpenGLRasterizer.cpp
-	RAS_VAOpenGLRasterizer.cpp
+	RAS_StorageIM.cpp
+	RAS_StorageVA.cpp
+	RAS_StorageVBO.cpp
 
 	RAS_GLExtensionManager.h
+	RAS_IStorage.h
 	RAS_ListRasterizer.h
 	RAS_OpenGLRasterizer.h
-	RAS_VAOpenGLRasterizer.h
+	RAS_StorageIM.h
+	RAS_StorageVA.h
+	RAS_StorageVBO.h
 )
 
 add_definitions(-DGLEW_STATIC)
 
-blender_add_lib(ge_oglrasterizer "${SRC}" "${INC}")
+blender_add_lib(ge_oglrasterizer "${SRC}" "${INC}" "${INC_SYS}")

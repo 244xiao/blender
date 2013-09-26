@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 33864 2010-12-22 23:09:30Z campbellbarton $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -26,37 +25,41 @@
 
 set(INC
 	.
-	../../../source/kernel/gen_system
-	../../../intern/string
+	../BlenderRoutines
+	../Expressions
+	../GameLogic
+	../Ketsji
+	../Ketsji/KXNetwork
+	../Network
+	../Network/LoopBackNetwork
+	../Physics/Bullet
+	../Physics/Dummy
+	../Physics/common
+	../Rasterizer
+	../Rasterizer/RAS_OpenGLRasterizer
+	../Rasterizer/RAS_OpenGLRasterizer
+	../SceneGraph
+	../../blender
+	../../blender/blenkernel
+	../../blender/blenlib
+	../../blender/blenloader
+	../../blender/gpu
+	../../blender/ikplugin
+	../../blender/imbuf
+	../../blender/makesdna
+	../../blender/makesrna
+	../../blender/windowmanager
+	../../../intern/container
 	../../../intern/guardedalloc
-	../../../source/gameengine/Rasterizer/RAS_OpenGLRasterizer
-	../../../intern/audaspace/intern
-	../../../source/gameengine/Converter
-	../../../source/gameengine/BlenderRoutines
-	../../../source/blender/imbuf
+	../../../intern/string
+)
+
+set(INC_SYS
 	../../../intern/moto/include
-	../../../source/gameengine/Ketsji
-	../../../source/gameengine/Ketsji/KXNetwork
-	../../../source/blender/blenlib
-	../../../source/blender/blenkernel
-	../../../source/blender/windowmanager
-	../../../source/blender
-	../../../source/blender/makesdna
-	../../../source/blender/makesrna
-	../../../source/gameengine/Rasterizer
-	../../../source/gameengine/Rasterizer/RAS_OpenGLRasterizer
-	../../../source/gameengine/GameLogic
-	../../../source/gameengine/Expressions
-	../../../source/gameengine/Network
-	../../../source/gameengine/SceneGraph
-	../../../source/gameengine/Physics/common
-	../../../source/gameengine/Physics/Bullet
-	../../../source/gameengine/Physics/Dummy
-	../../../source/gameengine/Network/LoopBackNetwork
-	../../../source/blender/blenloader
-	../../../source/blender/gpu
-	../../../source/blender/ikplugin
-	../../../extern/bullet2/src
+	../../../extern/recastnavigation/Detour/Include
+	../../../extern/Eigen3
+	${PTHREADS_INCLUDE_DIRS}
+	${BOOST_INCLUDE_DIR}
 )
 
 set(SRC
@@ -79,7 +82,7 @@ set(SRC
 	KX_ConvertControllers.cpp
 	KX_ConvertProperties.cpp
 	KX_ConvertSensors.cpp
-	KX_IpoConvert.cpp
+	KX_LibLoadStatus.cpp
 	KX_SoftBodyDeformer.cpp
 
 	BL_ActionActuator.h
@@ -101,12 +104,22 @@ set(SRC
 	KX_ConvertControllers.h
 	KX_ConvertProperties.h
 	KX_ConvertSensors.h
-	KX_IpoConvert.h
+	KX_LibLoadStatus.h
 	KX_SoftBodyDeformer.h
 )
 
 if(WITH_BULLET)
-	add_definitions(-DUSE_BULLET)
+	list(APPEND INC_SYS
+		${BULLET_INCLUDE_DIRS}
+	)
+	add_definitions(-DWITH_BULLET)
 endif()
 
-blender_add_lib(ge_converter "${SRC}" "${INC}")
+if(WITH_AUDASPACE)
+	list(APPEND INC
+		../../../intern/audaspace/intern
+	)
+	add_definitions(-DWITH_AUDASPACE)
+endif()
+
+blender_add_lib(ge_converter "${SRC}" "${INC}" "${INC_SYS}")

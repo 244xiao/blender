@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_LogicManager.cpp 35169 2011-02-25 13:32:11Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -25,7 +23,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * Regulates the top-level logic behaviour for one scene.
+ * Regulates the top-level logic behavior for one scene.
  */
 
 /** \file gameengine/GameLogic/SCA_LogicManager.cpp
@@ -58,7 +56,7 @@ SCA_LogicManager::~SCA_LogicManager()
 	assert(m_activeActuators.Empty());
 }
 
-/*
+#if 0
 // this kind of fixes bug 398 but breakes games, so better leave it out for now.
 // a removed object's gameobject (and logicbricks and stuff) didn't get released
 // because it was still in the m_mapStringToGameObjects map.
@@ -79,7 +77,7 @@ void SCA_LogicManager::RemoveGameObject(const STR_String& gameobjname)
 
 	m_mapStringToGameObjects.remove(gameobjname);
 }
-*/
+#endif
 
 
 void SCA_LogicManager::RegisterEventManager(SCA_EventManager* eventmgr)
@@ -191,11 +189,11 @@ void SCA_LogicManager::BeginFrame(double curtime, double fixedtime)
 	for (vector<SCA_EventManager*>::const_iterator ie=m_eventmanagers.begin(); !(ie==m_eventmanagers.end()); ie++)
 		(*ie)->NextFrame(curtime, fixedtime);
 
-	for(SG_QList* obj = (SG_QList*)m_triggeredControllerSet.Remove();
+	for (SG_QList* obj = (SG_QList*)m_triggeredControllerSet.Remove();
 		obj != NULL;
 		obj = (SG_QList*)m_triggeredControllerSet.Remove())
 	{
-		for(SCA_IController* contr = (SCA_IController*)obj->QRemove();
+		for (SCA_IController* contr = (SCA_IController*)obj->QRemove();
 			contr != NULL;
 			contr = (SCA_IController*)obj->QRemove())
 		{
@@ -251,7 +249,7 @@ void SCA_LogicManager::UpdateFrame(double curtime, bool frame)
 
 
 
-void* SCA_LogicManager::GetActionByName (const STR_String& actname)
+void *SCA_LogicManager::GetActionByName(const STR_String& actname)
 {
 	STR_HashedString an = actname;
 	void** actptr = m_mapStringToActions[an];

@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_anim.h 34962 2011-02-18 13:05:18Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_ANIM_H
-#define BKE_ANIM_H
+#ifndef __BKE_ANIM_H__
+#define __BKE_ANIM_H__
 
 /** \file BKE_anim.h
  *  \ingroup bke
@@ -42,16 +40,17 @@ struct ListBase;
 struct bAnimVizSettings;
 struct bMotionPath;
 struct bPoseChannel;
+struct ReportList;
 
 /* ---------------------------------------------------- */
-/* Animation Visualisation */
+/* Animation Visualization */
 
 void animviz_settings_init(struct bAnimVizSettings *avs);
 
 void animviz_free_motionpath_cache(struct bMotionPath *mpath);
 void animviz_free_motionpath(struct bMotionPath *mpath);
 
-struct bMotionPath *animviz_verify_motionpaths(struct Scene *scene, struct Object *ob, struct bPoseChannel *pchan);
+struct bMotionPath *animviz_verify_motionpaths(struct ReportList *reports, struct Scene *scene, struct Object *ob, struct bPoseChannel *pchan);
 
 void animviz_get_object_motionpaths(struct Object *ob, ListBase *targets);
 void animviz_calc_motionpaths(struct Scene *scene, ListBase *targets);
@@ -61,13 +60,13 @@ void animviz_calc_motionpaths(struct Scene *scene, ListBase *targets);
 
 void free_path(struct Path *path);
 void calc_curvepath(struct Object *ob);
-int interval_test(int min, int max, int p1, int cycl);
-int where_on_path(struct Object *ob, float ctime, float *vec, float *dir, float *quat, float *radius, float *weight);
+int where_on_path(struct Object *ob, float ctime, float vec[4], float dir[3], float quat[4], float *radius, float *weight);
 
 /* ---------------------------------------------------- */
 /* Dupli-Geometry */
 
-struct ListBase *object_duplilist(struct Scene *sce, struct Object *ob);
+struct ListBase *object_duplilist_ex(struct Scene *sce, struct Object *ob, bool update, bool for_render);
+struct ListBase *object_duplilist(struct Scene *sce, struct Object *ob, bool for_render);
 void free_object_duplilist(struct ListBase *lb);
 int count_duplilist(struct Object *ob);
 

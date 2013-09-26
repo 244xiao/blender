@@ -1,5 +1,4 @@
 /* 
- * $Id: bpy_internal_import.h 35882 2011-03-29 16:12:25Z campbellbarton $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -16,15 +15,10 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * This is a new part of Blender.
- *
  * Contributor(s): Willian P. Germano, Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK *****
-*/
+ */
 
 /** \file blender/python/generic/bpy_internal_import.h
  *  \ingroup pygen
@@ -33,8 +27,8 @@
 
 /* Note, the BGE needs to use this too, keep it minimal */
 
-#ifndef BPY_INTERNAL_IMPORT_H
-#define BPY_INTERNAL_IMPORT_H
+#ifndef __BPY_INTERNAL_IMPORT_H__
+#define __BPY_INTERNAL_IMPORT_H__
 
 /* python redefines :/ */
 #ifdef _POSIX_C_SOURCE
@@ -49,18 +43,19 @@ struct Text;
 
 void bpy_import_init(PyObject *builtins);
 
-PyObject*	bpy_text_import(struct Text *text);
-PyObject*	bpy_text_import_name(char *name, int *found);
-PyObject*	bpy_text_reimport(PyObject *module, int *found);
+PyObject   *bpy_text_import(struct Text *text);
+PyObject   *bpy_text_import_name(const char *name, int *found);
+PyObject   *bpy_text_reimport(PyObject *module, int *found);
 /* void		bpy_text_clear_modules(int clear_all);*/ /* Clear user modules */ 
 
 void bpy_text_filename_get(char *fn, size_t fn_len, struct Text *text);
 
-extern PyMethodDef bpy_import_meth;
-extern PyMethodDef bpy_reload_meth;
-
-/* The game engine has its own Main struct, if this is set search this rather then G.main */
+/* The game engine has its own Main struct, if this is set search this rather than G.main */
 struct Main *bpy_import_main_get(void);
 void bpy_import_main_set(struct Main *maggie);
 
-#endif				/* BPY_INTERNAL_IMPORT_H */
+/* This is used for importing text from dynamically loaded libraries in the game engine */
+void bpy_import_main_extra_add(struct Main *maggie);
+void bpy_import_main_extra_remove(struct Main *maggie);
+
+#endif				/* __BPY_INTERNAL_IMPORT_H__ */

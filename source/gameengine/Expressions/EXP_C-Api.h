@@ -1,6 +1,4 @@
 /*
- * $Id: EXP_C-Api.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup expressions
  */
 
-#ifndef __EXPRESSION_INCLUDE
-#define __EXPRESSION_INCLUDE
+#ifndef __EXP_C_API_H__
+#define __EXP_C_API_H__
 
 #define EXP_DECLARE_HANDLE(name) typedef struct name##__ { int unused; } *name
 
@@ -55,7 +53,7 @@ extern void					EXP_ReleaseValue(EXP_ValueHandle);
 extern int					EXP_IsValid(EXP_ValueHandle);
 
 /* assign property 'propval' to 'destinationval' */
-extern void					EXP_SetProperty(EXP_ValueHandle propval,EXP_ValueHandle destinationval);
+extern void					EXP_SetProperty(EXP_ValueHandle destinationval, const char *propname, EXP_ValueHandle propval);
 
 /* returns NULL if property doesn't exist */
 extern EXP_ValueHandle		EXP_GetProperty(EXP_ValueHandle inval,const char* propname);
@@ -66,5 +64,4 @@ const char*					EXP_GetText(EXP_ValueHandle);
 }
 #endif
 
-#endif //__EXPRESSION_INCLUDE
-
+#endif  /* __EXP_C_API_H__ */

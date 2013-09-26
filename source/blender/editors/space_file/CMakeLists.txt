@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -28,9 +27,12 @@ set(INC
 	../../imbuf
 	../../makesdna
 	../../makesrna
-	../../windowmanager
 	../../render/extern/include
+	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -47,6 +49,10 @@ set(SRC
 	filelist.h
 	fsmenu.h
 )
+
+if(WITH_HEADLESS)
+	add_definitions(-DWITH_HEADLESS)
+endif()
 
 if(WITH_IMAGE_OPENEXR)
 	add_definitions(-DWITH_OPENEXR)
@@ -72,4 +78,12 @@ if(WITH_IMAGE_HDR)
 	add_definitions(-DWITH_HDR)
 endif()
 
-blender_add_lib(bf_editor_space_file "${SRC}" "${INC}")
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_FREESTYLE)
+	add_definitions(-DWITH_FREESTYLE)
+endif()
+
+blender_add_lib(bf_editor_space_file "${SRC}" "${INC}" "${INC_SYS}")

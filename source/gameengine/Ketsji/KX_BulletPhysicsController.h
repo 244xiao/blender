@@ -3,16 +3,16 @@
  *  \ingroup ketsji
  */
 
-#ifndef KX_BULLET2PHYSICS_CONTROLLER
-#define KX_BULLET2PHYSICS_CONTROLLER
+#ifndef __KX_BULLETPHYSICSCONTROLLER_H__
+#define __KX_BULLETPHYSICSCONTROLLER_H__
 
 
 #include "KX_IPhysicsController.h"
-#ifdef USE_BULLET
+#ifdef WITH_BULLET
 #include "CcdPhysicsController.h"
 #endif
 
-class KX_BulletPhysicsController : public KX_IPhysicsController ,public CcdPhysicsController
+class KX_BulletPhysicsController : public KX_IPhysicsController, public CcdPhysicsController
 {
 private:
 	int m_savedCollisionFlags;
@@ -25,8 +25,8 @@ private:
 	btCollisionShape* m_bulletChildShape;
 
 public:
-#ifdef USE_BULLET
-	KX_BulletPhysicsController (const CcdConstructionInfo& ci, bool dyna, bool sensor, bool compound);
+#ifdef WITH_BULLET
+	KX_BulletPhysicsController (const CcdConstructionInfo& ci, bool dyna, bool sensor, bool character, bool compound);
 	virtual ~KX_BulletPhysicsController ();
 #endif
 	///////////////////////////////////
@@ -40,11 +40,14 @@ public:
 	virtual void	RelativeRotate(const MT_Matrix3x3& drot,bool local);
 	virtual void	ApplyTorque(const MT_Vector3& torque,bool local);
 	virtual void	ApplyForce(const MT_Vector3& force,bool local);
+	virtual void	SetWalkDirection(const MT_Vector3& dir,bool local);
 	virtual MT_Vector3 GetLinearVelocity();
 	virtual MT_Vector3 GetAngularVelocity();
 	virtual MT_Vector3 GetVelocity(const MT_Point3& pos);
+	virtual MT_Vector3 GetWalkDirection();
 	virtual void	SetAngularVelocity(const MT_Vector3& ang_vel,bool local);
 	virtual void	SetLinearVelocity(const MT_Vector3& lin_vel,bool local);
+	virtual void	Jump();
 	virtual	void	getOrientation(MT_Quaternion& orn);
 	virtual	void setOrientation(const MT_Matrix3x3& orn);
 	virtual	void setPosition(const MT_Point3& pos);
@@ -86,17 +89,14 @@ public:
 	SetOption(
 		int option,
 		int value
-	){
+	) {
 		// intentionally empty
 	};
 
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_BulletPhysicsController"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BulletPhysicsController")
 #endif
 };
 
-#endif //KX_BULLET2PHYSICS_CONTROLLER
-
+#endif  /* __KX_BULLETPHYSICSCONTROLLER_H__ */

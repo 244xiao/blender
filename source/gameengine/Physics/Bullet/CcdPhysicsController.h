@@ -18,8 +18,8 @@ subject to the following restrictions:
  */
 
 
-#ifndef BULLET2_PHYSICSCONTROLLER_H
-#define BULLET2_PHYSICSCONTROLLER_H
+#ifndef __CCDPHYSICSCONTROLLER_H__
+#define __CCDPHYSICSCONTROLLER_H__
 
 #include <vector>
 #include <map>
@@ -29,6 +29,7 @@ subject to the following restrictions:
 ///	PHY_IPhysicsController is the abstract simplified Interface to a physical object.
 ///	It contains the IMotionState and IDeformableMesh Interfaces.
 #include "btBulletDynamicsCommon.h"
+#include "BulletDynamics/Character/btKinematicCharacterController.h"
 #include "LinearMath/btTransform.h"
 
 #include "PHY_IMotionState.h"
@@ -170,7 +171,7 @@ public:
 	btVector3				m_halfExtend;
 	btTransform				m_childTrans;
 	btVector3				m_childScale;
-	void*					m_userData;	
+	void*					m_userData;
 	btAlignedObjectArray<btScalar>	m_vertexArray;	// Contains both vertex array for polytope shape and
 											// triangle array for concave mesh shape. Each vertex is 3 consecutive values
 											// In this case a triangle is made of 3 consecutive points
@@ -178,7 +179,7 @@ public:
 													// original mesh that correspond to shape triangles.
 													// only set for concave mesh shape.
 	
-	std::vector<int>		m_triFaceArray;	// Contains an array of triplets of face indicies
+	std::vector<int>		m_triFaceArray;	// Contains an array of triplets of face indices
 											// quads turn into 2 tris
 
 	std::vector<UVco>		m_triFaceUVcoArray;	// Contains an array of pair of UV coordinate for each vertex of faces
@@ -202,9 +203,7 @@ protected:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:CcdShapeConstructionInfo"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CcdShapeConstructionInfo")
 #endif
 };
 
@@ -216,32 +215,61 @@ struct CcdConstructionInfo
 	///more advanced collision filtering should be done in btCollisionDispatcher::NeedsCollision
 	enum CollisionFilterGroups
 	{
-	        DefaultFilter = 1,
-	        StaticFilter = 2,
-	        KinematicFilter = 4,
-	        DebrisFilter = 8,
-			SensorFilter = 16,
-	        AllFilter = DefaultFilter | StaticFilter | KinematicFilter | DebrisFilter | SensorFilter,
+		DefaultFilter = 1,
+		StaticFilter = 2,
+		KinematicFilter = 4,
+		DebrisFilter = 8,
+		SensorFilter = 16,
+		CharacterFilter = 32,
+		AllFilter = DefaultFilter | StaticFilter | KinematicFilter | DebrisFilter | SensorFilter | CharacterFilter,
 	};
 
 
 	CcdConstructionInfo()
-		: m_localInertiaTensor(1.f, 1.f, 1.f),
+	    :m_localInertiaTensor(1.f, 1.f, 1.f),
 		m_gravity(0,0,0),
 		m_scaling(1.f,1.f,1.f),
+		m_linearFactor(0.f, 0.f, 0.f),
+		m_angularFactor(0.f, 0.f, 0.f),
 		m_mass(0.f),
-		m_clamp_vel_min(-1.f), 
-		m_clamp_vel_max(-1.f), 
+		m_clamp_vel_min(-1.f),
+		m_clamp_vel_max(-1.f),
 		m_restitution(0.1f),
 		m_friction(0.5f),
 		m_linearDamping(0.1f),
 		m_angularDamping(0.1f),
 		m_margin(0.06f),
 		m_gamesoftFlag(0),
+		m_soft_linStiff(1.f),
+		m_soft_angStiff(1.f),
+		m_soft_volume(1.f),
+		m_soft_viterations(0),
+		m_soft_piterations(1),
+		m_soft_diterations(0),
+		m_soft_citerations(4),
+		m_soft_kSRHR_CL(0.1f),
+		m_soft_kSKHR_CL(1.f),
+		m_soft_kSSHR_CL(0.5f),
+		m_soft_kSR_SPLT_CL(0.5f),
+		m_soft_kSK_SPLT_CL(0.5f),
+		m_soft_kSS_SPLT_CL(0.5f),
+		m_soft_kVCF(1.f),
+		m_soft_kDP(0.f),
+		m_soft_kDG(0.f),
+		m_soft_kLF(0.f),
+		m_soft_kPR(0.f),
+		m_soft_kVC(0.f),
+		m_soft_kDF(0.2f),
+		m_soft_kMT(0),
+		m_soft_kCHR(1.0f),
+		m_soft_kKHR(0.1f),
+		m_soft_kSHR(1.0f),
+		m_soft_kAHR(0.7f),
 		m_collisionFlags(0),
 		m_bRigid(false),
 		m_bSoft(false),
 		m_bSensor(false),
+		m_bCharacter(false),
 		m_bGimpact(false),
 		m_collisionFilterGroup(DefaultFilter),
 		m_collisionFilterMask(AllFilter),
@@ -252,13 +280,22 @@ struct CcdConstructionInfo
 		m_inertiaFactor(1.f),
 		m_do_anisotropic(false),
 		m_anisotropicFriction(1.f,1.f,1.f),
-		m_contactProcessingThreshold(1e10)
+		m_do_fh(false),
+		m_do_rot_fh(false),
+		m_fh_spring(0.f),
+		m_fh_damping(0.f),
+		m_fh_distance(1.f),
+		m_fh_normal(false),
+		m_contactProcessingThreshold(1e10f)
 	{
+
 	}
 
 	btVector3	m_localInertiaTensor;
 	btVector3	m_gravity;
 	btVector3	m_scaling;
+	btVector3	m_linearFactor;
+	btVector3	m_angularFactor;
 	btScalar	m_mass;
 	btScalar	m_clamp_vel_min;  
 	btScalar	m_clamp_vel_max;  
@@ -269,6 +306,10 @@ struct CcdConstructionInfo
 	btScalar	m_margin;
 
 	////////////////////
+	float	m_stepHeight;
+	float	m_jumpSpeed;
+	float	m_fallSpeed;
+	
 	int		m_gamesoftFlag;
 	float	m_soft_linStiff;			/* linear stiffness 0..1 */
 	float	m_soft_angStiff;		/* angular stiffness 0..1 */
@@ -311,6 +352,7 @@ struct CcdConstructionInfo
 	bool		m_bRigid;
 	bool		m_bSoft;
 	bool		m_bSensor;
+	bool		m_bCharacter;
 	bool		m_bGimpact;			// use Gimpact for mesh body
 
 	///optional use of collision group/mask:
@@ -349,16 +391,42 @@ struct CcdConstructionInfo
 
 };
 
-
 class btRigidBody;
 class btCollisionObject;
 class btSoftBody;
+class btPairCachingGhostObject;
+
+class BlenderBulletCharacterController : public btKinematicCharacterController
+{
+private:
+	btMotionState* m_motionState;
+	int m_jumps;
+	int m_maxJumps;
+
+public:
+	BlenderBulletCharacterController(btMotionState *motionState, btPairCachingGhostObject *ghost, btConvexShape* shape, float stepHeight);
+
+	virtual void updateAction(btCollisionWorld *collisionWorld, btScalar dt);
+
+	int getMaxJumps() const;
+
+	void setMaxJumps(int maxJumps);
+
+	int getJumpCount() const;
+
+	virtual bool canJump() const;
+
+	virtual void jump();
+
+	const btVector3& getWalkDirection();
+};
 
 ///CcdPhysicsController is a physics object that supports continuous collision detection and time of impact based physics resolution.
-class CcdPhysicsController : public PHY_IPhysicsController	
+class CcdPhysicsController : public PHY_IPhysicsController
 {
 protected:
 	btCollisionObject* m_object;
+	BlenderBulletCharacterController* m_characterController;
 	
 
 	class PHY_IMotionState*		m_MotionState;
@@ -385,6 +453,7 @@ protected:
 
 	void CreateRigidbody();
 	bool CreateSoftbody();
+	bool CreateCharacterController();
 
 	bool Register()	{ 
 		return (m_registerCount++ == 0) ? true : false;
@@ -421,6 +490,7 @@ protected:
 		btRigidBody* GetRigidBody();
 		btCollisionObject*	GetCollisionObject();
 		btSoftBody* GetSoftBody();
+		btKinematicCharacterController* GetCharacterController();
 
 		CcdShapeConstructionInfo* GetShapeInfo() { return m_shapeInfo; }
 
@@ -433,12 +503,12 @@ protected:
 
 
 		/**
-			SynchronizeMotionStates ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
-		*/
+		 * SynchronizeMotionStates ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
+		 */
 		virtual bool		SynchronizeMotionStates(float time);
 		/**
-			WriteMotionStateToDynamics ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
-		*/
+		 * WriteMotionStateToDynamics ynchronizes dynas, kinematic and deformable entities (and do 'late binding')
+		 */
 		
 		virtual void		WriteMotionStateToDynamics(bool nondynaonly);
 		virtual	void		WriteDynamicsToMotionState();
@@ -449,11 +519,12 @@ protected:
 
 		// kinematic methods
 		virtual void		RelativeTranslate(float dlocX,float dlocY,float dlocZ,bool local);
+		virtual void		SetWalkDirection(float dirX,float dirY,float dirZ,bool local);
 		virtual void		RelativeRotate(const float drot[9],bool local);
 		virtual	void		getOrientation(float &quatImag0,float &quatImag1,float &quatImag2,float &quatReal);
 		virtual	void		setOrientation(float quatImag0,float quatImag1,float quatImag2,float quatReal);
 		virtual	void		setPosition(float posX,float posY,float posZ);
-		virtual	void 		getPosition(PHY__Vector3&	pos) const;
+		virtual	void 		getPosition(MT_Vector3&	pos) const;
 
 		virtual	void		setScaling(float scaleX,float scaleY,float scaleZ);
 		
@@ -463,6 +534,7 @@ protected:
 		virtual void		SetAngularVelocity(float ang_velX,float ang_velY,float ang_velZ,bool local);
 		virtual void		SetLinearVelocity(float lin_velX,float lin_velY,float lin_velZ,bool local);
 		virtual void		applyImpulse(float attachX,float attachY,float attachZ, float impulseX,float impulseY,float impulseZ);
+		virtual void		Jump();
 		virtual void		SetActive(bool active);
 
 		// reading out information from physics
@@ -470,6 +542,7 @@ protected:
 		virtual void		GetAngularVelocity(float& angVelX,float& angVelY,float& angVelZ);
 		virtual void		GetVelocity(const float posX,const float posY,const float posZ,float& linvX,float& linvY,float& linvZ); 
 		virtual	void		getReactionForce(float& forceX,float& forceY,float& forceZ);
+		virtual void		GetWalkDirection(float& dirX,float& dirY,float& dirZ);
 
 		// dyna's that are rigidbody are free in orientation, dyna's with non-rigidbody are restricted 
 		virtual	void		setRigidBody(bool rigid);
@@ -493,7 +566,7 @@ protected:
 			return m_cci.m_collisionFilterMask;
 		}
 
-		virtual void	calcXform() {} ;
+		virtual void calcXform() {}
 		virtual void SetMargin(float margin) 
 		{
 			if (m_collisionShape)
@@ -583,9 +656,7 @@ protected:
 		}
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:CcdPhysicsController"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CcdPhysicsController")
 #endif
 };
 
@@ -617,11 +688,9 @@ class	DefaultMotionState : public PHY_IMotionState
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:DefaultMotionState"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:DefaultMotionState")
 #endif
 };
 
 
-#endif //BULLET2_PHYSICSCONTROLLER_H
+#endif  /* __CCDPHYSICSCONTROLLER_H__ */

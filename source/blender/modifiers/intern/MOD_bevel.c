@@ -1,54 +1,59 @@
 /*
-* $Id: MOD_bevel.c 35362 2011-03-05 10:29:10Z campbellbarton $
-*
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software  Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-* The Original Code is Copyright (C) 2005 by the Blender Foundation.
-* All rights reserved.
-*
-* Contributor(s): Daniel Dunbar
-*                 Ton Roosendaal,
-*                 Ben Batt,
-*                 Brecht Van Lommel,
-*                 Campbell Barton
-*
-* ***** END GPL LICENSE BLOCK *****
-*
-*/
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2005 by the Blender Foundation.
+ * All rights reserved.
+ *
+ * Contributor(s): Daniel Dunbar
+ *                 Ton Roosendaal,
+ *                 Ben Batt,
+ *                 Brecht Van Lommel,
+ *                 Campbell Barton
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ *
+ */
 
 /** \file blender/modifiers/intern/MOD_bevel.c
  *  \ingroup modifiers
  */
-
-#include "MEM_guardedalloc.h"
+ 
+#include "DNA_object_types.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_math.h"
+#include "BLI_string.h"
 
-#include "BKE_bmesh.h"
 #include "BKE_cdderivedmesh.h"
+#include "BKE_deform.h"
 #include "BKE_modifier.h"
-#include "BKE_particle.h"
+#include "BKE_mesh.h"
+#include "BKE_bmesh.h" /* only for defines */
 
 #include "MOD_util.h"
+
+#include "bmesh.h"
+
+#include "MEM_guardedalloc.h"
 
 
 static void initData(ModifierData *md)
 {
-	BevelModifierData *bmd = (BevelModifierData*) md;
+	BevelModifierData *bmd = (BevelModifierData *) md;
 
 	bmd->value = 0.1f;
 	bmd->res = 1;
@@ -62,8 +67,8 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
-	BevelModifierData *bmd = (BevelModifierData*) md;
-	BevelModifierData *tbmd = (BevelModifierData*) target;
+	BevelModifierData *bmd = (BevelModifierData *) md;
+	BevelModifierData *tbmd = (BevelModifierData *) target;
 
 	tbmd->value = bmd->value;
 	tbmd->res = bmd->res;
@@ -72,7 +77,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 	tbmd->lim_flags = bmd->lim_flags;
 	tbmd->e_flags = bmd->e_flags;
 	tbmd->bevel_angle = bmd->bevel_angle;
-	strncpy(tbmd->defgrp_name, bmd->defgrp_name, 32);
+	BLI_strncpy(tbmd->defgrp_name, bmd->defgrp_name, sizeof(tbmd->defgrp_name));
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -81,48 +86,134 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	CustomDataMask dataMask = 0;
 
 	/* ask for vertexgroups if we need them */
-	if(bmd->defgrp_name[0]) dataMask |= CD_MASK_MDEFORMVERT;
+	if (bmd->defgrp_name[0]) dataMask |= CD_MASK_MDEFORMVERT;
 
 	return dataMask;
 }
 
-static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
-						DerivedMesh *derivedData,
-						int UNUSED(useRenderParams),
-						int UNUSED(isFinalCalc))
+#ifdef USE_BM_BEVEL_OP_AS_MOD
+
+/*
+ * This calls the new bevel code (added since 2.64)
+ */
+static DerivedMesh *applyModifier(ModifierData *md, struct Object *ob,
+                                  DerivedMesh *dm,
+                                  ModifierApplyFlag UNUSED(flag))
 {
 	DerivedMesh *result;
-	BME_Mesh *bm;
+	BMesh *bm;
+	BMIter iter;
+	BMEdge *e;
+	BMVert *v;
+	float weight;
+	int vgroup = -1;
+	MDeformVert *dvert = NULL;
+	BevelModifierData *bmd = (BevelModifierData *) md;
+	const float threshold = cosf((bmd->bevel_angle + 0.00001f) * (float)M_PI / 180.0f);
+	const bool vertex_only = (bmd->flags & BME_BEVEL_VERT) != 0;
+	const bool do_clamp = !(bmd->flags & BME_BEVEL_OVERLAP_OK);
 
-	/*bDeformGroup *def;*/
-	int /*i,*/ options, defgrp_index = -1;
-	BevelModifierData *bmd = (BevelModifierData*) md;
+	bm = DM_to_bmesh(dm, true);
 
-	options = bmd->flags|bmd->val_flags|bmd->lim_flags|bmd->e_flags;
-
-	/*if ((options & BME_BEVEL_VWEIGHT) && bmd->defgrp_name[0]) {
-		defgrp_index = defgroup_name_index(ob, bmd->defgrp_name);
-		if (defgrp_index < 0) {
-			options &= ~BME_BEVEL_VWEIGHT;
+	if (vertex_only) {
+		if ((bmd->lim_flags & BME_BEVEL_VGROUP) && bmd->defgrp_name[0]) {
+			modifier_get_vgroup(ob, dm, bmd->defgrp_name, &dvert, &vgroup);
 		}
-	}*/
+		BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+			if (!BM_vert_is_manifold(v))
+				continue;
+			if (vgroup != -1) {
+				/* Is it safe to assume bmesh indices and dvert array line up?? */
+				weight = defvert_array_find_weight_safe(dvert, BM_elem_index_get(v), vgroup);
+				if (weight <= 0.0f)
+					continue;
+			}
+			BM_elem_flag_enable(v, BM_ELEM_TAG);
+		}
+	}
+	else if (bmd->lim_flags & BME_BEVEL_ANGLE) {
+		BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+			/* check for 1 edge having 2 face users */
+			BMLoop *l_a, *l_b;
+			if (BM_edge_loop_pair(e, &l_a, &l_b)) {
+				if (dot_v3v3(l_a->f->no, l_b->f->no) < threshold) {
+					BM_elem_flag_enable(e, BM_ELEM_TAG);
+					BM_elem_flag_enable(e->v1, BM_ELEM_TAG);
+					BM_elem_flag_enable(e->v2, BM_ELEM_TAG);
+				}
+			}
+		}
+	}
+	else {
+		/* crummy, is there a way just to operator on all? - campbell */
+		BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+			if (BM_edge_is_manifold(e)) {
+				if (bmd->lim_flags & BME_BEVEL_WEIGHT) {
+					weight = BM_elem_float_data_get(&bm->edata, e, CD_BWEIGHT);
+					if (weight == 0.0f)
+						continue;
+				}
+				BM_elem_flag_enable(e, BM_ELEM_TAG);
+				BM_elem_flag_enable(e->v1, BM_ELEM_TAG);
+				BM_elem_flag_enable(e->v2, BM_ELEM_TAG);
+			}
+		}
+	}
 
-	bm = BME_derivedmesh_to_bmesh(derivedData);
-	BME_bevel(bm,bmd->value,bmd->res,options,defgrp_index,bmd->bevel_angle,NULL);
-	result = BME_bmesh_to_derivedmesh(bm,derivedData);
-	BME_free_mesh(bm);
+	BM_mesh_bevel(bm, bmd->value, bmd->res,
+	              vertex_only, bmd->lim_flags & BME_BEVEL_WEIGHT, do_clamp,
+	              dvert, vgroup);
 
-	CDDM_calc_normals(result);
+	result = CDDM_from_bmesh(bm, TRUE);
+
+	BLI_assert(bm->vtoolflagpool == NULL &&
+	           bm->etoolflagpool == NULL &&
+	           bm->ftoolflagpool == NULL);  /* make sure we never alloc'd these */
+	BM_mesh_free(bm);
+
+	result->dirty |= DM_DIRTY_NORMALS;
 
 	return result;
 }
 
-static DerivedMesh *applyModifierEM(ModifierData *md, Object *ob,
-						EditMesh *UNUSED(editData),
-						DerivedMesh *derivedData)
+
+#else /* from trunk, see note above */
+
+static DerivedMesh *applyModifier(ModifierData *md, Object *UNUSED(ob),
+                                  DerivedMesh *derivedData,
+                                  ModifierApplyFlag UNUSED(flag))
 {
-	return applyModifier(md, ob, derivedData, 0, 1);
+	DerivedMesh *result;
+	BMesh *bm;
+
+	/*bDeformGroup *def;*/
+	int /*i,*/ options, defgrp_index = -1;
+	BevelModifierData *bmd = (BevelModifierData *) md;
+
+	options = bmd->flags | bmd->val_flags | bmd->lim_flags | bmd->e_flags;
+
+#if 0
+	if ((options & BME_BEVEL_VWEIGHT) && bmd->defgrp_name[0]) {
+		defgrp_index = defgroup_name_index(ob, bmd->defgrp_name);
+		if (defgrp_index == -1) {
+			options &= ~BME_BEVEL_VWEIGHT;
+		}
+	}
+#endif
+
+	bm = DM_to_bmesh(derivedData);
+	BME_bevel(bm, bmd->value, bmd->res, options, defgrp_index, DEG2RADF(bmd->bevel_angle), NULL);
+	result = CDDM_from_bmesh(bm, TRUE);
+	BM_mesh_free(bm);
+
+	/* until we allow for dirty normal flag, always calc,
+	 * note: calculating on the CDDM is faster then the BMesh equivalent */
+	result->dirty |= DM_DIRTY_NORMALS;
+
+	return result;
 }
+
+#endif
 
 
 ModifierTypeInfo modifierType_Bevel = {
@@ -130,9 +221,9 @@ ModifierTypeInfo modifierType_Bevel = {
 	/* structName */        "BevelModifierData",
 	/* structSize */        sizeof(BevelModifierData),
 	/* type */              eModifierTypeType_Constructive,
-	/* flags */             eModifierTypeFlag_AcceptsMesh
-							| eModifierTypeFlag_SupportsEditmode
-							| eModifierTypeFlag_EnableInEditmode,
+	/* flags */             eModifierTypeFlag_AcceptsMesh |
+	                        eModifierTypeFlag_SupportsEditmode |
+	                        eModifierTypeFlag_EnableInEditmode,
 
 	/* copyData */          copyData,
 	/* deformVerts */       NULL,
@@ -140,14 +231,15 @@ ModifierTypeInfo modifierType_Bevel = {
 	/* deformVertsEM */     NULL,
 	/* deformMatricesEM */  NULL,
 	/* applyModifier */     applyModifier,
-	/* applyModifierEM */   applyModifierEM,
+	/* applyModifierEM */   NULL,
 	/* initData */          initData,
 	/* requiredDataMask */  requiredDataMask,
 	/* freeData */          NULL,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    NULL,
 	/* dependsOnTime */     NULL,
-	/* dependsOnNormals */	NULL,
+	/* dependsOnNormals */  NULL,
 	/* foreachObjectLink */ NULL,
 	/* foreachIDLink */     NULL,
+	/* foreachTexLink */    NULL,
 };

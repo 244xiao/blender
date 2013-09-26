@@ -1,6 +1,4 @@
 /*
- * $Id: nla_intern.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,8 +28,8 @@
  *  \ingroup spnla
  */
 
-#ifndef ED_NLA_INTERN_H
-#define ED_NLA_INTERN_H
+#ifndef __NLA_INTERN_H__
+#define __NLA_INTERN_H__
 
 /* internal exports only */
 
@@ -53,20 +51,15 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar);
 void draw_nla_channel_list(bContext *C, bAnimContext *ac, ARegion *ar);
 
 /* **************************************** */
-/* nla_header.c */
-
-void nla_header_buttons(const bContext *C, ARegion *ar);
-
-/* **************************************** */
 /* nla_select.c */
 
 /* defines for left-right select tool */
-enum {
-	NLAEDIT_LRSEL_TEST	= -1,
+enum eNlaEdit_LeftRightSelect_Mode {
+	NLAEDIT_LRSEL_TEST  = -1,
 	NLAEDIT_LRSEL_NONE,
 	NLAEDIT_LRSEL_LEFT,
 	NLAEDIT_LRSEL_RIGHT
-} eNlaEdit_LeftRightSelect_Mode;
+};
 
 /* --- */
 
@@ -78,24 +71,29 @@ void NLA_OT_click_select(wmOperatorType *ot);
 /* **************************************** */
 /* nla_edit.c */
 
-/* defines for snap strips
- */
-enum {
+/* defines for snap strips */
+enum eNlaEdit_Snap_Mode {
 	NLAEDIT_SNAP_CFRA = 1,
 	NLAEDIT_SNAP_NEAREST_FRAME,
 	NLAEDIT_SNAP_NEAREST_SECOND,
 	NLAEDIT_SNAP_NEAREST_MARKER
-} eNlaEdit_Snap_Mode;
+};
 
 /* --- */
+
+bool nlaedit_disable_tweakmode(bAnimContext *ac);
 
 void NLA_OT_tweakmode_enter(wmOperatorType *ot);
 void NLA_OT_tweakmode_exit(wmOperatorType *ot);
 
 /* --- */
 
+void NLA_OT_view_all(wmOperatorType *ot);
+void NLA_OT_view_selected(wmOperatorType *ot);
+
 void NLA_OT_actionclip_add(wmOperatorType *ot);
 void NLA_OT_transition_add(wmOperatorType *ot);
+void NLA_OT_soundclip_add(wmOperatorType *ot);
 
 void NLA_OT_meta_add(wmOperatorType *ot);
 void NLA_OT_meta_remove(wmOperatorType *ot);
@@ -125,16 +123,23 @@ void NLA_OT_fmodifier_paste(wmOperatorType *ot);
 /* **************************************** */
 /* nla_channels.c */
 
+bool nlaedit_add_tracks_existing(bAnimContext *ac, bool above_sel);
+bool nlaedit_add_tracks_empty(bAnimContext *ac);
+
+/* --- */
+
 void NLA_OT_channels_click(wmOperatorType *ot);
 
 void NLA_OT_tracks_add(wmOperatorType *ot);
-void NLA_OT_delete_tracks(wmOperatorType *ot);
+void NLA_OT_tracks_delete(wmOperatorType *ot);
+
+void NLA_OT_selected_objects_add(wmOperatorType *ot);
 
 /* **************************************** */
 /* nla_ops.c */
 
 int nlaop_poll_tweakmode_off(bContext *C);
-int nlaop_poll_tweakmode_on (bContext *C);
+int nlaop_poll_tweakmode_on(bContext *C);
 
 short nlaedit_is_tweakmode_on(bAnimContext *ac);
 
@@ -143,5 +148,5 @@ short nlaedit_is_tweakmode_on(bAnimContext *ac);
 void nla_operatortypes(void);
 void nla_keymap(wmKeyConfig *keyconf);
 
-#endif /* ED_NLA_INTERN_H */
+#endif /* __NLA_INTERN_H__ */
 

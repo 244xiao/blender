@@ -1,6 +1,4 @@
 /*
- * $Id: rayobject_raycounter.cpp 35233 2011-02-27 19:31:27Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -45,10 +43,10 @@ void RE_RC_INFO(RayCounter *info)
 	printf("\n");
 	printf("BB tests: %llu\n", info->bb.test );
 	printf("BB hits: %llu\n", info->bb.hit );
-	printf("\n");	
+	printf("\n");
 	printf("SIMD BB tests: %llu\n", info->simd_bb.test );
 	printf("SIMD BB hits: %llu\n", info->simd_bb.hit );
-	printf("\n");	
+	printf("\n");
 	printf("Primitives tests: %llu\n", info->faces.test );
 	printf("Primitives hits: %llu\n", info->faces.hit );
 	printf("------------------------------------\n");

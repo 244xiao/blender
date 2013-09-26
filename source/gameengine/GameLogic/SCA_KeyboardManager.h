@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_KeyboardManager.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -33,8 +31,8 @@
  *
  */
 
-#ifndef __KX_KEYBOARDMANAGER
-#define __KX_KEYBOARDMANAGER
+#ifndef __SCA_KEYBOARDMANAGER_H__
+#define __SCA_KEYBOARDMANAGER_H__
 
 
 #include "SCA_EventManager.h"
@@ -56,16 +54,13 @@ public:
 
 	bool			IsPressed(SCA_IInputDevice::KX_EnumInputs inputcode);
 	
-	virtual void 	NextFrame();	
+	virtual void 	NextFrame();
 	SCA_IInputDevice* GetInputDevice();
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SCA_KeyboardManager"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_KeyboardManager")
 #endif
 };
 
-#endif //__KX_KEYBOARDMANAGER
-
+#endif  /* __SCA_KEYBOARDMANAGER_H__ */

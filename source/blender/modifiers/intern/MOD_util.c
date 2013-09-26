@@ -1,23 +1,18 @@
 /*
- * $Id: MOD_util.c 35178 2011-02-25 13:57:17Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. The Blender
- * Foundation also sells licenses for use in proprietary software under
- * the Blender License.  See http://www.blender.org/BL/ for information
- * about this.
+ * of the License, or (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful;
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation;
+ * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
@@ -37,15 +32,25 @@
 
 #include <string.h>
 
+#include "DNA_curve_types.h"
+#include "DNA_image_types.h"
+#include "DNA_lattice_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
-#include "DNA_curve_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_utildefines.h"
+#include "BLI_math_vector.h"
+#include "BLI_math_matrix.h"
 
 #include "BKE_cdderivedmesh.h"
+#include "BKE_deform.h"
+#include "BKE_image.h"
+#include "BKE_lattice.h"
 #include "BKE_mesh.h"
 #include "BKE_displist.h"
+#include "BKE_scene.h"
 
 #include "BKE_modifier.h"
 
@@ -56,98 +61,187 @@
 
 #include "RE_shader_ext.h"
 
-void get_texture_value(Tex *texture, float *tex_co, TexResult *texres)
+void modifier_init_texture(Scene *scene, Tex *tex)
+{
+	if (!tex)
+		return;
+
+	if (tex->ima && ELEM(tex->ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE))
+		BKE_image_user_frame_calc(&tex->iuser, scene->r.cfra, 0);
+}
+
+void get_texture_value(Scene *scene, Tex *texture, float *tex_co, TexResult *texres, bool use_color_management)
 {
 	int result_type;
+	bool do_color_manage = false;
+
+	if (use_color_management) {
+		do_color_manage = BKE_scene_check_color_management_enabled(scene);
+	}
 
 	/* no node textures for now */
-	result_type = multitex_ext_safe(texture, tex_co, texres);
+	result_type = multitex_ext_safe(texture, tex_co, texres, NULL, do_color_manage);
 
 	/* if the texture gave an RGB value, we assume it didn't give a valid
-	* intensity, so calculate one (formula from do_material_tex).
-	* if the texture didn't give an RGB value, copy the intensity across
-	*/
-	if(result_type & TEX_RGB)
-		texres->tin = (0.35f * texres->tr + 0.45f * texres->tg
-				+ 0.2f * texres->tb);
-	else
-		texres->tr = texres->tg = texres->tb = texres->tin;
+	 * intensity, since this is in the context of modifiers don't use perceptual color conversion.
+	 * if the texture didn't give an RGB value, copy the intensity across
+	 */
+	if (result_type & TEX_RGB) {
+		texres->tin = (1.0f / 3.0f) * (texres->tr + texres->tg + texres->tb);
+	}
+	else {
+		copy_v3_fl(&texres->tr, texres->tin);
+	}
+}
+
+void get_texture_coords(MappingInfoModifierData *dmd, Object *ob,
+                        DerivedMesh *dm,
+                        float (*co)[3], float (*texco)[3],
+                        int numVerts)
+{
+	int i;
+	int texmapping = dmd->texmapping;
+	float mapob_imat[4][4];
+
+	if (texmapping == MOD_DISP_MAP_OBJECT) {
+		if (dmd->map_object)
+			invert_m4_m4(mapob_imat, dmd->map_object->obmat);
+		else /* if there is no map object, default to local */
+			texmapping = MOD_DISP_MAP_LOCAL;
+	}
+
+	/* UVs need special handling, since they come from faces */
+	if (texmapping == MOD_DISP_MAP_UV) {
+		if (CustomData_has_layer(&dm->loopData, CD_MLOOPUV)) {
+			MPoly *mpoly = dm->getPolyArray(dm);
+			MPoly *mp;
+			MLoop *mloop = dm->getLoopArray(dm);
+			char *done = MEM_callocN(sizeof(*done) * numVerts,
+			                         "get_texture_coords done");
+			int numPolys = dm->getNumPolys(dm);
+			char uvname[MAX_CUSTOMDATA_LAYER_NAME];
+			MLoopUV *mloop_uv;
+
+			CustomData_validate_layer_name(&dm->loopData, CD_MLOOPUV, dmd->uvlayer_name, uvname);
+			mloop_uv = CustomData_get_layer_named(&dm->loopData, CD_MLOOPUV, uvname);
+
+			/* verts are given the UV from the first face that uses them */
+			for (i = 0, mp = mpoly; i < numPolys; ++i, ++mp) {
+				unsigned int fidx = mp->totloop - 1;
+
+				do {
+					unsigned int lidx = mp->loopstart + fidx;
+					unsigned int vidx = mloop[lidx].v;
+
+					if (done[vidx] == 0) {
+						/* remap UVs from [0, 1] to [-1, 1] */
+						texco[vidx][0] = (mloop_uv[lidx].uv[0] * 2.0f) - 1.0f;
+						texco[vidx][1] = (mloop_uv[lidx].uv[1] * 2.0f) - 1.0f;
+						done[vidx] = 1;
+					}
+
+				} while (fidx--);
+			}
+
+			MEM_freeN(done);
+			return;
+		}
+		else /* if there are no UVs, default to local */
+			texmapping = MOD_DISP_MAP_LOCAL;
+	}
+
+	for (i = 0; i < numVerts; ++i, ++co, ++texco) {
+		switch (texmapping) {
+			case MOD_DISP_MAP_LOCAL:
+				copy_v3_v3(*texco, *co);
+				break;
+			case MOD_DISP_MAP_GLOBAL:
+				mul_v3_m4v3(*texco, ob->obmat, *co);
+				break;
+			case MOD_DISP_MAP_OBJECT:
+				mul_v3_m4v3(*texco, ob->obmat, *co);
+				mul_m4_v3(mapob_imat, *texco);
+				break;
+		}
+	}
 }
 
 void modifier_vgroup_cache(ModifierData *md, float (*vertexCos)[3])
 {
-	while((md=md->next) && md->type==eModifierType_Armature) {
-		ArmatureModifierData *amd = (ArmatureModifierData*) md;
-		if(amd->multi && amd->prevCos==NULL)
-			amd->prevCos= MEM_dupallocN(vertexCos);
+	while ((md = md->next) && md->type == eModifierType_Armature) {
+		ArmatureModifierData *amd = (ArmatureModifierData *) md;
+		if (amd->multi && amd->prevCos == NULL)
+			amd->prevCos = MEM_dupallocN(vertexCos);
 		else
 			break;
 	}
 	/* lattice/mesh modifier too */
 }
 
-void validate_layer_name(const CustomData *data, int type, char *name, char *outname)
-{
-	int index = -1;
-
-	/* if a layer name was given, try to find that layer */
-	if(name[0])
-		index = CustomData_get_named_layer_index(data, type, name);
-
-	if(index < 0) {
-		/* either no layer was specified, or the layer we want has been
-		* deleted, so assign the active layer to name
-		*/
-		index = CustomData_get_active_layer_index(data, type);
-		strcpy(outname, data->layers[index].name);
-	}
-	else
-		strcpy(outname, name);
-}
-
 /* returns a cdderivedmesh if dm == NULL or is another type of derivedmesh */
-DerivedMesh *get_cddm(Object *ob, struct EditMesh *em, DerivedMesh *dm, float (*vertexCos)[3])
+DerivedMesh *get_cddm(Object *ob, struct BMEditMesh *em, DerivedMesh *dm, float (*vertexCos)[3], bool use_normals)
 {
-	if(dm && dm->type == DM_TYPE_CDDM)
-		return dm;
+	if (dm) {
+		if (dm->type != DM_TYPE_CDDM) {
+			dm = CDDM_copy(dm);
+			CDDM_apply_vert_coords(dm, vertexCos);
+		}
 
-	if(!dm) {
-		dm= get_dm(ob, em, dm, vertexCos, 0);
+		if (use_normals) {
+			DM_ensure_normals(dm);
+		}
 	}
 	else {
-		dm= CDDM_copy(dm);
-		CDDM_apply_vert_coords(dm, vertexCos);
+		dm = get_dm(ob, em, dm, vertexCos, use_normals, false);
 	}
 
-	if(dm)
-		CDDM_calc_normals(dm);
-	
 	return dm;
 }
 
 /* returns a derived mesh if dm == NULL, for deforming modifiers that need it */
-DerivedMesh *get_dm(Object *ob, struct EditMesh *em, DerivedMesh *dm, float (*vertexCos)[3], int orco)
+DerivedMesh *get_dm(Object *ob, struct BMEditMesh *em, DerivedMesh *dm,
+                    float (*vertexCos)[3], bool use_normals, bool use_orco)
 {
-	if(dm)
-		return dm;
-
-	if(ob->type==OB_MESH) {
-		if(em) dm= CDDM_from_editmesh(em, ob->data);
+	if (dm) {
+		/* pass */
+	}
+	else if (ob->type == OB_MESH) {
+		if (em) dm = CDDM_from_editbmesh(em, FALSE, FALSE);
 		else dm = CDDM_from_mesh((struct Mesh *)(ob->data), ob);
 
-		if(vertexCos) {
+		if (vertexCos) {
 			CDDM_apply_vert_coords(dm, vertexCos);
-			//CDDM_calc_normals(dm);
+			dm->dirty |= DM_DIRTY_NORMALS;
 		}
 		
-		if(orco)
-			DM_add_vert_layer(dm, CD_ORCO, CD_ASSIGN, get_mesh_orco_verts(ob));
+		if (use_orco) {
+			DM_add_vert_layer(dm, CD_ORCO, CD_ASSIGN, BKE_mesh_orco_verts_get(ob));
+		}
 	}
-	else if(ELEM3(ob->type,OB_FONT,OB_CURVE,OB_SURF)) {
-		dm= CDDM_from_curve(ob);
+	else if (ELEM3(ob->type, OB_FONT, OB_CURVE, OB_SURF)) {
+		dm = CDDM_from_curve(ob);
+	}
+
+	if (use_normals) {
+		if (LIKELY(dm)) {
+			DM_ensure_normals(dm);
+		}
 	}
 
 	return dm;
+}
+
+void modifier_get_vgroup(Object *ob, DerivedMesh *dm, const char *name, MDeformVert **dvert, int *defgrp_index)
+{
+	*defgrp_index = defgroup_name_index(ob, name);
+	*dvert = NULL;
+
+	if (*defgrp_index != -1) {
+		if (ob->type == OB_LATTICE)
+			*dvert = BKE_lattice_deform_verts_get(ob);
+		else if (dm)
+			*dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
+	}
 }
 
 /* only called by BKE_modifier.h/modifier.c */
@@ -176,6 +270,7 @@ void modifier_type_init(ModifierTypeInfo *types[])
 	INIT_TYPE(Collision);
 	INIT_TYPE(Boolean);
 	INIT_TYPE(MeshDeform);
+	INIT_TYPE(Ocean);
 	INIT_TYPE(ParticleSystem);
 	INIT_TYPE(ParticleInstance);
 	INIT_TYPE(Explode);
@@ -189,5 +284,16 @@ void modifier_type_init(ModifierTypeInfo *types[])
 	INIT_TYPE(ShapeKey);
 	INIT_TYPE(Solidify);
 	INIT_TYPE(Screw);
+	INIT_TYPE(Warp);
+	INIT_TYPE(WeightVGEdit);
+	INIT_TYPE(WeightVGMix);
+	INIT_TYPE(WeightVGProximity);
+	INIT_TYPE(DynamicPaint);
+	INIT_TYPE(Remesh);
+	INIT_TYPE(Skin);
+	INIT_TYPE(LaplacianSmooth);
+	INIT_TYPE(Triangulate);
+	INIT_TYPE(UVWarp);
+	INIT_TYPE(MeshCache);
 #undef INIT_TYPE
 }

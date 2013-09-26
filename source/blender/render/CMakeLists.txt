@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 34861 2011-02-15 09:24:35Z jesterking $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -24,22 +23,23 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-# remove warning until render branch merged.
-remove_strict_flags()
 
 set(INC 
-	intern/include
 	extern/include
+	intern/include
+	../blenfont
+	../blenkernel
 	../blenlib
-	../blenloader
+	../imbuf
 	../makesdna
 	../makesrna
-	../blenkernel
-	../imbuf
-	../../kernel/gen_messaging
-	../../../intern/smoke/extern
-	../../../intern/mikktspace
 	../../../intern/guardedalloc
+	../../../intern/mikktspace
+	../../../intern/smoke/extern
+)
+
+set(INC_SYS
+
 )
 
 set(SRC
@@ -53,11 +53,14 @@ set(SRC
 	intern/raytrace/rayobject_qbvh.cpp
 	intern/raytrace/rayobject_rtbuild.cpp
 	intern/raytrace/rayobject_vbvh.cpp
+	intern/source/bake.c
 	intern/source/convertblender.c
 	intern/source/envmap.c
+	intern/source/external_engine.c
 	intern/source/gammaCorrectionTables.c
 	intern/source/imagetexture.c
 	intern/source/initrender.c
+	intern/source/multires_bake.c
 	intern/source/occlusion.c
 	intern/source/pipeline.c
 	intern/source/pixelblending.c
@@ -65,6 +68,7 @@ set(SRC
 	intern/source/pointdensity.c
 	intern/source/rayshade.c
 	intern/source/rendercore.c
+	intern/source/render_result.c
 	intern/source/render_texture.c
 	intern/source/renderdatabase.c
 	intern/source/shadbuf.c
@@ -73,11 +77,14 @@ set(SRC
 	intern/source/sss.c
 	intern/source/strand.c
 	intern/source/sunsky.c
+	intern/source/texture_ocean.c
 	intern/source/volume_precache.c
 	intern/source/volumetric.c
 	intern/source/voxeldata.c
 	intern/source/zbuf.c
 
+	extern/include/RE_engine.h
+	extern/include/RE_multires_bake.h
 	extern/include/RE_pipeline.h
 	extern/include/RE_render_ext.h
 	extern/include/RE_shader_ext.h
@@ -93,6 +100,7 @@ set(SRC
 	intern/include/rayintersection.h
 	intern/include/raycounter.h
 	intern/include/render_types.h
+	intern/include/render_result.h
 	intern/include/rendercore.h
 	intern/include/renderdatabase.h
 	intern/include/renderpipeline.h
@@ -102,6 +110,7 @@ set(SRC
 	intern/include/strand.h
 	intern/include/sunsky.h
 	intern/include/texture.h
+	intern/include/texture_ocean.h
 	intern/include/volume_precache.h
 	intern/include/volumetric.h
 	intern/include/voxeldata.h
@@ -115,20 +124,52 @@ set(SRC
 	intern/raytrace/vbvh.h
 )
 
+if(WITH_PYTHON)
+	add_definitions(-DWITH_PYTHON)
+	list(APPEND INC
+		../python
+	)
+endif()
+
 if(WITH_IMAGE_OPENEXR)
 	add_definitions(-DWITH_OPENEXR)
 endif()
 
+if(WITH_MOD_SMOKE)
+	add_definitions(-DWITH_SMOKE)
+endif()
+
+if(WITH_FREESTYLE)
+	list(APPEND INC
+		../freestyle
+	)
+	add_definitions(-DWITH_FREESTYLE)
+endif()
+
 if(WITH_CODEC_QUICKTIME)
-	list(APPEND INC ../quicktime ${QUICKTIME_INC})
+	list(APPEND INC
+		../quicktime
+	)
+	list(APPEND INC_SYS
+		${QUICKTIME_INCLUDE_DIRS}
+	)
 	add_definitions(-DWITH_QUICKTIME)
 endif()
 
+if(WITH_GAMEENGINE)
+	add_definitions(-DWITH_GAMEENGINE)
+endif()
+
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
 if(APPLE)
-	if(CMAKE_OSX_ARCHITECTURES MATCHES "i386" OR CMAKE_OSX_ARCHITECTURES MATCHES "x86_64")
+	# SSE math is enabled by default on x86_64
+	if(CMAKE_OSX_ARCHITECTURES MATCHES "i386")
 		set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -mfpmath=sse")
 		set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -mfpmath=sse")
 	endif()
 endif()
 
-blender_add_lib_nolist(bf_render "${SRC}" "${INC}")
+blender_add_lib_nolist(bf_render "${SRC}" "${INC}" "${INC_SYS}")

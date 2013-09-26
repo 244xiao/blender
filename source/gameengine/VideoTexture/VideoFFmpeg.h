@@ -1,64 +1,62 @@
-/* $Id: VideoFFmpeg.h 35082 2011-02-22 19:30:37Z jesterking $
------------------------------------------------------------------------------
-This source file is part of VideoTexture library
-
-Copyright (c) 2007 The Zdeno Ash Miklas
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
------------------------------------------------------------------------------
-*/
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Copyright (c) 2007 The Zdeno Ash Miklas
+ *
+ * This source file is part of VideoTexture library
+ *
+ * Contributor(s):
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 /** \file VideoFFmpeg.h
  *  \ingroup bgevideotex
  */
- 
-#if !defined VIDEOFFMPEG_H
-#define VIDEOFFMPEG_H
+
+#ifndef __VIDEOFFMPEG_H__
+#define __VIDEOFFMPEG_H__
 
 #ifdef WITH_FFMPEG
+/* this needs to be parsed with __cplusplus defined before included through ffmpeg_compat.h */
+#if defined(__FreeBSD__)
+#  include <inttypes.h>
+#endif
 extern "C" {
-#undef __cplusplus
 #include <pthread.h>
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
-#include <libavutil/rational.h>
-#include <libswscale/swscale.h>
+#include "ffmpeg_compat.h"
 #include "DNA_listBase.h"
 #include "BLI_threads.h"
 #include "BLI_blenlib.h"
-#define __cplusplus
 }
 
-
 #if LIBAVFORMAT_VERSION_INT < (49 << 16)
-#define FFMPEG_OLD_FRAME_RATE 1
+#  define FFMPEG_OLD_FRAME_RATE 1
 #else
-#define FFMPEG_CODEC_IS_POINTER 1
-#endif
-
-#if LIBAVFORMAT_VERSION_INT >= (52 << 16)
-#define FFMPEG_PB_IS_POINTER 1
+#  define FFMPEG_CODEC_IS_POINTER 1
 #endif
 
 #ifdef FFMPEG_CODEC_IS_POINTER
-static inline AVCodecContext* get_codec_from_stream(AVStream* stream)
+static inline AVCodecContext *get_codec_from_stream(AVStream* stream)
 {
 	return stream->codec;
 }
 #else
-static inline AVCodecContext* get_codec_from_stream(AVStream* stream)
+static inline AVCodecContext *get_codec_from_stream(AVStream* stream)
 {
 	return &stream->codec;
 }
@@ -81,9 +79,9 @@ public:
 	/// set initial parameters
 	void initParams (short width, short height, float rate, bool image=false);
 	/// open video/image file
-	virtual void openFile (char * file);
+	virtual void openFile(char *file);
 	/// open video capture device
-	virtual void openCam (char * driver, short camIdx);
+	virtual void openCam(char *driver, short camIdx);
 
 	/// release video source
 	virtual bool release (void);
@@ -174,7 +172,7 @@ protected:
 	double actFrameRate (void) { return m_frameRate * m_baseFrameRate; }
 
 	/// common function to video file and capture
-	int openStream(const char *filename, AVInputFormat *inputFormat, AVFormatParameters *formatParams);
+	int openStream(const char *filename, AVInputFormat *inputFormat, AVDictionary **formatParams);
 
 	/// check if a frame is available and load it in pFrame, return true if a frame could be retrieved
 	AVFrame* grabFrame(long frame);
@@ -210,11 +208,11 @@ private:
 	static void *cacheThread(void *);
 };
 
-inline VideoFFmpeg * getFFmpeg (PyImage * self) 
+inline VideoFFmpeg *getFFmpeg(PyImage *self)
 {
 	return static_cast<VideoFFmpeg*>(self->m_image); 
 }
 
-#endif	//WITH_FFMPEG
+#endif  /* WITH_FFMPEG */
 
-#endif
+#endif  /* __VIDEOFFMPEG_H__ */

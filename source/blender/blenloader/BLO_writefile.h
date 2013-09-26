@@ -1,6 +1,4 @@
 /*
- * $Id: BLO_writefile.h 35245 2011-02-27 20:35:41Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BLO_WRITEFILE_H
-#define BLO_WRITEFILE_H
+#ifndef __BLO_WRITEFILE_H__
+#define __BLO_WRITEFILE_H__
 
 /** \file BLO_writefile.h
  *  \ingroup blenloader
@@ -39,9 +37,8 @@ struct MemFile;
 struct Main;
 struct ReportList;
 
-extern int BLO_write_file(struct Main *mainvar, char *dir, int write_flags, struct ReportList *reports, int *thumb);
+extern int BLO_write_file(struct Main *mainvar, const char *filepath, int write_flags, struct ReportList *reports, const int *thumb);
 extern int BLO_write_file_mem(struct Main *mainvar, struct MemFile *compare, struct MemFile *current, int write_flags);
-extern int BLO_write_runtime(struct Main *mainvar, const char *file, char *exename, struct ReportList *reports);
 
 #define BLEN_THUMB_SIZE 128
 

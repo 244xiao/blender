@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -21,31 +20,47 @@
 
 set(INC
 	../include
+	../uvedit
 	../../blenkernel
-	../../blenloader
-	../../imbuf
-	../../gpu
 	../../blenlib
+	../../blenfont
+	../../bmesh
+	../../gpu
+	../../imbuf
 	../../makesdna
 	../../makesrna
-	../../windowmanager
 	../../render/extern/include
+	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
+	paint_cursor.c
+	paint_hide.c
 	paint_image.c
+	paint_image_2d.c
+	paint_image_proj.c
+	paint_mask.c
 	paint_ops.c
 	paint_stroke.c
 	paint_undo.c
 	paint_utils.c
 	paint_vertex.c
+	paint_vertex_proj.c
 	sculpt.c
 	sculpt_undo.c
+	sculpt_uv.c
 
 	paint_intern.h
 	sculpt_intern.h
 )
 
-blender_add_lib(bf_editor_sculpt_paint "${SRC}" "${INC}")
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+blender_add_lib(bf_editor_sculpt_paint "${SRC}" "${INC}" "${INC_SYS}")

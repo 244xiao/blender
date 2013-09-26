@@ -1,6 +1,4 @@
 /*
- * $Id: ED_keyframes_draw.h 35737 2011-03-24 03:19:30Z aligorith $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup editors
  */
 
-#ifndef ED_KEYFRAMES_DRAW_H
-#define ED_KEYFRAMES_DRAW_H
+#ifndef __ED_KEYFRAMES_DRAW_H__
+#define __ED_KEYFRAMES_DRAW_H__
 
 struct bAnimContext;
 struct AnimData;
@@ -44,6 +42,7 @@ struct bActionGroup;
 struct Object;
 struct ListBase;
 struct bGPDlayer;
+struct MaskLayer;
 struct Scene;
 struct View2D;
 struct DLRBT_Tree;
@@ -52,16 +51,16 @@ struct DLRBT_Tree;
 
 /* Keyframe Column Struct */
 typedef struct ActKeyColumn {
-		/* ListBase linkage */
+	/* ListBase linkage */
 	struct ActKeyColumn *next, *prev;
 	
-		/* sorting-tree linkage */
-	struct ActKeyColumn *left, *right;	/* 'children' of this node, less than and greater than it (respectively) */
-	struct ActKeyColumn *parent;		/* parent of this node in the tree */
-	char tree_col;						/* DLRB_BLACK or DLRB_RED */
+	/* sorting-tree linkage */
+	struct ActKeyColumn *left, *right;  /* 'children' of this node, less than and greater than it (respectively) */
+	struct ActKeyColumn *parent;        /* parent of this node in the tree */
+	char tree_col;                      /* DLRB_BLACK or DLRB_RED */
 	
-		/* keyframe info */
-	char key_type;						/* eBezTripe_KeyframeType */
+	/* keyframe info */
+	char key_type;                      /* eBezTripe_KeyframeType */
 	short sel;
 	float cfra;
 	
@@ -72,15 +71,15 @@ typedef struct ActKeyColumn {
 
 /* 'Long Keyframe' Struct */
 typedef struct ActKeyBlock {
-		/* ListBase linkage */
+	/* ListBase linkage */
 	struct ActKeyBlock *next, *prev;
 	
-		/* sorting-tree linkage */
-	struct ActKeyBlock *left, *right;	/* 'children' of this node, less than and greater than it (respectively) */
-	struct ActKeyBlock *parent;			/* parent of this node in the tree */
-	char tree_col;						/* DLRB_BLACK or DLRB_RED */
+	/* sorting-tree linkage */
+	struct ActKeyBlock *left, *right;   /* 'children' of this node, less than and greater than it (respectively) */
+	struct ActKeyBlock *parent;         /* parent of this node in the tree */
+	char tree_col;                      /* DLRB_BLACK or DLRB_RED */
 	
-		/* key-block info */
+	/* key-block info */
 	char sel;
 	short handle_type;
 	float val;
@@ -95,11 +94,11 @@ typedef struct ActKeyBlock {
 
 /* options for keyframe shape drawing */
 typedef enum eKeyframeShapeDrawOpts {
-		/* only the border */
-	KEYFRAME_SHAPE_FRAME	= 0,
-		/* only the inside filling */
+	/* only the border */
+	KEYFRAME_SHAPE_FRAME = 0,
+	/* only the inside filling */
 	KEYFRAME_SHAPE_INSIDE,
-		/* the whole thing */
+	/* the whole thing */
 	KEYFRAME_SHAPE_BOTH
 } eKeyframeShapeDrawOpts;
 
@@ -124,6 +123,8 @@ void draw_summary_channel(struct View2D *v2d, struct bAnimContext *ac, float ypo
 /* Grease Pencil Layer */ 
 // XXX not restored 
 void draw_gpl_channel(struct View2D *v2d, struct bDopeSheet *ads, struct bGPDlayer *gpl, float ypos);
+/* Mask Layer */
+void draw_masklay_channel(struct View2D *v2d, struct bDopeSheet *ads, struct MaskLayer *masklay, float ypos);
 
 /* Keydata Generation --------------- */
 /* F-Curve */
@@ -141,6 +142,9 @@ void summary_to_keylist(struct bAnimContext *ac, struct DLRBT_Tree *keys, struct
 /* Grease Pencil Layer */
 // XXX not restored
 void gpl_to_keylist(struct bDopeSheet *ads, struct bGPDlayer *gpl, struct DLRBT_Tree *keys);
+/* Mask */
+// XXX not restored
+void mask_to_keylist(struct bDopeSheet *UNUSED(ads), struct MaskLayer *masklay, struct DLRBT_Tree *keys);
 
 /* ActKeyColumn API ---------------- */
 /* Comparator callback used for ActKeyColumns and cframe float-value pointer */
@@ -152,5 +156,4 @@ short compare_ab_cfraPtr(void *node, void *data);
 /* Checks if ActKeyBlock can be used (i.e. drawn/used to detect "holds") */
 short actkeyblock_is_valid(ActKeyBlock *ab, struct DLRBT_Tree *keys);
 
-#endif  /*  ED_KEYFRAMES_DRAW_H */
-
+#endif  /*  __ED_KEYFRAMES_DRAW_H__ */

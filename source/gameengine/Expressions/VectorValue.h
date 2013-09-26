@@ -1,6 +1,5 @@
 /*
  * VectorValue.h: interface for the CVectorValue class.
- * $Id: VectorValue.h 35063 2011-02-22 10:33:14Z jesterking $
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -17,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#if !defined _VECTORVALUE_H
-#define _VECTORVALUE_H
+#ifndef __VECTORVALUE_H__
+#define __VECTORVALUE_H__
 
 #include "Value.h"
 
@@ -46,10 +45,10 @@ public:
 	CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 	
 	
-	CVectorValue(double vec[],const char *name,AllocationTYPE alloctype=CValue::HEAPVALUE);
+	CVectorValue(double vec[3], const char *name,AllocationTYPE alloctype=CValue::HEAPVALUE);
 	CVectorValue() {};
 
-	CVectorValue(double vec[],AllocationTYPE alloctype=CValue::HEAPVALUE);
+	CVectorValue(double vec[3], AllocationTYPE alloctype=CValue::HEAPVALUE);
 	CVectorValue(float x,float y,float z, AllocationTYPE alloctype = CValue::HEAPVALUE);
 	virtual ~CVectorValue();
 	//virtual bool ExportT3D(File *txtfile,bool bNoName=false);
@@ -60,7 +59,7 @@ public:
 	virtual CValue* GetReplica();
 	virtual const STR_String & GetText();
 
-/*
+#if 0
 	void			SnapPoint(float num,int snap)
 	{
 		if (num > 0) num += ((float)snap / 2);
@@ -79,19 +78,16 @@ public:
 			SnapPoint(m_vec[KX_Z],snapvec[KX_Z]);
 			
 	}
-*/
-	
+#endif
+
 protected:
 	double				m_vec[3];
 	double				m_transformedvec[3];
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:CVectorValue"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CVectorValue")
 #endif
 };
 
-#endif // !defined _VECTORVALUE_H
-
+#endif  /* __VECTORVALUE_H__ */

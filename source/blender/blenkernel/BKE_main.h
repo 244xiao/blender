@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_main.h 34962 2011-02-18 13:05:18Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_MAIN_H
-#define BKE_MAIN_H
+#ifndef __BKE_MAIN_H__
+#define __BKE_MAIN_H__
 
 /** \file BKE_main.h
  *  \ingroup bke
@@ -52,10 +50,11 @@ struct Library;
 
 typedef struct Main {
 	struct Main *next, *prev;
-	char name[240];
-	short versionfile, subversionfile;
+	char name[1024]; /* 1024 = FILE_MAX */
+	short versionfile, subversionfile;  /* see BLENDER_VERSION, BLENDER_SUBVERSION */
 	short minversionfile, minsubversionfile;
-	int revision;	/* svn revision of binary that saved file */
+	int revision;		/* svn revision of binary that saved file */
+	short recovered;	/* indicate the main->name (file) is the recovered one */
 	
 	struct Library *curlib;
 	ListBase scene;
@@ -70,13 +69,14 @@ typedef struct Main {
 	ListBase latt;
 	ListBase lamp;
 	ListBase camera;
-	ListBase ipo;	// XXX depreceated
+	ListBase ipo;   // XXX deprecated
 	ListBase key;
 	ListBase world;
 	ListBase screen;
 	ListBase script;
 	ListBase vfont;
 	ListBase text;
+	ListBase speaker;
 	ListBase sound;
 	ListBase group;
 	ListBase armature;
@@ -86,14 +86,22 @@ typedef struct Main {
 	ListBase particle;
 	ListBase wm;
 	ListBase gpencil;
+	ListBase movieclip;
+	ListBase mask;
+	ListBase linestyle;
 
 	char id_tag_update[256];
 } Main;
 
+#define MAIN_VERSION_ATLEAST(main, ver, subver) \
+	((main)->versionfile > (ver) || (main->versionfile == (ver) && (main)->subversionfile >= (subver)))
 
+#define MAIN_VERSION_OLDER(main, ver, subver) \
+	((main)->versionfile < (ver) || (main->versionfile == (ver) && (main)->subversionfile < (subver)))
+
+	
 #ifdef __cplusplus
 }
 #endif
 
-#endif
-
+#endif  /* __BKE_MAIN_H__ */

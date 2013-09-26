@@ -1,6 +1,4 @@
 /*
- * $Id: KX_ArmatureSensor.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  *  \brief Property sensor
  */
 
-#ifndef __KX_ARMATURESENSOR
-#define __KX_ARMATURESENSOR
+#ifndef __KX_ARMATURESENSOR_H__
+#define __KX_ARMATURESENSOR_H__
 
 struct bConstraint;
 
@@ -42,7 +40,7 @@ struct bConstraint;
 
 class KX_ArmatureSensor : public SCA_ISensor
 {
-	Py_Header;
+	Py_Header
 	//class CExpression*	m_rightexpr;
 
 protected:
@@ -74,9 +72,9 @@ public:
 	/* --------------------------------------------------------------------- */
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
-	static PyObject* pyattr_get_constraint(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_constraint(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
 private:
 	struct bConstraint*	m_constraint;

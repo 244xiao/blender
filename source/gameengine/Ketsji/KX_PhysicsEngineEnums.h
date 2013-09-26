@@ -1,6 +1,4 @@
 /*
- * $Id: KX_PhysicsEngineEnums.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,19 +29,14 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_PHYSICSENGINEENUMS
-#define __KX_PHYSICSENGINEENUMS
+#ifndef __KX_PHYSICSENGINEENUMS_H__
+#define __KX_PHYSICSENGINEENUMS_H__
 
 enum	e_PhysicsEngine
 {
 		NoSelection = -1,
 		UseNone     =  0,
-		UseEnji     =  1,
-		UseSumo     =  2,
-		UseDynamo   =  3,
-		UseODE      =  4,
-		UseBullet	=	5,
+		UseBullet   =  5,
 };
 
-#endif //__KX_PHYSICSENGINEENUMS
-
+#endif  /* __KX_PHYSICSENGINEENUMS_H__ */

@@ -1,6 +1,4 @@
 /*
- * $Id: KX_SoftBodyDeformer.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,12 +29,12 @@
  *  \ingroup bgeconv
  */
 
-#ifndef KX_SOFTBODYDEFORMER
-#define KX_SOFTBODYDEFORMER
+#ifndef __KX_SOFTBODYDEFORMER_H__
+#define __KX_SOFTBODYDEFORMER_H__
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable:4786) // get rid of stupid stl-visual compiler debug warning
-#endif //WIN32
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)  /* get rid of stupid stl-visual compiler debug warning */
+#endif
 
 #include "RAS_Deformer.h"
 #include "BL_DeformableGameObject.h"
@@ -60,7 +58,7 @@ public:
 	{
 		//printf("~KX_SoftBodyDeformer\n");
 	};
-	virtual void Relink(GEN_Map<class GEN_HashedPtr, void*>*map);
+	virtual void Relink(CTR_Map<class CTR_HashedPtr, void*>*map);
 	virtual bool Apply(class RAS_IPolyMaterial *polymat);
 	virtual bool Update(void)
 	{
@@ -95,9 +93,7 @@ protected:
 	//class RAS_MeshObject	*m_pMesh;
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:BL_ShapeDeformer"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_ShapeDeformer")
 #endif
 };
 

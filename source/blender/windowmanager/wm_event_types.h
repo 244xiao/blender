@@ -1,6 +1,4 @@
 /*
- * $Id: wm_event_types.h 35854 2011-03-28 18:51:27Z ton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -16,9 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
  *
  * Contributor(s): Blender Foundation
  *
@@ -37,14 +32,14 @@
  */ 
 
 
-#ifndef WM_EVENT_TYPES_H
-#define WM_EVENT_TYPES_H
+#ifndef __WM_EVENT_TYPES_H__
+#define __WM_EVENT_TYPES_H__
 
 /* customdata type */
-#define EVT_DATA_TABLET		1
-#define EVT_DATA_GESTURE	2
-#define EVT_DATA_TIMER		3
-#define EVT_DATA_LISTBASE	4
+#define EVT_DATA_GESTURE        1
+#define EVT_DATA_TIMER          2
+#define EVT_DATA_LISTBASE       3
+#define EVT_DATA_NDOF_MOTION    4
 
 /* tablet active, matches GHOST_TTabletMode */
 #define EVT_TABLET_NONE		0
@@ -54,6 +49,11 @@
 #define MOUSEX		4
 #define MOUSEY		5
 
+
+/* *** wmEvent.type *** */
+
+/* non-event, for example disabled timer */
+#define EVENT_NONE		0
 /* MOUSE : 0x00x */
 #define LEFTMOUSE		1
 #define MIDDLEMOUSE		2
@@ -78,6 +78,66 @@
 #define INBETWEEN_MOUSEMOVE	17
 
 
+/* NDOF (from SpaceNavigator & friends)
+ * These should be kept in sync with GHOST_NDOFManager.h
+ * Ordering matters, exact values do not. */
+
+#define NDOF_MOTION 400
+
+enum {
+	// used internally, never sent
+	NDOF_BUTTON_NONE = NDOF_MOTION,
+	// these two are available from any 3Dconnexion device
+	NDOF_BUTTON_MENU,
+	NDOF_BUTTON_FIT,
+	// standard views
+	NDOF_BUTTON_TOP,
+	NDOF_BUTTON_BOTTOM,
+	NDOF_BUTTON_LEFT,
+	NDOF_BUTTON_RIGHT,
+	NDOF_BUTTON_FRONT,
+	NDOF_BUTTON_BACK,
+	// more views
+	NDOF_BUTTON_ISO1,
+	NDOF_BUTTON_ISO2,
+	// 90 degree rotations
+	NDOF_BUTTON_ROLL_CW,
+	NDOF_BUTTON_ROLL_CCW,
+	NDOF_BUTTON_SPIN_CW,
+	NDOF_BUTTON_SPIN_CCW,
+	NDOF_BUTTON_TILT_CW,
+	NDOF_BUTTON_TILT_CCW,
+	// device control
+	NDOF_BUTTON_ROTATE,
+	NDOF_BUTTON_PANZOOM,
+	NDOF_BUTTON_DOMINANT,
+	NDOF_BUTTON_PLUS,
+	NDOF_BUTTON_MINUS,
+	// keyboard emulation
+	NDOF_BUTTON_ESC,
+	NDOF_BUTTON_ALT,
+	NDOF_BUTTON_SHIFT,
+	NDOF_BUTTON_CTRL,
+	// general-purpose buttons
+	NDOF_BUTTON_1,
+	NDOF_BUTTON_2,
+	NDOF_BUTTON_3,
+	NDOF_BUTTON_4,
+	NDOF_BUTTON_5,
+	NDOF_BUTTON_6,
+	NDOF_BUTTON_7,
+	NDOF_BUTTON_8,
+	NDOF_BUTTON_9,
+	NDOF_BUTTON_10,
+	// more general-purpose buttons
+	NDOF_BUTTON_A,
+	NDOF_BUTTON_B,
+	NDOF_BUTTON_C,
+	// the end
+	NDOF_LAST
+	};
+
+
 /* SYSTEM : 0x01xx */
 #define	INPUTCHANGE		0x0103	/* input connected or disconnected */
 #define WINDEACTIVATE	0x0104	/* window is deactivated, focus lost */
@@ -89,11 +149,11 @@
 #define TIMERJOBS		0x0114  /* timer event, jobs system */
 #define TIMERAUTOSAVE	0x0115  /* timer event, autosave */
 #define TIMERREPORT		0x0116	/* timer event, reports */
+#define TIMERREGION		0x0117	/* timer event, region slide in/out */
 #define TIMERF			0x011F	/* last timer */
 
 /* test whether the event is timer event */
-#define ISTIMER(event)	(event >= TIMER && event <= TIMERF)
-
+#define ISTIMER(event_type)	(event_type >= TIMER && event_type <= TIMERF)
 
 /* standard keyboard */
 #define AKEY		'a'
@@ -226,22 +286,31 @@
 
 /* for event checks */
 	/* only used for KM_TEXTINPUT, so assume that we want all user-inputtable ascii codes included */
-#define ISTEXTINPUT(event)	(event >=' ' && event <=255)
+	/* UNUSED - see wm_eventmatch - BUG [#30479] */
+// #define ISTEXTINPUT(event_type)  (event_type >= ' ' && event_type <= 255)
+/* note, an alternative could be to check 'event->utf8_buf' */
 
 	/* test whether the event is a key on the keyboard */
-#define ISKEYBOARD(event)	(event >=' ' && event <=320)
+#define ISKEYBOARD(event_type)  (event_type >= ' ' && event_type <= 320)
 
 	/* test whether the event is a modifier key */
-#define ISKEYMODIFIER(event)	((event >= LEFTCTRLKEY && event <= LEFTSHIFTKEY) || event == OSKEY)
+#define ISKEYMODIFIER(event_type)  ((event_type >= LEFTCTRLKEY && event_type <= LEFTSHIFTKEY) || event_type == OSKEY)
 
 	/* test whether the event is a mouse button */
-#define ISMOUSE(event)	(event >= LEFTMOUSE && event <= MOUSEROTATE)
+#define ISMOUSE(event_type)  (event_type >= LEFTMOUSE && event_type <= MOUSEROTATE)
 
 	/* test whether the event is tweak event */
-#define ISTWEAK(event)	(event >= EVT_TWEAK_L && event <= EVT_GESTURE)
+#define ISTWEAK(event_type)  (event_type >= EVT_TWEAK_L && event_type <= EVT_GESTURE)
+
+	/* test whether the event is a NDOF event */
+#define ISNDOF(event_type)  (event_type >= NDOF_MOTION && event_type < NDOF_LAST)
 
 /* test whether event type is acceptable as hotkey, excluding modifiers */
-#define ISHOTKEY(event)	((ISKEYBOARD(event) || ISMOUSE(event)) && event!=ESCKEY && !(event>=LEFTCTRLKEY && event<=LEFTSHIFTKEY) && !(event>=UNKNOWNKEY && event<=GRLESSKEY))
+#define ISHOTKEY(event_type)                                                  \
+	((ISKEYBOARD(event_type) || ISMOUSE(event_type) || ISNDOF(event_type)) && \
+	 (event_type != ESCKEY) &&                                                \
+	 (event_type >= LEFTCTRLKEY && event_type <= LEFTSHIFTKEY) == FALSE &&    \
+	 (event_type >= UNKNOWNKEY  && event_type <= GRLESSKEY) == FALSE)
 
 /* **************** BLENDER GESTURE EVENTS (0x5000) **************** */
 
@@ -312,6 +381,8 @@
 #define GESTURE_MODAL_IN			9
 #define GESTURE_MODAL_OUT			10
 
+#define GESTURE_MODAL_CIRCLE_SIZE	11 /* circle sel: size brush (for trackpad event) */
 
-#endif	/* WM_EVENT_TYPES_H */
+
+#endif	/* __WM_EVENT_TYPES_H__ */
 

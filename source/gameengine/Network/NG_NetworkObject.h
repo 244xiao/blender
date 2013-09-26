@@ -1,6 +1,4 @@
 /*
- * $Id: NG_NetworkObject.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup bgenet
  *  \brief generic Network Object class
  */
-#ifndef NG_NETWORKOBJECT_H
-#define NG_NETWORKOBJECT_H
+#ifndef __NG_NETWORKOBJECT_H__
+#define __NG_NETWORKOBJECT_H__
 
 #include "STR_String.h"
 
@@ -50,11 +48,8 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:NG_NetworkObject"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:NG_NetworkObject")
 #endif
 };
 
-#endif //NG_NETWORKOBJECT_H
-
+#endif  /* __NG_NETWORKOBJECT_H__ */

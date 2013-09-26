@@ -1,6 +1,4 @@
 /*
- * $Id: KX_SoftBodyDeformer.cpp 35167 2011-02-25 13:30:41Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  */
 
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable : 4786)
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)
 #endif //WIN32
 
 #include "MT_assert.h"
@@ -41,10 +39,10 @@
 #include "KX_ConvertPhysicsObject.h"
 #include "KX_SoftBodyDeformer.h"
 #include "RAS_MeshObject.h"
-#include "GEN_Map.h"
-#include "GEN_HashedPtr.h"
+#include "CTR_Map.h"
+#include "CTR_HashedPtr.h"
 
-#ifdef USE_BULLET
+#ifdef WITH_BULLET
 
 #include "CcdPhysicsEnvironment.h"
 #include "CcdPhysicsController.h"
@@ -53,7 +51,7 @@
 #include "KX_BulletPhysicsController.h"
 #include "btBulletDynamicsCommon.h"
 
-void KX_SoftBodyDeformer::Relink(GEN_Map<class GEN_HashedPtr, void*>*map)
+void KX_SoftBodyDeformer::Relink(CTR_Map<class CTR_HashedPtr, void*>*map)
 {
 	void **h_obj = (*map)[m_gameobj];
 
@@ -90,18 +88,18 @@ bool KX_SoftBodyDeformer::Apply(class RAS_IPolyMaterial *polymat)
 	// share the same mesh (=the same cache). As the rendering is done per polymaterial
 	// cycling through the objects, the entire mesh cache cannot be updated in one shot.
 	mmat = m_pMeshObject->GetMeshMaterial(polymat);
-	if(!mmat->m_slots[(void*)m_gameobj])
+	if (!mmat->m_slots[(void*)m_gameobj])
 		return true;
 
 	slot = *mmat->m_slots[(void*)m_gameobj];
 
 	// for each array
-	for(slot->begin(it); !slot->end(it); slot->next(it)) 
+	for (slot->begin(it); !slot->end(it); slot->next(it)) 
 	{
 		btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
 
 		int index = 0;
-		for(i=it.startvertex; i<it.endvertex; i++,index++) {
+		for (i=it.startvertex; i<it.endvertex; i++,index++) {
 			RAS_TexVert& v = it.vertex[i];
 			btAssert(v.getSoftBodyIndex() >= 0);
 

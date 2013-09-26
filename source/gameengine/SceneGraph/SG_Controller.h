@@ -1,7 +1,6 @@
 /*
  * Implementationclass to derive controllers from
  *
- * $Id: SG_Controller.h 35082 2011-02-22 19:30:37Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -33,8 +32,8 @@
  *  \ingroup bgesg
  */
  
-#ifndef __SG_CONTROLLER_H
-#define __SG_CONTROLLER_H
+#ifndef __SG_CONTROLLER_H__
+#define __SG_CONTROLLER_H__
 
 #include "SG_IObject.h"
 
@@ -44,12 +43,6 @@
 class SG_Controller 
 {
 public:
-
-#ifdef WITH_CXX_GUARDEDALLOC
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "SG_Controller"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
-#endif
-
 	SG_Controller(
 	) :
 		m_pObject(NULL) {
@@ -60,7 +53,7 @@ public:
 	) {};
 
 	virtual 
-		bool	
+		bool
 	Update(
 		double time
 	)=0;
@@ -76,25 +69,25 @@ public:
 	);
 
 	virtual 
-		void	
+		void
 	SetSimulatedTime(
 		double time
 	)=0;
 
-	virtual	
-		SG_Controller*	
+	virtual
+		SG_Controller*
 	GetReplica(
 		class SG_Node* destnode
 	)=0;
 
 	/**
 	 * Hacky way of passing options to specific controllers
-	 * @param option An integer identifying the option.
-	 * @param value  The value of this option.
-	 * @attention This has been placed here to give sca-elements 
-	 * @attention some control over the controllers. This is 
-	 * @attention necessary because the identity of the controller
-	 * @attention is lost on the way here.
+	 * \param option An integer identifying the option.
+	 * \param value  The value of this option.
+	 * \attention This has been placed here to give sca-elements 
+	 * \attention some control over the controllers. This is 
+	 * \attention necessary because the identity of the controller
+	 * \attention is lost on the way here.
 	 */
 	virtual
 		void
@@ -123,7 +116,9 @@ public:
 protected:
 	SG_IObject*		m_pObject;
 
+#ifdef WITH_CXX_GUARDEDALLOC
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SG_Controller")
+#endif
 };
 
-#endif //__SG_CONTROLLER_H
-
+#endif  /* __SG_CONTROLLER_H__ */

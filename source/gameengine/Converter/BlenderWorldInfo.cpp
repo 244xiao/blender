@@ -1,5 +1,4 @@
 /*
- * $Id: BlenderWorldInfo.cpp 35167 2011-02-25 13:30:41Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can [0]istribute it and/or
@@ -91,7 +90,7 @@ BlenderWorldInfo::BlenderWorldInfo(struct Scene *blenderscene, struct World* ble
 		copy_v3_v3(m_backgroundcolor, &blenderworld->horr);
 		copy_v3_v3(m_ambientcolor, &blenderworld->ambr);
 
-		if(blenderscene->r.color_mgt_flag & R_COLOR_MANAGEMENT) {
+		if (blenderscene->r.color_mgt_flag & R_COLOR_MANAGEMENT) {
 			linearrgb_to_srgb_v3_v3(m_mistcolor, m_mistcolor);
 			linearrgb_to_srgb_v3_v3(m_backgroundcolor, m_backgroundcolor);
 			linearrgb_to_srgb_v3_v3(m_ambientcolor, m_ambientcolor);
@@ -170,10 +169,10 @@ float BlenderWorldInfo::getMistStart()
 float BlenderWorldInfo::getMistDistance()
 {
 	return m_mistdistance;
-}  
-    
+}
 
-    
+
+
 float BlenderWorldInfo::getMistColorRed()
 {
 	return m_mistcolor[0];
@@ -200,7 +199,7 @@ void BlenderWorldInfo::setBackColor(float r, float g, float b)
 	m_backgroundcolor[2] = b;
 }
 
-	void	
+	void
 BlenderWorldInfo::setMistStart(
 	float d
 ) {
@@ -216,7 +215,7 @@ BlenderWorldInfo::setMistDistance(
 }
 
 
-	void	
+	void
 BlenderWorldInfo::setMistColorRed(
 	float d
 ) {
@@ -232,7 +231,7 @@ BlenderWorldInfo::setMistColorGreen(
 }
 
 
-	void	
+	void
 BlenderWorldInfo::setMistColorBlue(
 	float d
 ) {

@@ -1,6 +1,4 @@
 /*
- * $Id: RAS_ICanvas.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_ICANVAS
-#define __RAS_ICANVAS
+#ifndef __RAS_ICANVAS_H__
+#define __RAS_ICANVAS_H__
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -61,7 +59,7 @@ public:
 	virtual 
 	~RAS_ICanvas(
 	) {
-	};
+	}
 
 	virtual 
 		void 
@@ -82,8 +80,8 @@ public:
 	 * Initializes the canvas for drawing.  Drawing to the canvas is
 	 * only allowed between BeginDraw() and EndDraw().
 	 *
-	 * @retval false Acquiring the canvas failed.
-	 * @retval true Acquiring the canvas succeeded.
+	 * \retval false Acquiring the canvas failed.
+	 * \retval true Acquiring the canvas succeeded.
 	 *
 	 */
 
@@ -135,25 +133,25 @@ public:
 
 	virtual
 		int
-	GetMouseX( int x
+	GetMouseX(int x
 	)=0;
 
 	virtual
 		int
-	GetMouseY( int y
+	GetMouseY(int y
 	)= 0;
 
 	virtual
 		float
-	GetMouseNormalizedX( int x
+	GetMouseNormalizedX(int x
 	)=0;
 
 	virtual
 		float
-	GetMouseNormalizedY( int y
+	GetMouseNormalizedY(int y
 	)= 0;
 
-	virtual 
+	virtual
 		const RAS_Rect &
 	GetDisplayArea(
 	) const = 0;
@@ -172,7 +170,7 @@ public:
 	) = 0;
 
 	/**
-	 * Set the visible vieport 
+	 * Set the visible view-port 
 	 */
 
 	virtual
@@ -180,7 +178,26 @@ public:
 	SetViewPort(
 		int x1, int y1,
 		int x2, int y2
-	) = 0; 
+	) = 0;
+
+	/**
+	 * Update the Canvas' viewport (used when the viewport changes without using SetViewPort()
+	 * eg: Shadow buffers and FBOs
+	 */
+
+	virtual
+		void
+	UpdateViewPort(
+		int x1, int y1,
+		int x2, int y2
+	) = 0;
+
+	/**
+	 * Get the visible viewport
+	 */
+	virtual
+		const int*
+	GetViewPort() = 0;
 
 	virtual 
 		void 
@@ -207,16 +224,33 @@ public:
 	MakeScreenShot(
 		const char* filename
 	)=0;
+
+	virtual
+		void 
+	ResizeWindow(
+		int width,
+		int height
+	)=0;
+
+	virtual
+		void
+	SetFullScreen(
+		bool enable
+	)=0;
+
+	virtual
+		bool
+	GetFullScreen()=0;
+
+		
 	
 protected:
 	RAS_MouseState m_mousestate;
-	
+
+
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_ICanvas"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_ICanvas")
 #endif
 };
 
-#endif //__RAS_ICANVAS
-
+#endif  /* __RAS_ICANVAS_H__ */

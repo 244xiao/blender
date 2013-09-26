@@ -1,32 +1,35 @@
-/* $Id: Exception.h 35082 2011-02-22 19:30:37Z jesterking $
------------------------------------------------------------------------------
-This source file is part of VideoTexture library
-
-Copyright (c) 2006 The Zdeno Ash Miklas
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
------------------------------------------------------------------------------
-*/
-
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Copyright (c) 2006 The Zdeno Ash Miklas
+ *
+ * This source file is part of VideoTexture library
+ *
+ * Contributor(s):
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 /** \file Exception.h
  *  \ingroup bgevideotex
  */
- 
-#if !defined EXCEPTION_H
-#define EXCEPTION_H
+
+#ifndef __EXCEPTION_H__
+#define __EXCEPTION_H__
 
 #include <exception>
 #include <vector>
@@ -102,7 +105,7 @@ public:
 	// returns 0, if exception identification don't match at all
 	// returns 1, if only exception identification is matching
 	// returns 2, if both exception identification and result are matching
-	int isExp (ExceptionID * exp, RESULT hres = S_OK) throw()
+	int isExp (ExceptionID *exp, RESULT hres = S_OK) throw()
 	{
 		// check exception identification
 		if (&m_expID == exp)
@@ -122,11 +125,11 @@ public:
 		desc = m_description;
 	}
 
-    void registerDesc(void)
-    {
-        if (std::find(m_expDescs.begin(), m_expDescs.end(), this) == m_expDescs.end())
-            m_expDescs.push_back(this);
-    }
+	void registerDesc(void)
+	{
+		if (std::find(m_expDescs.begin(), m_expDescs.end(), this) == m_expDescs.end())
+			m_expDescs.push_back(this);
+	}
 	// list of exception descriptions
 	static std::vector<ExpDesc*> m_expDescs;
 

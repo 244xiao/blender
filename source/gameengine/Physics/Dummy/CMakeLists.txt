@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 33864 2010-12-22 23:09:30Z campbellbarton $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -29,10 +28,14 @@ set(INC
 	../common
 )
 
+set(INC_SYS
+	../../../../intern/moto/include
+)
+
 set(SRC
 	DummyPhysicsEnvironment.cpp
 
 	DummyPhysicsEnvironment.h
 )
 
-blender_add_lib(ge_phys_dummy "${SRC}" "${INC}")
+blender_add_lib(ge_phys_dummy "${SRC}" "${INC}" "${INC_SYS}")

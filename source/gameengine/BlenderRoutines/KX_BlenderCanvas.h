@@ -1,6 +1,4 @@
 /*
- * $Id: KX_BlenderCanvas.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup blroutines
  */
 
-#ifndef __KX_BLENDERCANVAS
-#define __KX_BLENDERCANVAS
+#ifndef __KX_BLENDERCANVAS_H__
+#define __KX_BLENDERCANVAS_H__
 
 #ifdef WIN32
 #include <windows.h>
@@ -51,6 +49,7 @@
 
 struct ARegion;
 struct wmWindow;
+struct wmWindowManager;
 
 /**
  * 2D Blender device context abstraction. 
@@ -60,16 +59,18 @@ struct wmWindow;
 class KX_BlenderCanvas : public RAS_ICanvas
 {
 private:
-	/** Rect that defines the area used for rendering,
-	    relative to the context */
+	/**
+	 * Rect that defines the area used for rendering,
+	 * relative to the context */
 	RAS_Rect m_displayarea;
+	int m_viewport[4];
 
 public:
 	/* Construct a new canvas.
 	 * 
-	 * @param area The Blender ARegion to run the game within.
+	 * \param area The Blender ARegion to run the game within.
 	 */
-	KX_BlenderCanvas(struct wmWindow* win, class RAS_Rect &rect, struct ARegion* ar);
+	KX_BlenderCanvas(struct wmWindowManager *wm, struct wmWindow* win, class RAS_Rect &rect, struct ARegion* ar);
 	~KX_BlenderCanvas();
 
 		void 
@@ -80,10 +81,18 @@ public:
 	SwapBuffers(
 	);
 		void 
-	Resize(
+	ResizeWindow(
 		int width,
 		int height
 	);
+
+		void
+	SetFullScreen(
+		bool enable
+	);
+
+		bool
+	GetFullScreen();
 
 		void
 	BeginFrame(
@@ -108,11 +117,11 @@ public:
 
 		int 
 	GetWidth(
-	) const ;
+	) const;
 
 		int 
 	GetHeight(
-	) const ;
+	) const;
 
 		int
 	GetMouseX(int x
@@ -153,6 +162,15 @@ public:
 		int x2, int y2
 	);
 
+		void
+	UpdateViewPort(
+		int x1, int y1,
+		int x2, int y2
+	);
+
+		const int*
+	GetViewPort();
+
 		void 
 	SetMouseState(
 		RAS_MouseState mousestate
@@ -169,38 +187,27 @@ public:
 		const char* filename
 	);
 	
-	/**
-	 * Nothing needs be done for BlenderCanvas
-	 * Begin/End Draw, as the game engine GL context
-	 * is always current/active.
-	 */
-
 		bool 
 	BeginDraw(
-	) {
-			return true;
-	};
+	);
 
 		void 
 	EndDraw(
-	) {
-	};
+	);
 
 private:
 	/** Blender area the game engine is running within */
+	struct wmWindowManager *m_wm;
 	struct wmWindow* m_win;
 	RAS_Rect	m_frame_rect;
 	RAS_Rect 	m_area_rect;
-	short		m_area_left;
-	short		m_area_top;
+	int			m_area_left;
+	int			m_area_top;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_BlenderCanvas"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderCanvas")
 #endif
 };
 
-#endif // __KX_BLENDERCANVAS
-
+#endif  /* __KX_BLENDERCANVAS_H__ */

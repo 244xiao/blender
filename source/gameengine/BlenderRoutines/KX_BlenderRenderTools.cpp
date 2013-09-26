@@ -1,5 +1,4 @@
 /*
- * $Id: KX_BlenderRenderTools.cpp 35166 2011-02-25 13:29:48Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -59,7 +58,7 @@ unsigned int KX_BlenderRenderTools::m_numgllights;
 
 KX_BlenderRenderTools::KX_BlenderRenderTools()
 {
-	glGetIntegerv(GL_MAX_LIGHTS, (GLint*) &m_numgllights);
+	glGetIntegerv(GL_MAX_LIGHTS, (GLint *) &m_numgllights);
 	if (m_numgllights < 8)
 		m_numgllights = 8;
 }
@@ -93,23 +92,23 @@ void KX_BlenderRenderTools::ProcessLighting(RAS_IRasterizer *rasty, bool useligh
 	int layer= -1;
 
 	/* find the layer */
-	if(uselights) {
-		if(m_clientobject)
+	if (uselights) {
+		if (m_clientobject)
 			layer = static_cast<KX_GameObject*>(m_clientobject)->GetLayer();
 	}
 
 	/* avoid state switching */
-	if(m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo)
+	if (m_lastlightlayer == layer && m_lastauxinfo == m_auxilaryClientInfo)
 		return;
 
 	m_lastlightlayer = layer;
 	m_lastauxinfo = m_auxilaryClientInfo;
 
 	/* enable/disable lights as needed */
-	if(layer >= 0)
+	if (layer >= 0)
 		enable = applyLights(layer, viewmat);
 
-	if(enable)
+	if (enable)
 		EnableOpenGLLights(rasty);
 	else
 		DisableOpenGLLights();
@@ -117,7 +116,7 @@ void KX_BlenderRenderTools::ProcessLighting(RAS_IRasterizer *rasty, bool useligh
 
 void KX_BlenderRenderTools::EnableOpenGLLights(RAS_IRasterizer *rasty)
 {
-	if(m_lastlighting == true)
+	if (m_lastlighting == true)
 		return;
 
 	glEnable(GL_LIGHTING);
@@ -134,7 +133,7 @@ void KX_BlenderRenderTools::EnableOpenGLLights(RAS_IRasterizer *rasty)
 
 void KX_BlenderRenderTools::DisableOpenGLLights()
 {
-	if(m_lastlighting == false)
+	if (m_lastlighting == false)
 		return;
 
 	glDisable(GL_LIGHTING);
@@ -155,7 +154,7 @@ void KX_BlenderRenderTools::SetClientObject(RAS_IRasterizer *rasty, void* obj)
 	}
 }
 
-bool KX_BlenderRenderTools::RayHit(KX_ClientObjectInfo* client, KX_RayCast* result, void * const data)
+bool KX_BlenderRenderTools::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void * const data)
 {
 	double* const oglmatrix = (double* const) data;
 	MT_Point3 resultpoint(result->m_hitPoint);
@@ -165,11 +164,11 @@ bool KX_BlenderRenderTools::RayHit(KX_ClientObjectInfo* client, KX_RayCast* resu
 	left = (dir.cross(resultnormal)).safe_normalized();
 	// for the up vector, we take the 'resultnormal' returned by the physics
 	
-	double maat[16]={
-			left[0],        left[1],        left[2], 0,
-				dir[0],         dir[1],         dir[2], 0,
-		resultnormal[0],resultnormal[1],resultnormal[2], 0,
-				0,              0,              0, 1};
+	double maat[16] = {left[0],         left[1],         left[2],         0,
+	                   dir[0],          dir[1],          dir[2],          0,
+	                   resultnormal[0], resultnormal[1], resultnormal[2], 0,
+	                   0,               0,               0,               1};
+
 	glTranslated(resultpoint[0],resultpoint[1],resultpoint[2]);
 	//glMultMatrixd(oglmatrix);
 	glMultMatrixd(maat);
@@ -197,7 +196,7 @@ void KX_BlenderRenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmat
 		//page 360/361 3D Game Engine Design, David Eberly for a discussion
 		// on screen aligned and axis aligned billboards
 		// assumed is that the preprocessor transformed all billboard polygons
-		// so that their normal points into the positive x direction (1.0 , 0.0 , 0.0)
+		// so that their normal points into the positive x direction (1.0, 0.0, 0.0)
 		// when new parenting for objects is done, this rotation
 		// will be moved into the object
 		
@@ -208,7 +207,7 @@ void KX_BlenderRenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmat
 
 		KX_GameObject* gameobj = (KX_GameObject*)m_clientobject;
 		// get scaling of halo object
-		MT_Vector3  size = gameobj->GetSGNode()->GetLocalScale();
+		MT_Vector3  size = gameobj->GetSGNode()->GetWorldScaling();
 		
 		bool screenaligned = (objectdrawmode & RAS_IPolyMaterial::BILLBOARD_SCREENALIGNED)!=0;//false; //either screen or axisaligned
 		if (screenaligned)
@@ -228,16 +227,17 @@ void KX_BlenderRenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmat
 		left *= size[0];
 		dir  *= size[1];
 		up   *= size[2];
-		double maat[16]={
-			left[0], left[1],left[2], 0,
-				dir[0], dir[1],dir[2],0,
-				up[0],up[1],up[2],0,
-				0,0,0,1};
-			glTranslated(objpos[0],objpos[1],objpos[2]);
-			glMultMatrixd(maat);
-			
-	} else
-	{
+
+		double maat[16] = {left[0], left[1], left[2], 0,
+		                   dir[0],  dir[1],  dir[2],  0,
+		                   up[0],   up[1],   up[2],   0,
+		                   0,       0,       0,       1};
+
+		glTranslated(objpos[0],objpos[1],objpos[2]);
+		glMultMatrixd(maat);
+
+	}
+	else {
 		if (objectdrawmode & RAS_IPolyMaterial::SHADOW)
 		{
 			// shadow must be cast to the ground, physics system needed here!
@@ -280,6 +280,16 @@ void KX_BlenderRenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmat
 		}
 	}
 }
+
+void KX_BlenderRenderTools::RenderBox2D(int xco,
+			int yco,
+			int width,
+			int height,
+			float percentage)
+{
+	BL_draw_gamedebug_box(xco, yco, width, height, percentage);
+}
+
 void KX_BlenderRenderTools::RenderText3D(int fontid,
 										 const char* text,
 										 int size,
@@ -298,7 +308,7 @@ void KX_BlenderRenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 										 int width,
 										 int height)
 {
-	if(mode == RAS_IRenderTools::RAS_TEXT_PADDED)
+	if (mode == RAS_IRenderTools::RAS_TEXT_PADDED)
 		BL_print_gamedebug_line_padded(text, xco, yco, width, height);
 	else
 		BL_print_gamedebug_line(text, xco, yco, width, height);
@@ -318,7 +328,7 @@ void KX_BlenderRenderTools::RenderText(
 	struct MTFace* tface = 0;
 	unsigned int *col = 0;
 
-	if(flag & RAS_BLENDERMAT) {
+	if (flag & RAS_BLENDERMAT) {
 		KX_BlenderMaterial *bl_mat = static_cast<KX_BlenderMaterial*>(polymat);
 		tface = bl_mat->GetMTFace();
 		col = bl_mat->GetMCol();
@@ -345,13 +355,13 @@ void KX_BlenderRenderTools::PopMatrix()
 
 int KX_BlenderRenderTools::applyLights(int objectlayer, const MT_Transform& viewmat)
 {
-	// taken from blender source, incompatibility between Blender Object / GameObject	
+	// taken from blender source, incompatibility between Blender Object / GameObject
 	KX_Scene* kxscene = (KX_Scene*)m_auxilaryClientInfo;
 	float glviewmat[16];
 	unsigned int count;
 	std::vector<struct	RAS_LightObject*>::iterator lit = m_lights.begin();
 
-	for(count=0; count<m_numgllights; count++)
+	for (count=0; count<m_numgllights; count++)
 		glDisable((GLenum)(GL_LIGHT0+count));
 
 	viewmat.getValue(glviewmat);
@@ -363,7 +373,7 @@ int KX_BlenderRenderTools::applyLights(int objectlayer, const MT_Transform& view
 		RAS_LightObject* lightdata = (*lit);
 		KX_LightObject *kxlight = (KX_LightObject*)lightdata->m_light;
 
-		if(kxlight->ApplyLight(kxscene, objectlayer, count))
+		if (kxlight->ApplyLight(kxscene, objectlayer, count))
 			count++;
 	}
 	glPopMatrix();
@@ -375,17 +385,16 @@ void KX_BlenderRenderTools::MotionBlur(RAS_IRasterizer* rasterizer)
 {
 	int state = rasterizer->GetMotionBlurState();
 	float motionblurvalue;
-	if(state)
+	if (state)
 	{
 		motionblurvalue = rasterizer->GetMotionBlurValue();
-		if(state==1)
+		if (state==1)
 		{
 			//bugfix:load color buffer into accum buffer for the first time(state=1)
 			glAccum(GL_LOAD, 1.0);
 			rasterizer->SetMotionBlurState(2);
 		}
-		else if(motionblurvalue>=0.0 && motionblurvalue<=1.0)
-		{
+		else if (motionblurvalue >= 0.0f && motionblurvalue <= 1.0f) {
 			glAccum(GL_MULT, motionblurvalue);
 			glAccum(GL_ACCUM, 1-motionblurvalue);
 			glAccum(GL_RETURN, 1.0);

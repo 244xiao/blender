@@ -1,6 +1,4 @@
 /*
- * $Id: BL_ModifierDeformer.cpp 35167 2011-02-25 13:30:41Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,20 +29,18 @@
  *  \ingroup bgeconv
  */
 
-
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable : 4786)
-#endif //WIN32
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)
+#endif
 
 #include "MEM_guardedalloc.h"
 #include "BL_ModifierDeformer.h"
-#include "GEN_Map.h"
+#include "CTR_Map.h"
 #include "STR_HashedString.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_MeshObject.h"
 #include "PHY_IGraphicController.h"
 
-//#include "BL_ArmatureController.h"
 #include "DNA_armature_types.h"
 #include "DNA_action_types.h"
 #include "DNA_key_types.h"
@@ -67,14 +63,9 @@ extern "C"{
 	#include "BKE_lattice.h"
 	#include "BKE_modifier.h"
 }
- 
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-
-#define __NLA_DEFNORMALS
-//#undef __NLA_DEFNORMALS
-
 
 BL_ModifierDeformer::~BL_ModifierDeformer()
 {
@@ -115,7 +106,7 @@ bool BL_ModifierDeformer::HasCompatibleDeformer(Object *ob)
 	if ((ob->gameflag & OB_SOFT_BODY) != 0)
 		return false;
 	ModifierData* md;
-	for (md = (ModifierData*)ob->modifiers.first; md; md = (ModifierData*)md->next) {
+	for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
 		if (modifier_dependsOnTime(md))
 			continue;
 		if (!(md->mode & eModifierMode_Realtime))
@@ -134,7 +125,7 @@ bool BL_ModifierDeformer::HasArmatureDeformer(Object *ob)
 		return false;
 
 	ModifierData* md = (ModifierData*)ob->modifiers.first;
-	if(md->type == eModifierType_Armature )
+	if (md->type == eModifierType_Armature )
 		return true;
 
 	return false;
@@ -143,17 +134,17 @@ bool BL_ModifierDeformer::HasArmatureDeformer(Object *ob)
 // return a deformed mesh that supports mapping (with a valid CD_ORIGINDEX layer)
 struct DerivedMesh* BL_ModifierDeformer::GetPhysicsMesh()
 {
-	// we need to compute the deformed mesh taking into account the current
-	// shape and skin deformers, we cannot just call mesh_create_derived_physics()
-	// because that would use the m_transvers already deformed previously by BL_ModifierDeformer::Update(),
-	// so restart from scratch by forcing a full update the shape/skin deformers 
-	// (will do nothing if there is no such deformer)
+	/* we need to compute the deformed mesh taking into account the current
+	 * shape and skin deformers, we cannot just call mesh_create_derived_physics()
+	 * because that would use the m_transvers already deformed previously by BL_ModifierDeformer::Update(),
+	 * so restart from scratch by forcing a full update the shape/skin deformers 
+	 * (will do nothing if there is no such deformer) */
 	BL_ShapeDeformer::ForceUpdate();
 	BL_ShapeDeformer::Update();
 	// now apply the modifiers but without those that don't support mapping
 	Object* blendobj = m_gameobj->GetBlendObject();
 	/* hack: the modifiers require that the mesh is attached to the object
-	   It may not be the case here because of replace mesh actuator */
+	 * It may not be the case here because of replace mesh actuator */
 	Mesh *oldmesh = (Mesh*)blendobj->data;
 	blendobj->data = m_bmesh;
 	DerivedMesh *dm = mesh_create_derived_physics(m_scene, blendobj, m_transverts, CD_MASK_MESH);
@@ -174,10 +165,10 @@ bool BL_ModifierDeformer::Update(void)
 			/* execute the modifiers */
 			Object* blendobj = m_gameobj->GetBlendObject();
 			/* hack: the modifiers require that the mesh is attached to the object
-			   It may not be the case here because of replace mesh actuator */
+			 * It may not be the case here because of replace mesh actuator */
 			Mesh *oldmesh = (Mesh*)blendobj->data;
 			blendobj->data = m_bmesh;
-			/* execute the modifiers */		
+			/* execute the modifiers */
 			DerivedMesh *dm = mesh_create_derived_no_virtual(m_scene, blendobj, m_transverts, CD_MASK_MESH);
 			/* restore object data */
 			blendobj->data = oldmesh;
@@ -220,7 +211,7 @@ bool BL_ModifierDeformer::Apply(RAS_IPolyMaterial *mat)
 	for (int imat=0; imat<nmat; imat++) {
 		RAS_MeshMaterial *mmat = m_pMeshObject->GetMeshMaterial(imat);
 		RAS_MeshSlot **slot = mmat->m_slots[(void*)m_gameobj];
-		if(!slot || !*slot)
+		if (!slot || !*slot)
 			continue;
 		(*slot)->m_pDerivedMesh = m_dm;
 	}

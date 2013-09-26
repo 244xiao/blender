@@ -1,6 +1,4 @@
 /*
- * $Id: BL_ShapeActionActuator.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,10 +29,10 @@
  *  \ingroup bgeconv
  */
 
-#ifndef BL_SHAPEACTIONACTUATOR
-#define BL_SHAPEACTIONACTUATOR
+#ifndef __BL_SHAPEACTIONACTUATOR_H__
+#define __BL_SHAPEACTIONACTUATOR_H__
 
-#include "GEN_HashedPtr.h"
+#include "CTR_HashedPtr.h"
 #include "SCA_IActuator.h"
 #include "BL_ActionActuator.h"
 #include "MT_Point3.h"
@@ -44,7 +42,7 @@ struct Key;
 class BL_ShapeActionActuator : public SCA_IActuator  
 {
 public:
-	Py_Header;
+	Py_Header
 	BL_ShapeActionActuator(SCA_IObject* gameobj,
 						const STR_String& propname,
 						const STR_String& framepropname,
@@ -54,27 +52,7 @@ public:
 						short	playtype,
 						short	blendin,
 						short	priority,
-						float	stride) 
-		: SCA_IActuator(gameobj, KX_ACT_SHAPEACTION),
-		
-		m_lastpos(0, 0, 0),
-		m_blendframe(0),
-		m_flag(0),
-		m_startframe (starttime),
-		m_endframe(endtime) ,
-		m_starttime(0),
-		m_localtime(starttime),
-		m_lastUpdate(-1),
-		m_blendin(blendin),
-		m_blendstart(0),
-		m_stridelength(stride),
-		m_playtype(playtype),
-		m_priority(priority),
-		m_action(action),
-		m_framepropname(framepropname),	
-		m_propname(propname)
-	{
-	};
+						float	stride);
 	virtual ~BL_ShapeActionActuator();
 	virtual	bool Update(double curtime, bool frame);
 	virtual CValue* GetReplica();
@@ -130,7 +108,7 @@ public:
 
 	}
 
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
 protected:
 
@@ -160,7 +138,7 @@ protected:
 	STR_String	m_framepropname;
 	STR_String	m_propname;
 	vector<float> m_blendshape;
+	struct PointerRNA *m_idptr;
 };
 
-#endif
-
+#endif  /* __BL_SHAPEACTIONACTUATOR_H__ */

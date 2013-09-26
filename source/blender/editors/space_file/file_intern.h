@@ -1,6 +1,4 @@
 /*
- * $Id: file_intern.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,8 +28,8 @@
  *  \ingroup spfile
  */
 
-#ifndef ED_FILE_INTERN_H
-#define ED_FILE_INTERN_H
+#ifndef __FILE_INTERN_H__
+#define __FILE_INTERN_H__
 
 /* internal exports only */
 
@@ -43,12 +41,15 @@ struct SpaceFile;
 struct ARegion *file_buttons_region(struct ScrArea *sa);
 
 /* file_draw.c */
-#define TILE_BORDER_X 8
-#define TILE_BORDER_Y 8
+#define TILE_BORDER_X (UI_UNIT_X / 4)
+#define TILE_BORDER_Y (UI_UNIT_Y / 4)
+
+/* ui geometry */
+#define IMASEL_BUTTONS_HEIGHT (UI_UNIT_Y * 2)
+#define IMASEL_BUTTONS_MARGIN (UI_UNIT_Y / 6)
 
 void file_draw_buttons(const bContext *C, ARegion *ar);
 void file_calc_previews(const bContext *C, ARegion *ar);
-void file_draw_previews(const bContext *C, ARegion *ar);
 void file_draw_list(const bContext *C, ARegion *ar);
 
 void file_draw_check_cb(bContext *C, void *arg1, void *arg2);
@@ -65,12 +66,12 @@ void FILE_OT_select_border(struct wmOperatorType *ot);
 void FILE_OT_select_bookmark(struct wmOperatorType *ot);
 void FILE_OT_bookmark_add(struct wmOperatorType *ot);
 void FILE_OT_delete_bookmark(struct wmOperatorType *ot);
+void FILE_OT_reset_recent(wmOperatorType *ot);
 void FILE_OT_hidedot(struct wmOperatorType *ot);
 void FILE_OT_execute(struct wmOperatorType *ot);
 void FILE_OT_cancel(struct wmOperatorType *ot);
 void FILE_OT_parent(struct wmOperatorType *ot);
 void FILE_OT_directory_new(struct wmOperatorType *ot);
-void FILE_OT_filename(struct wmOperatorType *ot);
 void FILE_OT_directory(struct wmOperatorType *ot);
 void FILE_OT_previous(struct wmOperatorType *ot);
 void FILE_OT_next(struct wmOperatorType *ot);
@@ -88,27 +89,27 @@ int file_previous_exec(bContext *C, struct wmOperator *unused);
 int file_next_exec(bContext *C, struct wmOperator *unused);
 int file_filename_exec(bContext *C, struct wmOperator *unused);
 int file_directory_exec(bContext *C, struct wmOperator *unused);
-int file_directory_new_exec(bContext *C,struct wmOperator *unused);
+int file_directory_new_exec(bContext *C, struct wmOperator *unused);
 int file_delete_exec(bContext *C, struct wmOperator *unused);
 
-int file_hilight_set(struct SpaceFile *sfile, struct ARegion *ar, int mx, int my);
+int file_highlight_set(struct SpaceFile *sfile, struct ARegion *ar, int mx, int my);
 
 void file_sfile_to_operator(struct wmOperator *op, struct SpaceFile *sfile, char *filepath);
 void file_operator_to_sfile(struct SpaceFile *sfile, struct wmOperator *op);
 
 
 /* filesel.c */
-float file_shorten_string(char* string, float w, int front);
-float file_string_width(const char* str);
+float file_shorten_string(char *string, float w, int front);
+float file_string_width(const char *str);
 
 float file_font_pointsize(void);
 void file_change_dir(bContext *C, int checkdir);
-int file_select_match(struct SpaceFile *sfile, const char *pattern);
-void autocomplete_directory(struct bContext *C, char *str, void *arg_v);
-void autocomplete_file(struct bContext *C, char *str, void *arg_v);
+int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matched_file);
+bool autocomplete_directory(struct bContext *C, char *str, void *arg_v);
+bool autocomplete_file(struct bContext *C, char *str, void *arg_v);
 
 /* file_panels.c */
 void file_panels_register(struct ARegionType *art);
 
-#endif /* ED_FILE_INTERN_H */
+#endif /* __FILE_INTERN_H__ */
 

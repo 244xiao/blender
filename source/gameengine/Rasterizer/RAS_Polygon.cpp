@@ -1,5 +1,4 @@
 /*
- * $Id: RAS_Polygon.cpp 35174 2011-02-25 13:38:24Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,19 +29,17 @@
  *  \ingroup bgerast
  */
 
-
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable:4786)
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)
 #endif
 
 #include "RAS_Polygon.h"
-#include "RAS_MeshObject.h" /* only for GetVertexOffsetAbs */
 
 RAS_Polygon::RAS_Polygon(RAS_MaterialBucket* bucket, RAS_DisplayArray *darray, int numvert)
 {
 	m_bucket = bucket;
 	m_darray = darray;
-	m_offset[0]= m_offset[1]= m_offset[2]= m_offset[3]= 0;
+	m_offset[0] = m_offset[1] = m_offset[2] = m_offset[3] = 0;
 	m_numvert = numvert;
 
 //	m_edgecode = 255;
@@ -69,20 +66,6 @@ int RAS_Polygon::GetVertexOffset(int i)
 	return m_offset[i];
 }
 
-int RAS_Polygon::GetVertexOffsetAbs(RAS_MeshObject *mesh, int i)
-{
-	/* hack that only works because there can only ever be 2 different
-	 * GetDisplayArray's per mesh. if this uses a different display array to the first
-	 * then its incices are offset.
-	 * if support for edges is added back this would need to be changed. */
-	RAS_DisplayArray* darray= mesh->GetPolygon(0)->GetDisplayArray();
-	
-	if(m_darray != darray)
-		return m_offset[i] + darray->m_vertex.size();
-	
-	return m_offset[i];
-}
-
 /*
 int RAS_Polygon::GetEdgeCode()
 {
@@ -102,7 +85,7 @@ bool RAS_Polygon::IsVisible()
 
 void RAS_Polygon::SetVisible(bool visible)
 {
-	if(visible) m_polyflags |= VISIBLE;
+	if (visible) m_polyflags |= VISIBLE;
 	else m_polyflags &= ~VISIBLE;
 }
 
@@ -113,7 +96,7 @@ bool RAS_Polygon::IsCollider()
 
 void RAS_Polygon::SetCollider(bool visible)
 {
-	if(visible) m_polyflags |= COLLIDER;
+	if (visible) m_polyflags |= COLLIDER;
 	else m_polyflags &= ~COLLIDER;
 }
 
@@ -124,7 +107,7 @@ bool RAS_Polygon::IsTwoside()
 
 void RAS_Polygon::SetTwoside(bool twoside)
 {
-	if(twoside) m_polyflags |= TWOSIDE;
+	if (twoside) m_polyflags |= TWOSIDE;
 	else m_polyflags &= ~TWOSIDE;
 }
 

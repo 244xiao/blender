@@ -1,6 +1,4 @@
 /*
- * $Id: TransformWriter.h 35020 2011-02-21 08:38:53Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -35,13 +33,14 @@
 #include "DNA_object_types.h"
 
 #include "collada_internal.h"
+#include "collada.h"
 
 class TransformWriter : protected TransformBase
 {
 protected:
-	void add_node_transform(COLLADASW::Node& node, float mat[][4], float parent_mat[][4]);
+	void add_node_transform(COLLADASW::Node& node, float mat[4][4], float parent_mat[4][4]);
 
-	void add_node_transform_ob(COLLADASW::Node& node, Object *ob);
+	void add_node_transform_ob(COLLADASW::Node& node, Object *ob, BC_export_transformation_type transformation_type);
 
 	void add_node_transform_identity(COLLADASW::Node& node);
 

@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_modifier.h 35215 2011-02-27 08:31:10Z campbellbarton $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,27 +15,23 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
  * The Original Code is: all of this file.
  *
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_MODIFIER_H
-#define BKE_MODIFIER_H
+#ifndef __BKE_MODIFIER_H__
+#define __BKE_MODIFIER_H__
 
 /** \file BKE_modifier.h
  *  \ingroup bke
  */
 
-#include "DNA_modifier_types.h"		/* needed for all enum typdefs */
+#include "DNA_modifier_types.h"     /* needed for all enum typdefs */
 #include "BKE_customdata.h"
 
 struct ID;
-struct EditMesh;
 struct DerivedMesh;
 struct DagForest;
 struct DagNode;
@@ -47,6 +41,7 @@ struct ListBase;
 struct LinkNode;
 struct bArmature;
 struct ModifierData;
+struct BMEditMesh;
 
 typedef enum {
 	/* Should not be used, only for None modifier type */
@@ -67,13 +62,18 @@ typedef enum {
 	 * unless it's a mesh and can be exploded -> curve can also emit particles
 	 */
 	eModifierTypeType_DeformOrConstruct,
+
+	/* Like eModifierTypeType_Nonconstructive, but does not affect the geometry
+	 * of the object, rather some of its CustomData layers.
+	 * E.g. UVProject and WeightVG modifiers. */
+	eModifierTypeType_NonGeometrical,
 } ModifierTypeType;
 
 typedef enum {
-	eModifierTypeFlag_AcceptsMesh          = (1<<0),
-	eModifierTypeFlag_AcceptsCVs           = (1<<1),
-	eModifierTypeFlag_SupportsMapping      = (1<<2),
-	eModifierTypeFlag_SupportsEditmode     = (1<<3),
+	eModifierTypeFlag_AcceptsMesh          = (1 << 0),
+	eModifierTypeFlag_AcceptsCVs           = (1 << 1),
+	eModifierTypeFlag_SupportsMapping      = (1 << 2),
+	eModifierTypeFlag_SupportsEditmode     = (1 << 3),
 
 	/* For modifiers that support editmode this determines if the
 	 * modifier should be enabled by default in editmode. This should
@@ -81,26 +81,38 @@ typedef enum {
 	 * also generally used in editmode, otherwise let the user enable
 	 * it by hand.
 	 */
-	eModifierTypeFlag_EnableInEditmode     = (1<<4),
+	eModifierTypeFlag_EnableInEditmode     = (1 << 4),
 
 	/* For modifiers that require original data and so cannot
 	 * be placed after any non-deformative modifier.
 	 */
-	eModifierTypeFlag_RequiresOriginalData = (1<<5),
+	eModifierTypeFlag_RequiresOriginalData = (1 << 5),
 
 	/* For modifiers that support pointcache, so we can check to see if it has files we need to deal with
-	*/
-	eModifierTypeFlag_UsesPointCache = (1<<6),
+	 */
+	eModifierTypeFlag_UsesPointCache = (1 << 6),
 
 	/* For physics modifiers, max one per type */
-	eModifierTypeFlag_Single = (1<<7),
+	eModifierTypeFlag_Single = (1 << 7),
 
 	/* Some modifier can't be added manually by user */
-	eModifierTypeFlag_NoUserAdd = (1<<8)
+	eModifierTypeFlag_NoUserAdd = (1 << 8),
+
+	/* For modifiers that use CD_PREVIEW_MCOL for preview. */
+	eModifierTypeFlag_UsesPreview = (1 << 9)
 } ModifierTypeFlag;
 
 typedef void (*ObjectWalkFunc)(void *userData, struct Object *ob, struct Object **obpoin);
 typedef void (*IDWalkFunc)(void *userData, struct Object *ob, struct ID **idpoin);
+typedef void (*TexWalkFunc)(void *userData, struct Object *ob, struct ModifierData *md, const char *propname);
+
+typedef enum ModifierApplyFlag {
+	MOD_APPLY_RENDER = 1 << 0,       /* Render time. */
+	MOD_APPLY_USECACHE = 1 << 1,     /* Result of evaluation will be cached, so modifier might
+	                                  * want to cache data for quick updates (used by subsurf) */
+	MOD_APPLY_ORCO = 1 << 2          /* Modifier evaluated for undeformed texture coordinates */
+} ModifierApplyFlag;
+
 
 typedef struct ModifierTypeInfo {
 	/* The user visible name for this modifier */
@@ -133,28 +145,25 @@ typedef struct ModifierTypeInfo {
 	 * and otherwise the ob argument.
 	 */
 	void (*deformVerts)(struct ModifierData *md, struct Object *ob,
-						struct DerivedMesh *derivedData,
-						float (*vertexCos)[3], int numVerts,
-						int useRenderParams, int isFinalCalc);
+	                    struct DerivedMesh *derivedData,
+	                    float (*vertexCos)[3], int numVerts,
+	                    ModifierApplyFlag flag);
 
 	/* Like deformMatricesEM but called from object mode (for supporting modifiers in sculpt mode) */
-	void (*deformMatrices)(
-				struct ModifierData *md, struct Object *ob,
-				struct DerivedMesh *derivedData,
-				float (*vertexCos)[3], float (*defMats)[3][3], int numVerts);
+	void (*deformMatrices)(struct ModifierData *md, struct Object *ob,
+	                       struct DerivedMesh *derivedData,
+	                       float (*vertexCos)[3], float (*defMats)[3][3], int numVerts);
 
 	/* Like deformVerts but called during editmode (for supporting modifiers)
 	 */
-	void (*deformVertsEM)(
-				struct ModifierData *md, struct Object *ob,
-				struct EditMesh *editData, struct DerivedMesh *derivedData,
-				float (*vertexCos)[3], int numVerts);
+	void (*deformVertsEM)(struct ModifierData *md, struct Object *ob,
+	                      struct BMEditMesh *editData, struct DerivedMesh *derivedData,
+	                      float (*vertexCos)[3], int numVerts);
 
 	/* Set deform matrix per vertex for crazyspace correction */
-	void (*deformMatricesEM)(
-				struct ModifierData *md, struct Object *ob,
-				struct EditMesh *editData, struct DerivedMesh *derivedData,
-				float (*vertexCos)[3], float (*defMats)[3][3], int numVerts);
+	void (*deformMatricesEM)(struct ModifierData *md, struct Object *ob,
+	                         struct BMEditMesh *editData, struct DerivedMesh *derivedData,
+	                         float (*vertexCos)[3], float (*defMats)[3][3], int numVerts);
 
 	/********************* Non-deform modifier functions *********************/
 
@@ -177,10 +186,9 @@ typedef struct ModifierTypeInfo {
 	 * The modifier may reuse the derivedData argument (i.e. return it in
 	 * modified form), but must not release it.
 	 */
-	struct DerivedMesh *(*applyModifier)(
-								struct ModifierData *md, struct Object *ob,
-								struct DerivedMesh *derivedData,
-								int useRenderParams, int isFinalCalc);
+	struct DerivedMesh *(*applyModifier)(struct ModifierData *md, struct Object *ob,
+	                                     struct DerivedMesh *derivedData,
+	                                     ModifierApplyFlag flag);
 
 	/* Like applyModifier but called during editmode (for supporting
 	 * modifiers).
@@ -189,10 +197,10 @@ typedef struct ModifierTypeInfo {
 	 * are expected from editmode objects. The same qualifications regarding
 	 * derivedData apply as for applyModifier.
 	 */
-	struct DerivedMesh *(*applyModifierEM)(
-								struct ModifierData *md, struct Object *ob,
-								struct EditMesh *editData,
-								struct DerivedMesh *derivedData);
+	struct DerivedMesh *(*applyModifierEM)(struct ModifierData *md, struct Object *ob,
+	                                       struct BMEditMesh *editData,
+	                                       struct DerivedMesh *derivedData,
+	                                       ModifierApplyFlag flag);
 
 
 	/********************* Optional functions *********************/
@@ -237,7 +245,7 @@ typedef struct ModifierTypeInfo {
 	 *
 	 * This function is optional (assumes never disabled if not present).
 	 */
-	int (*isDisabled)(struct ModifierData *md, int userRenderParams);
+	bool (*isDisabled)(struct ModifierData *md, int userRenderParams);
 
 	/* Add the appropriate relations to the DEP graph depending on the
 	 * modifier data. 
@@ -245,14 +253,14 @@ typedef struct ModifierTypeInfo {
 	 * This function is optional.
 	 */
 	void (*updateDepgraph)(struct ModifierData *md, struct DagForest *forest, struct Scene *scene,
-						   struct Object *ob, struct DagNode *obNode);
+	                       struct Object *ob, struct DagNode *obNode);
 
 	/* Should return true if the modifier needs to be recalculated on time
 	 * changes.
 	 *
 	 * This function is optional (assumes false if not present).
 	 */
-	int (*dependsOnTime)(struct ModifierData *md);
+	bool (*dependsOnTime)(struct ModifierData *md);
 
 
 	/* True when a deform modifier uses normals, the requiredDataMask
@@ -262,7 +270,7 @@ typedef struct ModifierTypeInfo {
 	 * this is needed because applying 2 deform modifiers will give the
 	 * second modifier bogus normals.
 	 * */
-	int (*dependsOnNormals)(struct ModifierData *md);
+	bool (*dependsOnNormals)(struct ModifierData *md);
 
 
 	/* Should call the given walk function on with a pointer to each Object
@@ -272,7 +280,7 @@ typedef struct ModifierTypeInfo {
 	 * This function is optional.
 	 */
 	void (*foreachObjectLink)(struct ModifierData *md, struct Object *ob,
-							  ObjectWalkFunc walk, void *userData);
+	                          ObjectWalkFunc walk, void *userData);
 
 	/* Should call the given walk function with a pointer to each ID
 	 * pointer (i.e. each datablock pointer) that the modifier data
@@ -283,10 +291,20 @@ typedef struct ModifierTypeInfo {
 	 * will be used.
 	 */
 	void (*foreachIDLink)(struct ModifierData *md, struct Object *ob,
-						  IDWalkFunc walk, void *userData);
+	                      IDWalkFunc walk, void *userData);
+
+	/* Should call the given walk function for each texture that the
+	 * modifier data stores. This is used for finding all textures in
+	 * the context for the UI.
+	 *
+	 * This function is optional. If it is not present, it will be
+	 * assumed the modifier has no textures.
+	 */
+	void (*foreachTexLink)(struct ModifierData *md, struct Object *ob,
+	                       TexWalkFunc walk, void *userData);
 } ModifierTypeInfo;
 
-ModifierTypeInfo *modifierType_getInfo (ModifierType type);
+ModifierTypeInfo *modifierType_getInfo(ModifierType type);
 
 /* Modifier utility calls, do call through type pointer and return
  * default values if pointer is optional.
@@ -294,55 +312,71 @@ ModifierTypeInfo *modifierType_getInfo (ModifierType type);
 struct ModifierData  *modifier_new(int type);
 void          modifier_free(struct ModifierData *md);
 
-void 		  modifier_unique_name(struct ListBase *modifiers, struct ModifierData *md);
+void          modifier_unique_name(struct ListBase *modifiers, struct ModifierData *md);
 
 void          modifier_copyData(struct ModifierData *md, struct ModifierData *target);
-int           modifier_dependsOnTime(struct ModifierData *md);
-int           modifier_supportsMapping(struct ModifierData *md);
-int           modifier_couldBeCage(struct Scene *scene, struct ModifierData *md);
-int           modifier_isCorrectableDeformed(struct ModifierData *md);
-int			  modifier_sameTopology(ModifierData *md);
-int           modifier_isEnabled(struct Scene *scene, struct ModifierData *md, int required_mode);
+bool          modifier_dependsOnTime(struct ModifierData *md);
+bool          modifier_supportsMapping(struct ModifierData *md);
+bool          modifier_couldBeCage(struct Scene *scene, struct ModifierData *md);
+bool          modifier_isCorrectableDeformed(struct ModifierData *md);
+bool          modifier_isSameTopology(ModifierData *md);
+bool          modifier_isNonGeometrical(ModifierData *md);
+bool          modifier_isEnabled(struct Scene *scene, struct ModifierData *md, int required_mode);
 void          modifier_setError(struct ModifierData *md, const char *format, ...)
 #ifdef __GNUC__
-__attribute__ ((format (printf, 2, 3)))
+__attribute__ ((format(printf, 2, 3)))
 #endif
 ;
+bool          modifier_isPreview(struct ModifierData *md);
 
 void          modifiers_foreachObjectLink(struct Object *ob,
-										  ObjectWalkFunc walk,
-										  void *userData);
+                                          ObjectWalkFunc walk,
+                                          void *userData);
 void          modifiers_foreachIDLink(struct Object *ob,
-									  IDWalkFunc walk,
-									  void *userData);
+                                      IDWalkFunc walk,
+                                      void *userData);
+void          modifiers_foreachTexLink(struct Object *ob,
+                                       TexWalkFunc walk,
+                                       void *userData);
+
 struct ModifierData  *modifiers_findByType(struct Object *ob, ModifierType type);
 struct ModifierData  *modifiers_findByName(struct Object *ob, const char *name);
 void          modifiers_clearErrors(struct Object *ob);
 int           modifiers_getCageIndex(struct Scene *scene, struct Object *ob,
-									 int *lastPossibleCageIndex_r, int virtual_);
+                                     int *lastPossibleCageIndex_r, int virtual_);
 
-int           modifiers_isSoftbodyEnabled(struct Object *ob);
-int           modifiers_isClothEnabled(struct Object *ob);
-int           modifiers_isParticleEnabled(struct Object *ob);
+bool          modifiers_isModifierEnabled(struct Object *ob, int modifierType);
+bool          modifiers_isSoftbodyEnabled(struct Object *ob);
+bool          modifiers_isClothEnabled(struct Object *ob);
+bool          modifiers_isParticleEnabled(struct Object *ob);
 
 struct Object *modifiers_isDeformedByArmature(struct Object *ob);
 struct Object *modifiers_isDeformedByLattice(struct Object *ob);
-int           modifiers_usesArmature(struct Object *ob, struct bArmature *arm);
-int           modifiers_isCorrectableDeformed(struct Object *ob);
+struct Object *modifiers_isDeformedByCurve(struct Object *ob);
+bool          modifiers_usesArmature(struct Object *ob, struct bArmature *arm);
+bool          modifiers_isCorrectableDeformed(struct Object *ob);
 void          modifier_freeTemporaryData(struct ModifierData *md);
+bool          modifiers_isPreview(struct Object *ob);
 
-int           modifiers_indexInObject(struct Object *ob, struct ModifierData *md);
+typedef struct CDMaskLink {
+	struct CDMaskLink *next;
+	CustomDataMask mask;
+} CDMaskLink;
 
 /* Calculates and returns a linked list of CustomDataMasks indicating the
  * data required by each modifier in the stack pointed to by md for correct
  * evaluation, assuming the data indicated by dataMask is required at the
  * end of the stack.
  */
-struct LinkNode *modifiers_calcDataMasks(struct Scene *scene, 
-										 struct Object *ob,
-										 struct ModifierData *md,
-										 CustomDataMask dataMask,
-										 int required_mode);
+struct CDMaskLink *modifiers_calcDataMasks(struct Scene *scene,
+                                           struct Object *ob,
+                                           struct ModifierData *md,
+                                           CustomDataMask dataMask,
+                                           int required_mode,
+                                           ModifierData *previewmd, CustomDataMask previewmask);
+struct ModifierData *modifiers_getLastPreview(struct Scene *scene,
+                                              struct ModifierData *md,
+                                              int required_mode);
 struct ModifierData  *modifiers_getVirtualModifierList(struct Object *ob);
 
 /* ensure modifier correctness when changing ob->data */
@@ -350,6 +384,34 @@ void test_object_modifiers(struct Object *ob);
 
 /* here for do_versions */
 void modifier_mdef_compact_influences(struct ModifierData *md);
+
+void        modifier_path_init(char *path, int path_maxlen, const char *name);
+const char *modifier_path_relbase(struct Object *ob);
+
+
+/* wrappers for modifier callbacks */
+
+struct DerivedMesh *modwrap_applyModifier(
+        ModifierData *md, struct Object *ob,
+        struct DerivedMesh *dm,
+        ModifierApplyFlag flag);
+
+struct DerivedMesh *modwrap_applyModifierEM(
+        ModifierData *md, struct Object *ob,
+        struct BMEditMesh *em,
+        struct DerivedMesh *dm,
+        ModifierApplyFlag flag);
+
+void modwrap_deformVerts(
+        ModifierData *md, struct Object *ob,
+        struct DerivedMesh *dm,
+        float (*vertexCos)[3], int numVerts,
+        ModifierApplyFlag flag);
+
+void modwrap_deformVertsEM(
+        ModifierData *md, struct Object *ob,
+        struct BMEditMesh *em, struct DerivedMesh *dm,
+        float (*vertexCos)[3], int numVerts);
 
 #endif
 

@@ -1,8 +1,4 @@
 /*
- * blenlib/DNA_group_types.h (mar-2001 nzc)
- *	
- * $Id: DNA_group_types.h 34941 2011-02-17 20:48:12Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -24,16 +20,19 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): none yet.
+ * Contributor(s): mar-2001 nzc
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_GROUP_TYPES_H
-#define DNA_GROUP_TYPES_H
 
 /** \file DNA_group_types.h
  *  \ingroup DNA
+ *
+ * \brief Object groups, one object can be in many groups at once.
  */
+
+#ifndef __DNA_GROUP_TYPES_H__
+#define __DNA_GROUP_TYPES_H__
 
 #include "DNA_listBase.h"
 #include "DNA_ID.h"
@@ -61,6 +60,4 @@ typedef struct Group {
 	float dupli_ofs[3];
 } Group;
 
-
-#endif
-
+#endif  /* __DNA_GROUP_TYPES_H__ */

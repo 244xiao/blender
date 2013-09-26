@@ -1,6 +1,4 @@
 /*
- * $Id: graph_intern.h 35765 2011-03-25 03:58:21Z aligorith $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,8 +28,8 @@
  *  \ingroup spgraph
  */
 
-#ifndef ED_GRAPH_INTERN_H
-#define ED_GRAPH_INTERN_H
+#ifndef __GRAPH_INTERN_H__
+#define __GRAPH_INTERN_H__
 
 struct bContext;
 struct wmWindowManager;
@@ -59,10 +57,6 @@ void graph_draw_curves(struct bAnimContext *ac, struct SpaceIpo *sipo, struct AR
 void graph_draw_ghost_curves(struct bAnimContext *ac, struct SpaceIpo *sipo, struct ARegion *ar);
 
 /* ***************************************** */
-/* graph_header.c */
-void graph_header_buttons(const bContext *C, struct ARegion *ar);
-
-/* ***************************************** */
 /* graph_select.c */
 
 void GRAPH_OT_select_all_toggle(struct wmOperatorType *ot);
@@ -75,24 +69,25 @@ void GRAPH_OT_select_leftright(struct wmOperatorType *ot);
 void GRAPH_OT_clickselect(struct wmOperatorType *ot);
 
 /* defines for left-right select tool */
-enum {
-	GRAPHKEYS_LRSEL_TEST	= 0,
+enum eGraphKeys_LeftRightSelect_Mode {
+	GRAPHKEYS_LRSEL_TEST    = 0,
 	GRAPHKEYS_LRSEL_LEFT,
 	GRAPHKEYS_LRSEL_RIGHT
-} eGraphKeys_LeftRightSelect_Mode;
+};
 
 /* defines for column-select mode */
-enum {
-	GRAPHKEYS_COLUMNSEL_KEYS	= 0,
+enum eGraphKeys_ColumnSelect_Mode {
+	GRAPHKEYS_COLUMNSEL_KEYS    = 0,
 	GRAPHKEYS_COLUMNSEL_CFRA,
 	GRAPHKEYS_COLUMNSEL_MARKERS_COLUMN,
 	GRAPHKEYS_COLUMNSEL_MARKERS_BETWEEN,
-} eGraphKeys_ColumnSelect_Mode;
+};
 
 /* ***************************************** */
 /* graph_edit.c */
 
-void get_graph_keyframe_extents (struct bAnimContext *ac, float *xmin, float *xmax, float *ymin, float *ymax, const short do_selected);
+void get_graph_keyframe_extents(struct bAnimContext *ac, float *xmin, float *xmax, float *ymin, float *ymax, 
+                                const short do_selected, const short include_handles);
 
 void GRAPH_OT_previewrange_set(struct wmOperatorType *ot);
 void GRAPH_OT_view_all(struct wmOperatorType *ot);
@@ -124,25 +119,25 @@ void GRAPH_OT_mirror(struct wmOperatorType *ot);
 /* defines for snap keyframes 
  * NOTE: keep in sync with eEditKeyframes_Snap (in ED_keyframes_edit.h)
  */
-enum {
+enum eGraphKeys_Snap_Mode {
 	GRAPHKEYS_SNAP_CFRA = 1,
 	GRAPHKEYS_SNAP_NEAREST_FRAME,
 	GRAPHKEYS_SNAP_NEAREST_SECOND,
-	GRAPHKEYS_SNAP_NEAREST_MARKER,	
+	GRAPHKEYS_SNAP_NEAREST_MARKER,
 	GRAPHKEYS_SNAP_HORIZONTAL,
 	GRAPHKEYS_SNAP_VALUE,
-} eGraphKeys_Snap_Mode;
+};
 
 /* defines for mirror keyframes 
  * NOTE: keep in sync with eEditKeyframes_Mirror (in ED_keyframes_edit.h)
  */
-enum {
+enum eGraphKeys_Mirror_Mode {
 	GRAPHKEYS_MIRROR_CFRA = 1,
 	GRAPHKEYS_MIRROR_YAXIS,
 	GRAPHKEYS_MIRROR_XAXIS,
 	GRAPHKEYS_MIRROR_MARKER,
 	GRAPHKEYS_MIRROR_VALUE,
-} eGraphKeys_Mirror_Mode;
+};
 
 /* ----------- */
 
@@ -166,8 +161,6 @@ void graph_buttons_register(struct ARegionType *art);
 
 struct bAnimListElem *get_active_fcurve_channel(struct bAnimContext *ac);
 
-short fcurve_needs_draw_fmodifier_controls(struct FCurve *fcu, struct FModifier *fcm);
-
 int graphop_visible_keyframes_poll(struct bContext *C);
 int graphop_editable_keyframes_poll(struct bContext *C);
 int graphop_active_fcurve_poll(struct bContext *C);
@@ -179,5 +172,4 @@ void graphedit_keymap(struct wmKeyConfig *keyconf);
 void graphedit_operatortypes(void);
 
 
-#endif /* ED_GRAPH_INTERN_H */
-
+#endif /* __GRAPH_INTERN_H__ */

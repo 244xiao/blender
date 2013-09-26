@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -22,12 +21,14 @@
 set(INC
 	../include
 	../../blenkernel
-	../../blenloader
 	../../blenlib
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -41,4 +42,4 @@ set(SRC
 	action_intern.h
 )
 
-blender_add_lib(bf_editor_space_action "${SRC}" "${INC}")
+blender_add_lib(bf_editor_space_action "${SRC}" "${INC}" "${INC_SYS}")

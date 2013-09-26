@@ -1,6 +1,4 @@
 /*
- * $Id: KX_ScalarInterpolator.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef KX_SCALARINTERPOLATOR
-#define KX_SCALARINTERPOLATOR
+#ifndef __KX_SCALARINTERPOLATOR_H__
+#define __KX_SCALARINTERPOLATOR_H__
 
 #include "MT_Scalar.h"
 #include "KX_IInterpolator.h"
@@ -63,9 +61,7 @@ private:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_ScalarInterpolator"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_ScalarInterpolator")
 #endif
 };
 

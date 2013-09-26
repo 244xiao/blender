@@ -1,6 +1,4 @@
 /*
- * $Id: rayintersection.h 35233 2011-02-27 19:31:27Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -33,8 +31,8 @@
  */
 
 
-#ifndef __RENDER_RAYINTERSECTION_H__
-#define __RENDER_RAYINTERSECTION_H__
+#ifndef __RAYINTERSECTION_H__
+#define __RAYINTERSECTION_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -61,11 +59,15 @@ typedef struct RayHint {
 
 typedef struct Isect {
 	/* ray start, direction (normalized vector), and max distance. on hit,
-	   the distance is modified to be the distance to the hit point. */
+	 * the distance is modified to be the distance to the hit point. */
 	float start[3];
 	float dir[3];
 	float dist;
 
+	/* for envmap and incremental view update renders */
+	float origstart[3];
+	float origdir[3];
+	
 	/* precomputed values to accelerate bounding box intersection */
 	int bv_index[6];
 	float idot_axis[3];
@@ -125,5 +127,5 @@ typedef struct Isect {
 }
 #endif
 
-#endif /* __RENDER_RAYINTERSECTION_H__ */
+#endif /* __RAYINTERSECTION_H__ */
 

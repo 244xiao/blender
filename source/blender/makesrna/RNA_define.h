@@ -1,6 +1,4 @@
 /*
- * $Id: RNA_define.h 34923 2011-02-17 05:57:18Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -22,8 +20,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef RNA_DEFINE_H
-#define RNA_DEFINE_H
+#ifndef __RNA_DEFINE_H__
+#define __RNA_DEFINE_H__
 
 /** \file RNA_define.h
  *  \ingroup RNA
@@ -45,12 +43,14 @@ BlenderRNA *RNA_create(void);
 void RNA_define_free(BlenderRNA *brna);
 void RNA_free(BlenderRNA *brna);
 void RNA_define_verify_sdna(int verify);
+void RNA_define_animate_sdna(int animate);
 
 void RNA_init(void);
 void RNA_exit(void);
 
 /* Struct */
 
+StructRNA *RNA_def_struct_ptr(BlenderRNA *brna, const char *identifier, StructRNA *srnafrom);
 StructRNA *RNA_def_struct(BlenderRNA *brna, const char *identifier, const char *from);
 void RNA_def_struct_sdna(StructRNA *srna, const char *structname);
 void RNA_def_struct_sdna_from(StructRNA *srna, const char *structname, const char *propname);
@@ -60,13 +60,15 @@ void RNA_def_struct_flag(StructRNA *srna, int flag);
 void RNA_def_struct_clear_flag(StructRNA *srna, int flag);
 void RNA_def_struct_refine_func(StructRNA *srna, const char *refine);
 void RNA_def_struct_idprops_func(StructRNA *srna, const char *refine);
-void RNA_def_struct_register_funcs(StructRNA *srna, const char *reg, const char *unreg);
+void RNA_def_struct_register_funcs(StructRNA *srna, const char *reg, const char *unreg, const char *instance);
 void RNA_def_struct_path_func(StructRNA *srna, const char *path);
 void RNA_def_struct_identifier(StructRNA *srna, const char *identifier);
 void RNA_def_struct_ui_text(StructRNA *srna, const char *name, const char *description);
 void RNA_def_struct_ui_icon(StructRNA *srna, int icon);
 void RNA_struct_free_extension(StructRNA *srna, ExtensionRNA *ext);
 void RNA_struct_free(BlenderRNA *brna, StructRNA *srna);
+
+void RNA_def_struct_translation_context(StructRNA *srna, const char *context);
 
 /* Compact Property Definitions */
 
@@ -100,10 +102,10 @@ PropertyRNA *RNA_def_float_rotation(StructOrFunctionRNA *cont, const char *ident
 	float hardmin, float hardmax, const char *ui_name, const char *ui_description, float softmin, float softmax);
 PropertyRNA *RNA_def_float_array(StructOrFunctionRNA *cont, const char *identifier, int len, const float *default_value,
 	float hardmin, float hardmax, const char *ui_name, const char *ui_description, float softmin, float softmax);
-	/*
-PropertyRNA *RNA_def_float_dynamic_array(StructOrFunctionRNA *cont, const char *identifier, float hardmin, float hardmax,
-	const char *ui_name, const char *ui_description, float softmin, float softmax, unsigned int dimension, unsigned short dim_size[]);
-	*/
+
+//PropertyRNA *RNA_def_float_dynamic_array(StructOrFunctionRNA *cont, const char *identifier, float hardmin, float hardmax,
+//	const char *ui_name, const char *ui_description, float softmin, float softmax, unsigned int dimension, unsigned short dim_size[]);
+
 PropertyRNA *RNA_def_float_percentage(StructOrFunctionRNA *cont, const char *identifier, float default_value, float hardmin, float hardmax,
 	const char *ui_name, const char *ui_description, float softmin, float softmax);
 PropertyRNA *RNA_def_float_factor(StructOrFunctionRNA *cont, const char *identifier, float default_value, float hardmin, float hardmax,
@@ -162,6 +164,8 @@ void RNA_def_property_update(PropertyRNA *prop, int noteflag, const char *update
 void RNA_def_property_editable_func(PropertyRNA *prop, const char *editable);
 void RNA_def_property_editable_array_func(PropertyRNA *prop, const char *editable);
 
+void RNA_def_property_update_runtime(PropertyRNA *prop, void *func);
+
 void RNA_def_property_dynamic_array_funcs(PropertyRNA *prop, const char *getlength);
 void RNA_def_property_boolean_funcs(PropertyRNA *prop, const char *get, const char *set);
 void RNA_def_property_int_funcs(PropertyRNA *prop, const char *get, const char *set, const char *range);
@@ -169,8 +173,22 @@ void RNA_def_property_float_funcs(PropertyRNA *prop, const char *get, const char
 void RNA_def_property_enum_funcs(PropertyRNA *prop, const char *get, const char *set, const char *item);
 void RNA_def_property_string_funcs(PropertyRNA *prop, const char *get, const char *length, const char *set);
 void RNA_def_property_pointer_funcs(PropertyRNA *prop, const char *get, const char *set, const char *typef, const char *poll);
-void RNA_def_property_collection_funcs(PropertyRNA *prop, const char *begin, const char *next, const char *end, const char *get, const char *length, const char *lookupint, const char *lookupstring);
+void RNA_def_property_collection_funcs(PropertyRNA *prop, const char *begin, const char *next, const char *end, const char *get, const char *length, const char *lookupint, const char *lookupstring, const char *assignint);
 void RNA_def_property_srna(PropertyRNA *prop, const char *type);
+void RNA_def_py_data(PropertyRNA *prop, void *py_data);
+
+void RNA_def_property_boolean_funcs_runtime(PropertyRNA *prop, BooleanPropertyGetFunc getfunc, BooleanPropertySetFunc setfunc);
+void RNA_def_property_boolean_array_funcs_runtime(PropertyRNA *prop, BooleanArrayPropertyGetFunc getfunc, BooleanArrayPropertySetFunc setfunc);
+void RNA_def_property_int_funcs_runtime(PropertyRNA *prop, IntPropertyGetFunc getfunc, IntPropertySetFunc setfunc, IntPropertyRangeFunc rangefunc);
+void RNA_def_property_int_array_funcs_runtime(PropertyRNA *prop, IntArrayPropertyGetFunc getfunc, IntArrayPropertySetFunc setfunc, IntPropertyRangeFunc rangefunc);
+void RNA_def_property_float_funcs_runtime(PropertyRNA *prop, FloatPropertyGetFunc getfunc, FloatPropertySetFunc setfunc, FloatPropertyRangeFunc rangefunc);
+void RNA_def_property_float_array_funcs_runtime(PropertyRNA *prop, FloatArrayPropertyGetFunc getfunc, FloatArrayPropertySetFunc setfunc, FloatPropertyRangeFunc rangefunc);
+void RNA_def_property_enum_funcs_runtime(PropertyRNA *prop, EnumPropertyGetFunc getfunc, EnumPropertySetFunc setfunc, EnumPropertyItemFunc itemfunc);
+void RNA_def_property_string_funcs_runtime(PropertyRNA *prop, StringPropertyGetFunc getfunc, StringPropertyLengthFunc lengthfunc, StringPropertySetFunc setfunc);
+
+void RNA_def_property_enum_py_data(PropertyRNA *prop, void *py_data);
+
+void RNA_def_property_translation_context(PropertyRNA *prop, const char *context);
 
 /* Function */
 
@@ -184,7 +202,7 @@ void RNA_def_function_ui_description(FunctionRNA *func, const char *description)
 /* Dynamic Enums
  * strings are not freed, assumed pointing to static location. */
 
-void RNA_enum_item_add(EnumPropertyItem **items, int *totitem, EnumPropertyItem *item);
+void RNA_enum_item_add(EnumPropertyItem **items, int *totitem, const EnumPropertyItem *item);
 void RNA_enum_item_add_separator(EnumPropertyItem **items, int *totitem);
 void RNA_enum_items_add(EnumPropertyItem **items, int *totitem, EnumPropertyItem *item);
 void RNA_enum_items_add_value(EnumPropertyItem **items, int *totitem, EnumPropertyItem *item, int value);
@@ -205,10 +223,15 @@ const char *RNA_property_typename(PropertyType type);
 #define IS_DNATYPE_FLOAT_COMPAT(_str) (strcmp(_str, "float") == 0 || strcmp(_str, "double") == 0)
 #define IS_DNATYPE_INT_COMPAT(_str) (strcmp(_str, "int") == 0 || strcmp(_str, "short") == 0 || strcmp(_str, "char") == 0)
 
+void RNA_identifier_sanitize(char *identifier, int property);
+
+/* max size for dynamic defined type descriptors,
+ * this value is arbitrary */
+#define RNA_DYN_DESCR_MAX 240
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* RNA_DEFINE_H */
+#endif /* __RNA_DEFINE_H__ */
 

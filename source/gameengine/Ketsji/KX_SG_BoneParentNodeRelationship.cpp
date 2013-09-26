@@ -1,5 +1,4 @@
 /*
- * $Id: KX_SG_BoneParentNodeRelationship.cpp 35171 2011-02-25 13:35:59Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -52,15 +51,15 @@ KX_BoneParentRelation::
 New(Bone* bone
 ) {
 	return new KX_BoneParentRelation(bone);
-}		
+}
 
 	bool
 KX_BoneParentRelation::
 UpdateChildCoordinates(
 	SG_Spatial * child,
 	const SG_Spatial * parent,
-	bool& parentUpdated	
-){
+	bool& parentUpdated
+) {
 	MT_assert(child != NULL);
 	
 	// This way of accessing child coordinates is a bit cumbersome
@@ -72,7 +71,7 @@ UpdateChildCoordinates(
 	// we don't know if the armature has been updated or not, assume yes
 	parentUpdated = true;
 
-	// the childs world locations which we will update.	
+	// the childs world locations which we will update.
 	
 	MT_Vector3 child_w_scale;
 	MT_Point3 child_w_pos;
@@ -135,14 +134,14 @@ UpdateChildCoordinates(
 	SG_ParentRelation *
 KX_BoneParentRelation::
 NewCopy(
-){
+) {
 	KX_BoneParentRelation* bone_parent = new KX_BoneParentRelation(m_bone);
 	return bone_parent;
 }
 
 KX_BoneParentRelation::
 ~KX_BoneParentRelation(
-){
+) {
 	//nothing to do
 }
 

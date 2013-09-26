@@ -18,8 +18,8 @@ subject to the following restrictions:
  *  See also \ref bulletdoc
  */
 
-#ifndef CCDPHYSICSENVIRONMENT
-#define CCDPHYSICSENVIRONMENT
+#ifndef __CCDPHYSICSENVIRONMENT_H__
+#define __CCDPHYSICSENVIRONMENT_H__
 
 #include "PHY_IPhysicsEnvironment.h"
 #include <vector>
@@ -66,7 +66,7 @@ protected:
 	btIDebugDraw*	m_debugDrawer;
 	
 	class btDefaultCollisionConfiguration* m_collisionConfiguration;
-    class btBroadphaseInterface*		m_broadphase;	// broadphase for dynamic world
+	class btBroadphaseInterface*		m_broadphase;	// broadphase for dynamic world
 	// for culling only
 	btOverlappingPairCache*				m_cullingCache;
 	struct btDbvtBroadphase*			m_cullingTree;	// broadphase for culling
@@ -83,8 +83,6 @@ protected:
 	int	m_profileTimings;
 	bool m_enableSatCollisionDetection;
 
-	btContactSolverInfo	m_solverInfo;
-	
 	void	processFhSprings(double curTime,float timeStep);
 
 	public:
@@ -106,19 +104,24 @@ protected:
 			m_numTimeSubSteps = numTimeSubSteps;
 		}
 		virtual void		setDeactivationTime(float dTime);
-		virtual	void		setDeactivationLinearTreshold(float linTresh) ;
-		virtual	void		setDeactivationAngularTreshold(float angTresh) ;
-		virtual void		setContactBreakingTreshold(float contactBreakingTreshold) ;
+		virtual	void		setDeactivationLinearTreshold(float linTresh);
+		virtual	void		setDeactivationAngularTreshold(float angTresh);
+		virtual void		setContactBreakingTreshold(float contactBreakingTreshold);
 		virtual void		setCcdMode(int ccdMode);
 		virtual void		setSolverType(int solverType);
 		virtual void		setSolverSorConstant(float sor);
 		virtual void		setSolverTau(float tau);
 		virtual void		setSolverDamping(float damping);
 		virtual void		setLinearAirDamping(float damping);
-		virtual void		setUseEpa(bool epa) ;
+		virtual void		setUseEpa(bool epa);
+
+		int					getNumTimeSubSteps()
+		{
+			return m_numTimeSubSteps;
+		}
 
 		virtual	void		beginFrame();
-		virtual void		endFrame() {};
+		virtual void		endFrame() {}
 		/// Perform an integration step of duration 'timeStep'.
 		virtual	bool		proceedDeltaTime(double curTime,float timeStep,float interval);
 		
@@ -128,16 +131,16 @@ protected:
 		virtual	void		setFixedTimeStep(bool useFixedTimeStep,float fixedTimeStep)
 		{
 			//based on DEFAULT_PHYSICS_TIC_RATE of 60 hertz
-			setNumTimeSubSteps(fixedTimeStep/60.f);
+			setNumTimeSubSteps((int)(fixedTimeStep / 60.f));
 		}
 		//returns 0.f if no fixed timestep is used
 
-		virtual	float		getFixedTimeStep(){ return 0.f;};
+		virtual	float		getFixedTimeStep() { return 0.f; }
 
 		virtual void		setDebugMode(int debugMode);
 
 		virtual	void		setGravity(float x,float y,float z);
-		virtual	void		getGravity(PHY__Vector3& grav);
+		virtual	void		getGravity(MT_Vector3& grav);
 
 
 		virtual int			createConstraint(class PHY_IPhysicsController* ctrl,class PHY_IPhysicsController* ctrl2,PHY_ConstraintType type,
@@ -164,7 +167,7 @@ protected:
 		
 		virtual float	getConstraintParam(int constraintId,int param);
 
-	    virtual void		removeConstraint(int	constraintid);
+		virtual void		removeConstraint(int	constraintid);
 
 		virtual float		getAppliedImpulse(int	constraintid);
 
@@ -180,12 +183,14 @@ protected:
 		{
 			return 0;
 		}
-#endif //NEW_BULLET_VEHICLE_SUPPORT
+#endif  /* NEW_BULLET_VEHICLE_SUPPORT */
+		// Character physics wrapper
+		virtual PHY_ICharacter*	getCharacterController(class KX_GameObject* ob);
 
 		btTypedConstraint*	getConstraintById(int constraintId);
 
 		virtual PHY_IPhysicsController* rayTest(PHY_IRayCastFilterCallback &filterCallback, float fromX,float fromY,float fromZ, float toX,float toY,float toZ);
-		virtual bool cullingTest(PHY_CullingCallback callback, void* userData, PHY__Vector4* planes, int nplanes, int occlusionRes);
+		virtual bool cullingTest(PHY_CullingCallback callback, void* userData, MT_Vector4* planes, int nplanes, int occlusionRes, const int *viewport, double modelview[16], double projection[16]);
 
 
 		//Methods for gamelogic collision/physics callbacks
@@ -195,7 +200,7 @@ protected:
 		virtual bool requestCollisionCallback(PHY_IPhysicsController* ctrl);
 		virtual bool removeCollisionCallback(PHY_IPhysicsController* ctrl);
 		//These two methods are used *solely* to create controllers for Near/Radar sensor! Don't use for anything else
-		virtual PHY_IPhysicsController*	CreateSphereController(float radius,const PHY__Vector3& position);
+		virtual PHY_IPhysicsController*	CreateSphereController(float radius,const MT_Vector3& position);
 		virtual PHY_IPhysicsController* CreateConeController(float coneradius,float coneheight);
 	
 
@@ -280,6 +285,8 @@ protected:
 
 		class CcdOverlapFilterCallBack* m_filterCallback;
 
+		class btGhostPairCallback*	m_ghostPairCallback;
+
 		class btDispatcher* m_ownDispatcher;
 
 		bool	m_scalingPropagated;
@@ -288,10 +295,8 @@ protected:
 
 		
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:CcdPhysicsEnvironment"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:CcdPhysicsEnvironment")
 #endif
 };
 
-#endif //CCDPHYSICSENVIRONMENT
+#endif  /* __CCDPHYSICSENVIRONMENT_H__ */

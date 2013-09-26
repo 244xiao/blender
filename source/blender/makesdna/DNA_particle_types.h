@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_particle_types.h 35488 2011-03-12 12:38:11Z jhk $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,13 +25,14 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef DNA_PARTICLE_TYPES_H
-#define DNA_PARTICLE_TYPES_H
-
 /** \file DNA_particle_types.h
  *  \ingroup DNA
  */
 
+#ifndef __DNA_PARTICLE_TYPES_H__
+#define __DNA_PARTICLE_TYPES_H__
+
+#include "DNA_defs.h"
 #include "DNA_ID.h"
 #include "DNA_boid_types.h"
 
@@ -66,7 +65,7 @@ typedef struct BoidParticle {
 typedef struct ParticleSpring {
 	float rest_length;
 	unsigned int particle_index[2], delete_flag;
-}ParticleSpring;
+} ParticleSpring;
 
 /* Child particles are created around or between parent particles */
 typedef struct ChildParticle {
@@ -89,7 +88,8 @@ typedef struct ParticleDupliWeight {
 	struct ParticleDupliWeight *next, *prev;
 	struct Object *ob;
 	short count;
-	short flag, rt[2];
+	short flag;
+	short index, rt; /* only updated on file save and used on file load */
 } ParticleDupliWeight;
 
 typedef struct ParticleData {
@@ -116,6 +116,9 @@ typedef struct ParticleData {
 
 	float size;				/* size and multiplier so that we can update size when ever */
 
+	float sphdensity;		/* density of sph particle */
+	int pad;
+
 	int hair_index;
 	short flag;
 	short alive;			/* the life state of a particle */
@@ -130,6 +133,8 @@ typedef struct SPHFluidSettings {
 	float stiffness_k, stiffness_knear, rest_density;
 	float buoyancy;
 	int flag, spring_frames;
+	short solver;
+	short pad[3];
 } SPHFluidSettings;
 
 /* fluid->flag */
@@ -140,6 +145,10 @@ typedef struct SPHFluidSettings {
 #define SPH_FAC_RADIUS				16
 #define SPH_FAC_VISCOSITY			32
 #define SPH_FAC_REST_LENGTH			64
+
+/* fluid->solver (numerical ID field, not bitfield) */
+#define SPH_SOLVER_DDR					0
+#define SPH_SOLVER_CLASSICAL			1
 
 typedef struct ParticleSettings {
 	ID id;
@@ -154,7 +163,8 @@ typedef struct ParticleSettings {
 	short type, from, distr, texact;
 	/* physics modes */
 	short phystype, rotmode, avemode, reactevent;
-	short draw, draw_as, draw_size, childtype;
+	int draw, pad1;
+	short draw_as, draw_size, childtype, pad2;
 	short ren_as, subframes, draw_col;
 	/* number of path segments, power of 2 except */
 	short draw_step, ren_step;
@@ -163,12 +173,13 @@ typedef struct ParticleSettings {
 	/* adaptive path rendering */
 	short adapt_angle, adapt_pix;
 
-	short disp, omat, interpolation, rotfrom, integrator;
+	short disp, omat, interpolation, integrator;
+	short rotfrom DNA_DEPRECATED;
 	short kink, kink_axis;
 
 	/* billboards */
 	short bb_align, bb_uv_split, bb_anim, bb_split_offset;
-	float bb_tilt, bb_rand_tilt, bb_offset[2];
+	float bb_tilt, bb_rand_tilt, bb_offset[2], bb_size[2], bb_vel_head, bb_vel_tail;
 
 	/* draw color */
 	float color_vec_max;
@@ -178,10 +189,12 @@ typedef struct ParticleSettings {
 	float simplify_rate, simplify_transition;
 	float simplify_viewport;
 
-	/* general values */
+	/* time and emission */
 	float sta, end, lifetime, randlife;
-	float timetweak, jitfac, eff_hair, grid_rand;
+	float timetweak, courant_target;
+	float jitfac, eff_hair, grid_rand, ps_offset[1];
 	int totpart, userjit, grid_res, effector_amount;
+	short time_flag, time_pad[3];
 
 	/* initial velocity factors */
 	float normfac, obfac, randfac, partfac, tanfac, tanphase, reactfac;
@@ -224,15 +237,23 @@ typedef struct ParticleSettings {
 
 	struct Group *dup_group;
 	struct ListBase dupliweights;
-	struct Group *eff_group;		// deprecated
+	struct Group *eff_group  DNA_DEPRECATED;		// deprecated
 	struct Object *dup_ob;
 	struct Object *bb_ob;
-	struct Ipo *ipo;				// xxx depreceated... old animation system
+	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
 	struct PartDeflect *pd;
 	struct PartDeflect *pd2;
+
+	/* modified dm support */
+	short use_modifier_stack;
+	short pad[3];
+
 } ParticleSettings;
 
-typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in copy_particlesystem */
+typedef struct ParticleSystem {
+	/* note1: make sure all (runtime) are NULL's in 'copy_particlesystem' XXX, this function is no more! - need to invstigate */
+	/* note2: make sure any uses of this struct in DNA are accounted for in 'BKE_object_copy_particlesystems' */
+
 	struct ParticleSystem *next, *prev;
 
 	ParticleSettings *part;					/* particle settings */
@@ -256,7 +277,7 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 
 	struct ListBase targets;				/* used for keyed and boid physics */
 
-	char name[32];							/* particle system name */
+	char name[64];							/* particle system name, MAX_NAME */
 	
 	float imat[4][4];	/* used for duplicators */
 	float cfra, tree_frame, bvhtree_frame;
@@ -264,7 +285,7 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 	int flag, totpart, totunexist, totchild, totcached, totchildcache;
 	short recalc, target_psys, totkeyed, bakespace;
 
-	char bb_uvname[3][32];					/* billboard uv name */
+	char bb_uvname[3][64];					/* billboard uv name, MAX_CUSTOMDATA_LAYER_NAME */
 
 	/* if you change these remember to update array lengths to PSYS_TOT_VG! */
 	short vgroup[12], vg_neg, rt3;			/* vertex groups, 0==disable, 1==starting index */
@@ -287,7 +308,10 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 	struct ParticleDrawData *pdd;
 
 	float *frand;							/* array of 1024 random floats for fast lookups */
-}ParticleSystem;
+
+	float dt_frac;							/* current time step, as a fraction of a frame */
+	float _pad;								/* spare capacity */
+} ParticleSystem;
 
 /* part->type */
 /* hair is allways baked static in object/geometry space */
@@ -313,7 +337,7 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 #define PART_TRAND			128	
 #define PART_EDISTR			256	/* particle/face from face areas */
 
-//#define PART_STICKY			512	/*collided particles can stick to collider*/
+#define PART_ROTATIONS		512	/* calculate particle rotations (and store them in pointcache) */
 #define PART_DIE_ON_COL		(1<<12)
 #define PART_SIZE_DEFL		(1<<13) /* swept sphere deflections */
 #define PART_ROT_DYN		(1<<14)	/* dynamic rotation */
@@ -340,11 +364,6 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 #define PART_CHILD_GUIDE		(1<<30)
 
 #define PART_SELF_EFFECT	(1<<22)
-
-/* part->rotfrom */
-#define PART_ROT_KEYS		0	/* interpolate directly from keys */
-#define PART_ROT_ZINCR		1	/* same as zdir but done incrementally from previous position */
-#define PART_ROT_IINCR		2	/* same as idir but done incrementally from previous position */
 
 /* part->from */
 #define PART_FROM_VERT		0
@@ -380,7 +399,8 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 #define PART_DRAW_HEALTH	16
 #define PART_ABS_PATH_TIME  32
 #define PART_DRAW_COUNT_GR	64
-#define PART_DRAW_BB_LOCK	128
+#define PART_DRAW_BB_LOCK	128	/* used with billboards */
+#define PART_DRAW_ROTATE_OB 128 /* used with dupliobjects/groups */
 #define PART_DRAW_PARENT	256
 #define PART_DRAW_NUM		512
 #define PART_DRAW_RAND_GR	1024
@@ -389,6 +409,7 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 #define PART_DRAW_MAT_COL		(1<<13) /* deprecated, but used in do_versions */
 #define PART_DRAW_WHOLE_GR		(1<<14)
 #define PART_DRAW_REN_STRAND	(1<<15)
+#define PART_DRAW_NO_SCALE_OB 	(1<<16) /* used with dupliobjects/groups */
 
 /* part->draw_col */
 #define PART_DRAW_COL_NONE		0
@@ -400,6 +421,9 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 /* part->simplify_flag */
 #define PART_SIMPLIFY_ENABLE	1
 #define PART_SIMPLIFY_VIEWPORT	2
+
+/* part->time_flag */
+#define PART_TIME_AUTOSF	1 /* Automatic subframes */
 
 /* part->bb_align */
 #define PART_BB_X		0
@@ -449,10 +473,16 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 #define PART_ROT_OB_X		6
 #define PART_ROT_OB_Y		7
 #define PART_ROT_OB_Z		8
+#define PART_ROT_NOR_TAN	9
 
 /* part->avemode */
-#define PART_AVE_SPIN		1
+#define PART_AVE_VELOCITY	1
 #define PART_AVE_RAND		2
+#define PART_AVE_HORIZONTAL	3
+#define PART_AVE_VERTICAL	4
+#define PART_AVE_GLOBAL_X	5
+#define PART_AVE_GLOBAL_Y	6
+#define PART_AVE_GLOBAL_Z	7
 
 /* part->reactevent */
 #define PART_EVENT_DEATH	0
@@ -464,13 +494,13 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 #define PART_CHILD_FACES		2
 
 /* psys->recalc */
-/* starts from 8 so that the first bits can be ob->recalc */
-#define PSYS_RECALC_REDO	8	/* only do pathcache etc */
-#define PSYS_RECALC_RESET	16	/* reset everything including pointcache */
-#define PSYS_RECALC_TYPE	32	/* handle system type change */
-#define PSYS_RECALC_CHILD	64	/* only child settings changed */
-#define PSYS_RECALC_PHYS	128	/* physics type changed */
-#define PSYS_RECALC			248
+/* starts from (1 << 3) so that the first bits can be ob->recalc */
+#define PSYS_RECALC_REDO   (1 << 3) /* only do pathcache etc */
+#define PSYS_RECALC_RESET  (1 << 4) /* reset everything including pointcache */
+#define PSYS_RECALC_TYPE   (1 << 5) /* handle system type change */
+#define PSYS_RECALC_CHILD  (1 << 6) /* only child settings changed */
+#define PSYS_RECALC_PHYS   (1 << 7) /* physics type changed */
+#define PSYS_RECALC        (PSYS_RECALC_REDO | PSYS_RECALC_RESET | PSYS_RECALC_TYPE | PSYS_RECALC_CHILD | PSYS_RECALC_PHYS)
 
 /* psys->flag */
 #define PSYS_CURRENT		1
@@ -486,7 +516,8 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 #define PSYS_KEYED			1024
 #define PSYS_EDITED			2048
 //#define PSYS_PROTECT_CACHE	4096 /* deprecated */
-#define PSYS_DISABLED		8192
+#define PSYS_DISABLED			8192
+#define PSYS_OB_ANIM_RESTORE	16384 /* runtime flag */
 
 /* pars->flag */
 #define PARS_UNEXIST		1

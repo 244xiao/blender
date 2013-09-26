@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 33864 2010-12-22 23:09:30Z campbellbarton $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -26,14 +25,17 @@
 
 set(INC
 	.
-	../../../../source/kernel/gen_system
+	..
+	../../Expressions
+	../../GameLogic
+	../../Network
+	../../SceneGraph
+	../../../../intern/container
 	../../../../intern/string
+)
+
+set(INC_SYS
 	../../../../intern/moto/include
-	../../../../source/gameengine/Ketsji
-	../../../../source/gameengine/GameLogic
-	../../../../source/gameengine/Expressions
-	../../../../source/gameengine/SceneGraph
-	../../../../source/gameengine/Network
 )
 
 set(SRC
@@ -50,4 +52,4 @@ set(SRC
 	KX_NetworkObjectSensor.h
 )
 
-blender_add_lib(ge_logic_network "${SRC}" "${INC}")
+blender_add_lib(ge_logic_network "${SRC}" "${INC}" "${INC_SYS}")

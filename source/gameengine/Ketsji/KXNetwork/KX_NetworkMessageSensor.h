@@ -1,6 +1,4 @@
 /*
- * $Id: KX_NetworkMessageSensor.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -29,10 +27,10 @@
 
 /** \file KX_NetworkMessageSensor.h
  *  \ingroup ketsjinet
- *  \brief Ketsji Logic Extenstion: Network Message Sensor class
+ *  \brief Ketsji Logic Extension: Network Message Sensor class
  */
-#ifndef __KX_NETWORKMESSAGE_SENSOR_H
-#define __KX_NETWORKMESSAGE_SENSOR_H
+#ifndef __KX_NETWORKMESSAGESENSOR_H__
+#define __KX_NETWORKMESSAGESENSOR_H__
 
 #include "SCA_ISensor.h"
 
@@ -42,7 +40,7 @@ class NG_NetworkScene;
 class KX_NetworkMessageSensor : public SCA_ISensor
 {
 	// note: Py_Header MUST BE the first listed here
-	Py_Header;
+	Py_Header
 	NG_NetworkScene        *m_NetworkScene;
 
 	// The subject we filter on.
@@ -82,12 +80,11 @@ public:
 	/* ------------------------------------------------------------- */
 
 	/* attributes */
-	static PyObject*	pyattr_get_bodies(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);	
+	static PyObject*	pyattr_get_bodies(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_subjects(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
 };
 
-#endif //__KX_NETWORKMESSAGE_SENSOR_H
-
+#endif  /* __KX_NETWORKMESSAGESENSOR_H__ */

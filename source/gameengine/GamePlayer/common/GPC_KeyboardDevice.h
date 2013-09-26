@@ -1,6 +1,4 @@
 /*
- * $Id: GPC_KeyboardDevice.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,12 +29,12 @@
  *  \ingroup player
  */
 
-#ifndef __GPC_KEYBOARDDEVICE_H
-#define __GPC_KEYBOARDDEVICE_H
+#ifndef __GPC_KEYBOARDDEVICE_H__
+#define __GPC_KEYBOARDDEVICE_H__
 
 #ifdef WIN32
-#pragma warning (disable : 4786)
-#endif // WIN32
+#pragma warning (disable:4786)
+#endif  /* WIN32 */
 
 #include "SCA_IInputDevice.h"
 
@@ -47,7 +45,7 @@
  * System independent implementation of SCA_IInputDevice.
  * System dependent keyboard devices need only to inherit this class
  * and fill the m_reverseKeyTranslateTable key translation map.
- * @see SCA_IInputDevice
+ * \see SCA_IInputDevice
  */
 
 class GPC_KeyboardDevice : public SCA_IInputDevice
@@ -59,6 +57,7 @@ protected:
 	 * System dependent keyboard codes are stored as ints.
 	 */
 	std::map<int, KX_EnumInputs> m_reverseKeyTranslateTable;
+	short	m_exitkey;
 
 public:
 	bool m_hookesc;
@@ -88,5 +87,4 @@ public:
 	virtual void HookEscape();
 };
 
-#endif  // _GPC_KEYBOARDDEVICE_H
-
+#endif  /* __GPC_KEYBOARDDEVICE_H__ */

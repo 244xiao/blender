@@ -1,6 +1,4 @@
 /*
- * $Id: BL_DeformableGameObject.cpp 35167 2011-02-25 13:30:41Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -62,7 +60,7 @@ CValue*		BL_DeformableGameObject::GetReplica()
 
 bool BL_DeformableGameObject::SetActiveAction(BL_ShapeActionActuator *act, short priority, double curtime)
 {
-	if (curtime != m_lastframe){
+	if (curtime != m_lastframe) {
 		m_activePriority = 9999;
 		m_lastframe= curtime;
 		m_activeAct = NULL;
@@ -78,7 +76,7 @@ bool BL_DeformableGameObject::SetActiveAction(BL_ShapeActionActuator *act, short
 	
 		return true;
 	}
-	else{
+	else {
 		act->SetBlendTime(0.0f);
 		return false;
 	}
@@ -87,15 +85,16 @@ bool BL_DeformableGameObject::SetActiveAction(BL_ShapeActionActuator *act, short
 bool BL_DeformableGameObject::GetShape(vector<float> &shape)
 {
 	shape.clear();
-	if (m_pDeformer)
+	BL_ShapeDeformer* shape_deformer = dynamic_cast<BL_ShapeDeformer*>(m_pDeformer);
+	if (shape_deformer)
 	{
-		Mesh* mesh = ((BL_MeshDeformer*)m_pDeformer)->GetMesh();
 		// this check is normally superfluous: a shape deformer can only be created if the mesh
 		// has relative keys
-		if (mesh && mesh->key && mesh->key->type==KEY_RELATIVE) 
+		Key* key = shape_deformer->GetKey();
+		if (key && key->type==KEY_RELATIVE) 
 		{
 			KeyBlock *kb;
-			for (kb = (KeyBlock*)mesh->key->block.first; kb; kb = (KeyBlock*)kb->next)
+			for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next)
 			{
 				shape.push_back(kb->curval);
 			}
@@ -109,7 +108,7 @@ void BL_DeformableGameObject::SetDeformer(class RAS_Deformer* deformer)
 	m_pDeformer = deformer;
 
 	SG_QList::iterator<RAS_MeshSlot> mit(m_meshSlots);
-	for(mit.begin(); !mit.end(); ++mit)
+	for (mit.begin(); !mit.end(); ++mit)
 	{
 		(*mit)->SetDeformer(deformer);
 	}

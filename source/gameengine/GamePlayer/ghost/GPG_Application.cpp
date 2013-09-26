@@ -1,6 +1,4 @@
 /*
- * $Id: GPG_Application.cpp 35170 2011-02-25 13:35:11Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -42,6 +40,7 @@
 #include "GPU_extensions.h"
 
 #include "GPG_Application.h"
+#include "BL_BlenderDataConversion.h"
 
 #include <iostream>
 #include <MT_assert.h>
@@ -69,15 +68,14 @@ extern "C"
  **********************************/
 
 
-#include "SYS_System.h"
+#include "BL_System.h"
 #include "KX_KetsjiEngine.h"
 
 // include files needed by "KX_BlenderSceneConverter.h"
-#include "GEN_Map.h"
+#include "CTR_Map.h"
 #include "SCA_IActuator.h"
 #include "RAS_MeshObject.h"
 #include "RAS_OpenGLRasterizer.h"
-#include "RAS_VAOpenGLRasterizer.h"
 #include "RAS_ListRasterizer.h"
 #include "RAS_GLExtensionManager.h"
 #include "KX_PythonInit.h"
@@ -139,7 +137,7 @@ GPG_Application::GPG_Application(GHOST_ISystem* system)
 
 GPG_Application::~GPG_Application(void)
 {
-    if(m_pyGlobalDictString) {
+	if (m_pyGlobalDictString) {
 		delete [] m_pyGlobalDictString;
 		m_pyGlobalDictString = 0;
 		m_pyGlobalDictString_Length = 0;
@@ -151,7 +149,7 @@ GPG_Application::~GPG_Application(void)
 
 
 
-bool GPG_Application::SetGameEngineData(struct Main* maggie, Scene *scene, int argc, char **argv)
+bool GPG_Application::SetGameEngineData(struct Main* maggie, Scene *scene, GlobalSettings *gs, int argc, char **argv)
 {
 	bool result = false;
 
@@ -167,6 +165,9 @@ bool GPG_Application::SetGameEngineData(struct Main* maggie, Scene *scene, int a
 	/* Python needs these */
 	m_argc= argc;
 	m_argv= argv;
+
+	/* Global Settings */
+	m_globalSettings= gs;
 
 	return result;
 }
@@ -192,7 +193,7 @@ static LRESULT CALLBACK screenSaverWindowProc(HWND hwnd, UINT uMsg, WPARAM wPara
 			LONG dx = scr_save_mouse_pos.x - pt.x;
 			LONG dy = scr_save_mouse_pos.y - pt.y;
 			if (abs(dx) > SCR_SAVE_MOUSE_MOVE_THRESHOLD
-			    || abs(dy) > SCR_SAVE_MOUSE_MOVE_THRESHOLD)
+			        || abs(dy) > SCR_SAVE_MOUSE_MOVE_THRESHOLD)
 			{
 				close = TRUE;
 			}
@@ -233,7 +234,8 @@ static HWND findGhostWindowHWND(GHOST_IWindow* window)
 bool GPG_Application::startScreenSaverPreview(
 	HWND parentWindow,
 	const bool stereoVisual,
-	const int stereoMode)
+	const int stereoMode,
+	const GHOST_TUns16 samples)
 {
 	bool success = false;
 
@@ -245,7 +247,7 @@ bool GPG_Application::startScreenSaverPreview(
 		STR_String title = "";
 							
 		m_mainWindow = fSystem->createWindow(title, 0, 0, windowWidth, windowHeight, GHOST_kWindowStateMinimized,
-			GHOST_kDrawingContextTypeOpenGL, stereoVisual);
+			GHOST_kDrawingContextTypeOpenGL, stereoVisual, samples);
 		if (!m_mainWindow) {
 			printf("error: could not create main window\n");
 			exit(-1);
@@ -258,14 +260,14 @@ bool GPG_Application::startScreenSaverPreview(
 		}
 
 		SetParent(ghost_hwnd, parentWindow);
-		LONG style = GetWindowLong(ghost_hwnd, GWL_STYLE);
-		LONG exstyle = GetWindowLong(ghost_hwnd, GWL_EXSTYLE);
+		LONG_PTR style = GetWindowLongPtr(ghost_hwnd, GWL_STYLE);
+		LONG_PTR exstyle = GetWindowLongPtr(ghost_hwnd, GWL_EXSTYLE);
 
 		RECT adjrc = { 0, 0, windowWidth, windowHeight };
 		AdjustWindowRectEx(&adjrc, style, FALSE, exstyle);
 
 		style = (style & (~(WS_POPUP|WS_OVERLAPPEDWINDOW|WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_THICKFRAME|WS_MINIMIZEBOX|WS_MAXIMIZEBOX|WS_TILEDWINDOW ))) | WS_CHILD;
-		SetWindowLong(ghost_hwnd, GWL_STYLE, style);
+		SetWindowLongPtr(ghost_hwnd, GWL_STYLE, style);
 		SetWindowPos(ghost_hwnd, NULL, adjrc.left, adjrc.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE|SWP_NOACTIVATE);
 
 		/* Check the size of the client rectangle of the window and resize the window
@@ -287,9 +289,10 @@ bool GPG_Application::startScreenSaverFullScreen(
 		int height,
 		int bpp,int frequency,
 		const bool stereoVisual,
-		const int stereoMode)
+		const int stereoMode,
+		const GHOST_TUns16 samples)
 {
-	bool ret = startFullScreen(width, height, bpp, frequency, stereoVisual, stereoMode);
+	bool ret = startFullScreen(width, height, bpp, frequency, stereoVisual, stereoMode, samples);
 	if (ret)
 	{
 		HWND ghost_hwnd = findGhostWindowHWND(m_mainWindow);
@@ -305,19 +308,21 @@ bool GPG_Application::startScreenSaverFullScreen(
 
 #endif
 
-bool GPG_Application::startWindow(STR_String& title,
-	int windowLeft,
-	int windowTop,
-	int windowWidth,
-	int windowHeight,
-	const bool stereoVisual,
-	const int stereoMode)
+bool GPG_Application::startWindow(
+        STR_String& title,
+        int windowLeft,
+        int windowTop,
+        int windowWidth,
+        int windowHeight,
+        const bool stereoVisual,
+        const int stereoMode,
+        const GHOST_TUns16 samples)
 {
 	bool success;
 	// Create the main window
 	//STR_String title ("Blender Player - GHOST");
 	m_mainWindow = fSystem->createWindow(title, windowLeft, windowTop, windowWidth, windowHeight, GHOST_kWindowStateNormal,
-		GHOST_kDrawingContextTypeOpenGL, stereoVisual);
+	                                     GHOST_kDrawingContextTypeOpenGL, stereoVisual, false, samples);
 	if (!m_mainWindow) {
 		printf("error: could not create main window\n");
 		exit(-1);
@@ -336,13 +341,18 @@ bool GPG_Application::startWindow(STR_String& title,
 	return success;
 }
 
-bool GPG_Application::startEmbeddedWindow(STR_String& title,
-	const GHOST_TEmbedderWindowID parentWindow, 
-	const bool stereoVisual, 
-	const int stereoMode) {
-
-	m_mainWindow = fSystem->createWindow(title, 0, 0, 0, 0, GHOST_kWindowStateNormal,
-		GHOST_kDrawingContextTypeOpenGL, stereoVisual, parentWindow);
+bool GPG_Application::startEmbeddedWindow(
+        STR_String& title,
+        const GHOST_TEmbedderWindowID parentWindow,
+        const bool stereoVisual,
+        const int stereoMode,
+        const GHOST_TUns16 samples)
+{
+	GHOST_TWindowState state = GHOST_kWindowStateNormal;
+	if (parentWindow != 0)
+		state = GHOST_kWindowStateEmbedded;
+	m_mainWindow = fSystem->createWindow(title, 0, 0, 0, 0, state,
+	                                     GHOST_kDrawingContextTypeOpenGL, stereoVisual, false, samples, parentWindow);
 
 	if (!m_mainWindow) {
 		printf("error: could not create main window\n");
@@ -359,22 +369,27 @@ bool GPG_Application::startEmbeddedWindow(STR_String& title,
 
 
 bool GPG_Application::startFullScreen(
-		int width,
-		int height,
-		int bpp,int frequency,
-		const bool stereoVisual,
-		const int stereoMode)
+        int width,
+        int height,
+        int bpp,int frequency,
+        const bool stereoVisual,
+        const int stereoMode,
+        const GHOST_TUns16 samples,
+        bool useDesktop)
 {
 	bool success;
+	GHOST_TUns32 sysWidth=0, sysHeight=0;
+	fSystem->getMainDisplayDimensions(sysWidth, sysHeight);
 	// Create the main window
 	GHOST_DisplaySetting setting;
-	setting.xPixels = width;
-	setting.yPixels = height;
+	setting.xPixels = (useDesktop) ? sysWidth : width;
+	setting.yPixels = (useDesktop) ? sysHeight : height;
 	setting.bpp = bpp;
 	setting.frequency = frequency;
 
-	fSystem->beginFullScreen(setting, &m_mainWindow, stereoVisual);
+	fSystem->beginFullScreen(setting, &m_mainWindow, stereoVisual, samples);
 	m_mainWindow->setCursorVisibility(false);
+	/* note that X11 ignores this (it uses a window internally for fullscreen) */
 	m_mainWindow->setState(GHOST_kWindowStateFullScreen);
 
 	success = initEngine(m_mainWindow, stereoMode);
@@ -441,6 +456,7 @@ bool GPG_Application::processEvent(GHOST_IEvent* event)
 
 
 		case GHOST_kEventWindowClose:
+		case GHOST_kEventQuit:
 			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
 			break;
 
@@ -451,31 +467,34 @@ bool GPG_Application::processEvent(GHOST_IEvent* event)
 			handled = false;
 			break;
 
-		case GHOST_kEventWindowUpdate:
-			{
-				GHOST_IWindow* window = event->getWindow();
-				if (!m_system->validWindow(window)) break;
-				// Update the state of the game engine
-				if (m_kxsystem && !m_exitRequested)
-				{
-					// Proceed to next frame
-					window->activateDrawingContext();
+		// The player now runs as often as it can (repsecting vsync and fixedtime).
+		// This allows the player to break 100fps, but this code is being left here
+		// as reference. (see EngineNextFrame)
+		//case GHOST_kEventWindowUpdate:
+		//	{
+		//		GHOST_IWindow* window = event->getWindow();
+		//		if (!m_system->validWindow(window)) break;
+		//		// Update the state of the game engine
+		//		if (m_kxsystem && !m_exitRequested)
+		//		{
+		//			// Proceed to next frame
+		//			window->activateDrawingContext();
 
-					// first check if we want to exit
-					m_exitRequested = m_ketsjiengine->GetExitCode();
-					
-					// kick the engine
-					bool renderFrame = m_ketsjiengine->NextFrame();
-					if (renderFrame)
-					{
-						// render the frame
-						m_ketsjiengine->Render();
-					}
-				}
-				m_exitString = m_ketsjiengine->GetExitString();
-			}
-			break;
-		
+		//			// first check if we want to exit
+		//			m_exitRequested = m_ketsjiengine->GetExitCode();
+		//
+		//			// kick the engine
+		//			bool renderFrame = m_ketsjiengine->NextFrame();
+		//			if (renderFrame)
+		//			{
+		//				// render the frame
+		//				m_ketsjiengine->Render();
+		//			}
+		//		}
+		//		m_exitString = m_ketsjiengine->GetExitString();
+		//	}
+		//	break;
+		//
 		case GHOST_kEventWindowSize:
 			{
 			GHOST_IWindow* window = event->getWindow();
@@ -484,6 +503,7 @@ bool GPG_Application::processEvent(GHOST_IEvent* event)
 				GHOST_Rect bnds;
 				window->getClientBounds(bnds);
 				m_canvas->Resize(bnds.getWidth(), bnds.getHeight());
+				m_ketsjiengine->Resize();
 			}
 			}
 			break;
@@ -500,6 +520,12 @@ bool GPG_Application::processEvent(GHOST_IEvent* event)
 int GPG_Application::getExitRequested(void)
 {
 	return m_exitRequested;
+}
+
+
+GlobalSettings* GPG_Application::getGlobalSettings(void)
+{
+	return m_ketsjiengine->GetGlobalSettings();
 }
 
 
@@ -524,26 +550,26 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 			return false;
 		
 		// SYS_WriteCommandLineInt(syshandle, "fixedtime", 0);
-		// SYS_WriteCommandLineInt(syshandle, "vertexarrays",1);		
+		// SYS_WriteCommandLineInt(syshandle, "vertexarrays",1);
 		GameData *gm= &m_startScene->gm;
 		bool properties	= (SYS_GetCommandLineInt(syshandle, "show_properties", 0) != 0);
 		bool profile = (SYS_GetCommandLineInt(syshandle, "show_profile", 0) != 0);
-		bool fixedFr = (gm->flag & GAME_ENABLE_ALL_FRAMES);
 
 		bool showPhysics = (gm->flag & GAME_SHOW_PHYSICS);
 		SYS_WriteCommandLineInt(syshandle, "show_physics", showPhysics);
 
-		bool fixed_framerate= (SYS_GetCommandLineInt(syshandle, "fixed_framerate", fixedFr) != 0);
+		bool fixed_framerate= (SYS_GetCommandLineInt(syshandle, "fixedtime", (gm->flag & GAME_ENABLE_ALL_FRAMES)) != 0);
 		bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
 		bool useLists = (SYS_GetCommandLineInt(syshandle, "displaylists", gm->flag & GAME_DISPLAY_LISTS) != 0);
 		bool nodepwarnings = (SYS_GetCommandLineInt(syshandle, "ignore_deprecation_warnings", 1) != 0);
+		bool restrictAnimFPS = gm->flag & GAME_RESTRICT_ANIM_UPDATES;
 
-		if(GLEW_ARB_multitexture && GLEW_VERSION_1_1)
+		if (GLEW_ARB_multitexture && GLEW_VERSION_1_1)
 			m_blendermat = (SYS_GetCommandLineInt(syshandle, "blender_material", 1) != 0);
 
-		if(GPU_glsl_support())
+		if (GPU_glsl_support())
 			m_blenderglslmat = (SYS_GetCommandLineInt(syshandle, "blender_glsl_material", 1) != 0);
-		else if(gm->matmode == GAME_MAT_GLSL)
+		else if (m_globalSettings->matmode == GAME_MAT_GLSL)
 			m_blendermat = false;
 
 		// create the canvas, rasterizer and rendertools
@@ -553,22 +579,18 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 				
 		m_canvas->Init();
 		if (gm->flag & GAME_SHOW_MOUSE)
-			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);				
+			m_canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
 
 		m_rendertools = new GPC_RenderTools();
 		if (!m_rendertools)
 			goto initFailed;
 		
-		if(useLists) {
-			if(GLEW_VERSION_1_1)
-				m_rasterizer = new RAS_ListRasterizer(m_canvas, true);
-			else
-				m_rasterizer = new RAS_ListRasterizer(m_canvas);
-		}
-		else if (GLEW_VERSION_1_1)
-			m_rasterizer = new RAS_VAOpenGLRasterizer(m_canvas);
+		//Don't use displaylists with VBOs
+		//If auto starts using VBOs, make sure to check for that here
+		if (useLists && gm->raster_storage != RAS_STORE_VBO)
+			m_rasterizer = new RAS_ListRasterizer(m_canvas, false, gm->raster_storage);
 		else
-			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas);
+			m_rasterizer = new RAS_OpenGLRasterizer(m_canvas, gm->raster_storage);
 
 		/* Stereo parameters - Eye Separation from the UI - stereomode from the command-line/UI */
 		m_rasterizer->SetStereoMode((RAS_IRasterizer::StereoMode) stereoMode);
@@ -608,9 +630,8 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 		m_ketsjiengine->SetCanvas(m_canvas);
 		m_ketsjiengine->SetRenderTools(m_rendertools);
 		m_ketsjiengine->SetRasterizer(m_rasterizer);
-		m_ketsjiengine->SetNetworkDevice(m_networkdevice);
 
-		m_ketsjiengine->SetTimingDisplay(frameRate, false, false);
+		KX_KetsjiEngine::SetExitKey(ConvertKeyCode(gm->exitkey));
 #ifdef WITH_PYTHON
 		CValue::SetDeprecationWarnings(nodepwarnings);
 #else
@@ -619,6 +640,10 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 
 		m_ketsjiengine->SetUseFixedTime(fixed_framerate);
 		m_ketsjiengine->SetTimingDisplay(frameRate, profile, properties);
+		m_ketsjiengine->SetRestrictAnimationFPS(restrictAnimFPS);
+
+		//set the global settings (carried over if restart/load new files)
+		m_ketsjiengine->SetGlobalSettings(m_globalSettings);
 
 		m_engineInitialized = true;
 	}
@@ -653,7 +678,7 @@ bool GPG_Application::startEngine(void)
 	
 	// Temporary hack to disable banner display for NaN approved content.
 	/*
-	m_canvas->SetBannerDisplayEnabled(true);	
+	m_canvas->SetBannerDisplayEnabled(true);
 	Camera* cam;
 	cam = (Camera*)scene->camera->data;
 	if (cam) {
@@ -676,10 +701,12 @@ bool GPG_Application::startEngine(void)
 
 		//	if (always_use_expand_framing)
 		//		sceneconverter->SetAlwaysUseExpandFraming(true);
-		if(m_blendermat && (m_startScene->gm.matmode != GAME_MAT_TEXFACE))
+		if (m_blendermat && (m_globalSettings->matmode != GAME_MAT_TEXFACE))
 			m_sceneconverter->SetMaterials(true);
-		if(m_blenderglslmat && (m_startScene->gm.matmode == GAME_MAT_GLSL))
+		if (m_blenderglslmat && (m_globalSettings->matmode == GAME_MAT_GLSL))
 			m_sceneconverter->SetGLSLMaterials(true);
+		if (m_startScene->gm.flag & GAME_NO_MATERIAL_CACHING)
+			m_sceneconverter->SetCacheMaterials(false);
 
 		KX_Scene* startscene = new KX_Scene(m_keyboard,
 			m_mouse,
@@ -695,14 +722,14 @@ bool GPG_Application::startEngine(void)
 #endif // WITH_PYTHON
 
 		//initialize Dome Settings
-		if(m_startScene->gm.stereoflag == STEREO_DOME)
+		if (m_startScene->gm.stereoflag == STEREO_DOME)
 			m_ketsjiengine->InitDome(m_startScene->gm.dome.res, m_startScene->gm.dome.mode, m_startScene->gm.dome.angle, m_startScene->gm.dome.resbuf, m_startScene->gm.dome.tilt, m_startScene->gm.dome.warptext);
 
 #ifdef WITH_PYTHON
 		// Set the GameLogic.globalDict from marshal'd data, so we can
 		// load new blend files and keep data in GameLogic.globalDict
 		loadGamePythonConfig(m_pyGlobalDictString, m_pyGlobalDictString_Length);
-#endif		
+#endif
 		m_sceneconverter->ConvertScene(
 			startscene,
 			m_rendertools,
@@ -739,7 +766,7 @@ void GPG_Application::stopEngine()
 	// GameLogic.globalDict gets converted into a buffer, and sorted in
 	// m_pyGlobalDictString so we can restore after python has stopped
 	// and started between .blend file loads.
-	if(m_pyGlobalDictString) {
+	if (m_pyGlobalDictString) {
 		delete [] m_pyGlobalDictString;
 		m_pyGlobalDictString = 0;
 	}
@@ -764,9 +791,35 @@ void GPG_Application::stopEngine()
 	m_engineRunning = false;
 }
 
+void GPG_Application::EngineNextFrame()
+{
+	// Update the state of the game engine
+	if (m_kxsystem && !m_exitRequested)
+	{
+		// Proceed to next frame
+		if (m_mainWindow)
+			m_mainWindow->activateDrawingContext();
+
+		// first check if we want to exit
+		m_exitRequested = m_ketsjiengine->GetExitCode();
+		
+		// kick the engine
+		bool renderFrame = m_ketsjiengine->NextFrame();
+		if (renderFrame && m_mainWindow)
+		{
+			// render the frame
+			m_ketsjiengine->Render();
+		}
+	}
+	m_exitString = m_ketsjiengine->GetExitString();
+}
 
 void GPG_Application::exitEngine()
 {
+	// We only want to kill the engine if it has been initialized
+	if (!m_engineInitialized)
+		return;
+
 	sound_exit();
 	if (m_ketsjiengine)
 	{
@@ -889,12 +942,10 @@ bool GPG_Application::handleKey(GHOST_IEvent* event, bool isDown)
 	{
 		GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
 		GHOST_TEventKeyData* keyData = static_cast<GHOST_TEventKeyData*>(eventData);
-		//no need for this test
-		//if (fSystem->getFullScreen()) {
-			if (keyData->key == GHOST_kKeyEsc && !m_keyboard->m_hookesc && !m_isEmbedded) {
-				m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
-			}
-		//}
+
+		if (m_keyboard->ToNative(keyData->key) == KX_KetsjiEngine::GetExitKey() && !m_keyboard->m_hookesc && !m_isEmbedded) {
+			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
+		}
 		m_keyboard->ConvertEvent(keyData->key, isDown);
 		handled = true;
 	}

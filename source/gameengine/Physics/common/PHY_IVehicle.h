@@ -3,8 +3,8 @@
  *  \ingroup phys
  */
 
-#ifndef PHY_IVEHICLE_H
-#define PHY_IVEHICLE_H
+#ifndef __PHY_IVEHICLE_H__
+#define __PHY_IVEHICLE_H__
 
 //PHY_IVehicle provides a generic interface for (raycast based) vehicles. Mostly targetting 4 wheel cars and 2 wheel motorbikes.
 
@@ -18,13 +18,13 @@ class PHY_IMotionState;
 class PHY_IVehicle
 {
 public:
-	virtual ~PHY_IVehicle();
+	virtual ~PHY_IVehicle(){};
 	
 	virtual void	AddWheel(
 			PHY_IMotionState* motionState,
-			PHY__Vector3	connectionPoint,
-			PHY__Vector3	downDirection,
-			PHY__Vector3	axleDirection,
+			MT_Vector3	connectionPoint,
+			MT_Vector3	downDirection,
+			MT_Vector3	axleDirection,
 			float	suspensionRestLength,
 			float wheelRadius,
 			bool hasSteering
@@ -62,10 +62,8 @@ public:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:PHY_IVehicle"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PHY_IVehicle")
 #endif
 };
 
-#endif //PHY_IVEHICLE_H
+#endif  /* __PHY_IVEHICLE_H__ */

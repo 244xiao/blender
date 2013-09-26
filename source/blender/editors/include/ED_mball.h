@@ -1,6 +1,4 @@
 /*
- * $Id: ED_mball.h 35016 2011-02-21 07:25:24Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,19 +28,20 @@
  *  \ingroup editors
  */
 
-#ifndef _ED_MBALL_H_
-#define _ED_MBALL_H_
+#ifndef __ED_MBALL_H__
+#define __ED_MBALL_H__
 
 struct bContext;
+struct MetaBall;
 struct Object;
 struct wmKeyConfig;
 
 void ED_operatortypes_metaball(void);
 void ED_keymap_metaball(struct wmKeyConfig *keyconf);
 
-struct MetaElem *add_metaball_primitive(struct bContext *C, float mat[4][4], int type, int newname);
+struct MetaElem *add_metaball_primitive(struct bContext *C, struct Object *obedit, float mat[4][4], float dia, int type, int newname);
 
-int mouse_mball(struct bContext *C, short mval[2], int extend);
+bool mouse_mball(struct bContext *C, const int mval[2], bool extend, bool deselect, bool toggle);
 
 void free_editMball(struct Object *obedit);
 void make_editMball(struct Object *obedit);
@@ -50,5 +49,6 @@ void load_editMball(struct Object *obedit);
 
 void undo_push_mball(struct bContext *C, const char *name);
 
-#endif
+void ED_mball_transform(struct MetaBall *mb, float *mat);
 
+#endif  /* __ED_MBALL_H__ */

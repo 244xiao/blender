@@ -1,6 +1,4 @@
 /* 
-	$Id: BKE_displist.h 35103 2011-02-23 09:12:55Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -25,11 +23,10 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
+ */
 
-*/
-
-#ifndef BKE_DISPLIST_H
-#define BKE_DISPLIST_H
+#ifndef __BKE_DISPLIST_H__
+#define __BKE_DISPLIST_H__
 
 /** \file BKE_displist.h
  *  \ingroup bke
@@ -44,14 +41,14 @@
 #define DL_SURF                 2
 #define DL_INDEX3               4
 #define DL_INDEX4               5
-#define DL_VERTCOL              6
-#define DL_VERTS				7
+// #define DL_VERTCOL              6  // UNUSED
+#define DL_VERTS                7
 
 /* dl->flag */
-#define DL_CYCL_U		1
-#define DL_CYCL_V		2
-#define DL_FRONT_CURVE	4
-#define DL_BACK_CURVE	8
+#define DL_CYCL_U       1
+#define DL_CYCL_V       2
+#define DL_FRONT_CURVE  4
+#define DL_BACK_CURVE   8
 
 
 /* prototypes */
@@ -64,7 +61,6 @@ struct ListBase;
 struct Material;
 struct Bone;
 struct Mesh;
-struct EditMesh;
 struct DerivedMesh;
 
 /* used for curves, nurbs, mball, importing */
@@ -77,39 +73,33 @@ typedef struct DispList {
 	int *index;
 	unsigned int *col1, *col2;
 	int charidx;
-	int totindex;				/* indexed array drawing surfaces */
+	int totindex;               /* indexed array drawing surfaces */
 
 	unsigned int *bevelSplitFlag;
 } DispList;
 
-extern void copy_displist(struct ListBase *lbn, struct ListBase *lb);
-extern void free_disp_elem(DispList *dl);
-extern DispList *find_displist_create(struct ListBase *lb, int type);
-extern DispList *find_displist(struct ListBase *lb, int type);
-extern void addnormalsDispList(struct ListBase *lb);
-extern void count_displist(struct ListBase *lb, int *totvert, int *totface);
-extern void freedisplist(struct ListBase *lb);
-extern int displist_has_faces(struct ListBase *lb);
+void BKE_displist_copy(struct ListBase *lbn, struct ListBase *lb);
+void BKE_displist_elem_free(DispList *dl);
+DispList *BKE_displist_find_or_create(struct ListBase *lb, int type);
+DispList *BKE_displist_find(struct ListBase *lb, int type);
+void BKE_displist_normals_add(struct ListBase *lb);
+void BKE_displist_count(struct ListBase *lb, int *totvert, int *totface, int *tottri);
+void BKE_displist_free(struct ListBase *lb);
+bool BKE_displist_has_faces(struct ListBase *lb);
 
-extern void makeDispListSurf(struct Scene *scene, struct Object *ob, struct ListBase *dispbase, struct DerivedMesh **derivedFinal, int forRender, int forOrco);
-extern void makeDispListCurveTypes(struct Scene *scene, struct Object *ob, int forOrco);
-extern void makeDispListCurveTypes_forRender(struct Scene *scene, struct Object *ob, struct ListBase *dispbase, struct DerivedMesh **derivedFinal, int forOrco);
-extern void makeDispListCurveTypes_forOrco(struct Scene *scene, struct Object *ob, struct ListBase *dispbase);
-extern void makeDispListMBall(struct Scene *scene, struct Object *ob);
-extern void makeDispListMBall_forRender(struct Scene *scene, struct Object *ob, struct ListBase *dispbase);
-extern void shadeDispList(struct Scene *scene, struct Base *base);
-extern void shadeMeshMCol(struct Scene *scene, struct Object *ob, struct Mesh *me);
+void BKE_displist_make_surf(struct Scene *scene, struct Object *ob, struct ListBase *dispbase, struct DerivedMesh **derivedFinal, int forRender, int forOrco, int renderResolution);
+void BKE_displist_make_curveTypes(struct Scene *scene, struct Object *ob, int forOrco);
+void BKE_displist_make_curveTypes_forRender(struct Scene *scene, struct Object *ob, struct ListBase *dispbase, struct DerivedMesh **derivedFinal, int forOrco, int renderResolution);
+void BKE_displist_make_curveTypes_forOrco(struct Scene *scene, struct Object *ob, struct ListBase *dispbase);
+void BKE_displist_make_mball(struct Scene *scene, struct Object *ob);
+void BKE_displist_make_mball_forRender(struct Scene *scene, struct Object *ob, struct ListBase *dispbase);
 
-int surfindex_displist(DispList *dl, int a, int *b, int *p1, int *p2, int *p3, int *p4);
-void reshadeall_displist(struct Scene *scene);
-void filldisplist(struct ListBase *dispbase, struct ListBase *to, int flipnormal);
+bool BKE_displist_surfindex_get(DispList *dl, int a, int *b, int *p1, int *p2, int *p3, int *p4);
+void BKE_displist_fill(struct ListBase *dispbase, struct ListBase *to, const float normal_proj[3], const bool flipnormal);
 
-void fastshade_free_render(void);
-
-float calc_taper(struct Scene *scene, struct Object *taperobj, int cur, int tot);
+float BKE_displist_calc_taper(struct Scene *scene, struct Object *taperobj, int cur, int tot);
 
 /* add Orco layer to the displist object which has got derived mesh and return orco */
-float *makeOrcoDispList(struct Scene *scene, struct Object *ob, struct DerivedMesh *derivedFinal, int forRender);
+float *BKE_displist_make_orco(struct Scene *scene, struct Object *ob, struct DerivedMesh *derivedFinal, int forRender, int renderResolution);
 
 #endif
-

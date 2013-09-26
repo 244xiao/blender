@@ -1,6 +1,4 @@
 /*
- * $Id: sculpt_intern.h 35484 2011-03-12 02:12:02Z nicholasbishop $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,14 +30,15 @@
  */
  
 
-#ifndef BDR_SCULPTMODE_H
-#define BDR_SCULPTMODE_H
+#ifndef __SCULPT_INTERN_H__
+#define __SCULPT_INTERN_H__
 
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 #include "DNA_key_types.h"
 
-#include "BLI_pbvh.h"
+#include "BLI_bitmap.h"
+#include "BKE_pbvh.h"
 
 struct bContext;
 struct Brush;
@@ -50,69 +49,87 @@ struct Object;
 struct Scene;
 struct Sculpt;
 struct SculptStroke;
+struct SculptUndoNode;
 
 /* Interface */
-void sculptmode_selectbrush_menu(void);
-void sculptmode_draw_mesh(int);
-void sculpt_paint_brush(char clear);
-void sculpt_stroke_draw(struct SculptStroke *);
-void sculpt_radialcontrol_start(int mode);
 struct MultiresModifierData *sculpt_multires_active(struct Scene *scene, struct Object *ob);
 
-struct Brush *sculptmode_brush(void);
-
-void sculpt(Sculpt *sd);
-
+int sculpt_mode_poll(struct bContext *C);
+int sculpt_mode_poll_view3d(struct bContext *C);
+/* checks for a brush, not just sculpt mode */
 int sculpt_poll(struct bContext *C);
-void sculpt_update_mesh_elements(struct Scene *scene, struct Object *ob, int need_fmap);
-
-/* Deformed mesh sculpt */
-void sculpt_free_deformMats(struct SculptSession *ss);
+int sculpt_poll_view3d(struct bContext *C);
+void sculpt_update_mesh_elements(struct Scene *scene, struct Sculpt *sd, struct Object *ob,
+                                 int need_pmap, int need_mask);
 
 /* Stroke */
-struct SculptStroke *sculpt_stroke_new(const int max);
-void sculpt_stroke_free(struct SculptStroke *);
-void sculpt_stroke_add_point(struct SculptStroke *, const short x, const short y);
-void sculpt_stroke_apply(struct Sculpt *sd, struct SculptStroke *);
-void sculpt_stroke_apply_all(struct Sculpt *sd, struct SculptStroke *);
-int sculpt_stroke_get_location(bContext *C, struct PaintStroke *stroke, float out[3], float mouse[2]);
+int sculpt_stroke_get_location(bContext *C, float out[3], const float mouse[2]);
+
+/* Dynamic topology */
+void sculpt_pbvh_clear(Object *ob);
+void sculpt_update_after_dynamic_topology_toggle(bContext *C);
+void sculpt_dynamic_topology_enable(struct bContext *C);
+void sculpt_dynamic_topology_disable(struct bContext *C,
+                                     struct SculptUndoNode *unode);
 
 /* Undo */
+
+typedef enum {
+	SCULPT_UNDO_COORDS,
+	SCULPT_UNDO_HIDDEN,
+	SCULPT_UNDO_MASK,
+	SCULPT_UNDO_DYNTOPO_BEGIN,
+	SCULPT_UNDO_DYNTOPO_END,
+	SCULPT_UNDO_DYNTOPO_SYMMETRIZE,
+} SculptUndoType;
 
 typedef struct SculptUndoNode {
 	struct SculptUndoNode *next, *prev;
 
-	char idname[MAX_ID_NAME];	/* name instead of pointer*/
-	void *node;					/* only during push, not valid afterwards! */
+	SculptUndoType type;
+
+	char idname[MAX_ID_NAME];   /* name instead of pointer*/
+	void *node;                 /* only during push, not valid afterwards! */
 
 	float (*co)[3];
 	float (*orig_co)[3];
 	short (*no)[3];
+	float *mask;
 	int totvert;
 
 	/* non-multires */
-	int maxvert;				/* to verify if totvert it still the same */
-	int *index;					/* to restore into right location */
+	int maxvert;                /* to verify if totvert it still the same */
+	int *index;                 /* to restore into right location */
+	BLI_bitmap vert_hidden;
 
 	/* multires */
-	int maxgrid;				/* same for grid */
-	int gridsize;				/* same for grid */
-	int totgrid;				/* to restore into right location */
-	int *grids;					/* to restore into right location */
+	int maxgrid;                /* same for grid */
+	int gridsize;               /* same for grid */
+	int totgrid;                /* to restore into right location */
+	int *grids;                 /* to restore into right location */
+	BLI_bitmap *grid_hidden;
 
-	/* layer brush */
-	float *layer_disp;
+	/* bmesh */
+	struct BMLogEntry *bm_entry;
+	int applied;
+	CustomData bm_enter_vdata;
+	CustomData bm_enter_edata;
+	CustomData bm_enter_ldata;
+	CustomData bm_enter_pdata;
+	int bm_enter_totvert;
+	int bm_enter_totedge;
+	int bm_enter_totloop;
+	int bm_enter_totpoly;
 
 	/* shape keys */
 	char shapeName[sizeof(((KeyBlock *)0))->name];
 } SculptUndoNode;
 
-SculptUndoNode *sculpt_undo_push_node(Object *ob, PBVHNode *node);
+SculptUndoNode *sculpt_undo_push_node(Object *ob, PBVHNode *node, SculptUndoType type);
 SculptUndoNode *sculpt_undo_get_node(PBVHNode *node);
 void sculpt_undo_push_begin(const char *name);
 void sculpt_undo_push_end(void);
 
-int sculpt_modifiers_active(Scene *scene, Object *ob);
 void sculpt_vertcos_to_key(Object *ob, KeyBlock *kb, float (*vertCos)[3]);
 
 #endif

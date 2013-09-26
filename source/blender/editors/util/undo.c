@@ -1,6 +1,4 @@
 /*
- * $Id: undo.c 35569 2011-03-16 12:21:20Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -39,12 +37,15 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_editVert.h"
 #include "BLI_dynstr.h"
 #include "BLI_utildefines.h"
+
+#include "BLF_translation.h"
 
 #include "BKE_blender.h"
 #include "BKE_context.h"
@@ -54,9 +55,11 @@
 #include "ED_armature.h"
 #include "ED_particle.h"
 #include "ED_curve.h"
+#include "ED_gpencil.h"
 #include "ED_mball.h"
 #include "ED_mesh.h"
 #include "ED_object.h"
+#include "ED_render.h"
 #include "ED_screen.h"
 #include "ED_sculpt.h"
 #include "ED_util.h"
@@ -68,120 +71,139 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "util_intern.h"
+#include "UI_interface.h"
+#include "UI_resources.h"
 
-#define MAXUNDONAME 64 /* XXX, make common define */
+#include "util_intern.h"
 
 /* ***************** generic undo system ********************* */
 
 void ED_undo_push(bContext *C, const char *str)
 {
-	wmWindowManager *wm= CTX_wm_manager(C);
-	Object *obedit= CTX_data_edit_object(C);
-	Object *obact= CTX_data_active_object(C);
+	wmWindowManager *wm = CTX_wm_manager(C);
+	Object *obedit = CTX_data_edit_object(C);
+	Object *obact = CTX_data_active_object(C);
 
-	if (G.f & G_DEBUG)
-		printf("undo push %s\n", str);
-	
-	if(obedit) {
+	if (G.debug & G_DEBUG)
+		printf("%s: %s\n", __func__, str);
+
+	if (obedit) {
 		if (U.undosteps == 0) return;
 		
-		if(obedit->type==OB_MESH)
+		if (obedit->type == OB_MESH)
 			undo_push_mesh(C, str);
-		else if ELEM(obedit->type, OB_CURVE, OB_SURF)
+		else if (ELEM(obedit->type, OB_CURVE, OB_SURF))
 			undo_push_curve(C, str);
-		else if (obedit->type==OB_FONT)
+		else if (obedit->type == OB_FONT)
 			undo_push_font(C, str);
-		else if (obedit->type==OB_MBALL)
+		else if (obedit->type == OB_MBALL)
 			undo_push_mball(C, str);
-		else if (obedit->type==OB_LATTICE)
+		else if (obedit->type == OB_LATTICE)
 			undo_push_lattice(C, str);
-		else if (obedit->type==OB_ARMATURE)
+		else if (obedit->type == OB_ARMATURE)
 			undo_push_armature(C, str);
 	}
-	else if(obact && obact->mode & OB_MODE_PARTICLE_EDIT) {
+	else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT) {
 		if (U.undosteps == 0) return;
 		
 		PE_undo_push(CTX_data_scene(C), str);
 	}
 	else {
-		if(U.uiflag & USER_GLOBALUNDO) 
-			BKE_write_undo(C, str);
+		BKE_write_undo(C, str);
 	}
 	
-	if(wm->file_saved) {
-		wm->file_saved= 0;
-		WM_event_add_notifier(C, NC_WM|ND_DATACHANGED, NULL);
+	if (wm->file_saved) {
+		wm->file_saved = 0;
+		/* notifier that data changed, for save-over warning or header */
+		WM_event_add_notifier(C, NC_WM | ND_DATACHANGED, NULL);
 	}
 }
 
+/* note: also check undo_history_exec() in bottom if you change notifiers */
 static int ed_undo_step(bContext *C, int step, const char *undoname)
 {	
-	Object *obedit= CTX_data_edit_object(C);
-	Object *obact= CTX_data_active_object(C);
-	ScrArea *sa= CTX_wm_area(C);
+	Object *obedit = CTX_data_edit_object(C);
+	Object *obact = CTX_data_active_object(C);
+	ScrArea *sa = CTX_wm_area(C);
 
-	if(sa && sa->spacetype==SPACE_IMAGE) {
-		SpaceImage *sima= (SpaceImage *)sa->spacedata.first;
+	/* undo during jobs are running can easily lead to freeing data using by jobs,
+	 * or they can just lead to freezing job in some other cases */
+	if (WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_ANY)) {
+		return OPERATOR_CANCELLED;
+	}
+
+	/* grease pencil can be can be used in plenty of spaces, so check it first */
+	if (ED_gpencil_session_active()) {
+		return ED_undo_gpencil_step(C, step, undoname);
+	}
+
+	if (sa && (sa->spacetype == SPACE_IMAGE)) {
+		SpaceImage *sima = (SpaceImage *)sa->spacedata.first;
 		
-		if((obact && obact->mode & OB_MODE_TEXTURE_PAINT) || sima->flag & SI_DRAWTOOL) {
-			if(!ED_undo_paint_step(C, UNDO_PAINT_IMAGE, step, undoname) && undoname)
-				if(U.uiflag & USER_GLOBALUNDO)
+		if ((obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) || (sima->mode == SI_MODE_PAINT)) {
+			if (!ED_undo_paint_step(C, UNDO_PAINT_IMAGE, step, undoname) && undoname) {
+				if (U.uiflag & USER_GLOBALUNDO) {
+					ED_viewport_render_kill_jobs(C, true);
 					BKE_undo_name(C, undoname);
-
+				}
+			}
+			
 			WM_event_add_notifier(C, NC_WINDOW, NULL);
 			return OPERATOR_FINISHED;
 		}
 	}
 
-	if(sa && sa->spacetype==SPACE_TEXT) {
+	if (sa && (sa->spacetype == SPACE_TEXT)) {
 		ED_text_undo_step(C, step);
 	}
-	else if(obedit) {
-		if ELEM7(obedit->type, OB_MESH, OB_FONT, OB_CURVE, OB_SURF, OB_MBALL, OB_LATTICE, OB_ARMATURE) {
-			if(undoname)
+	else if (obedit) {
+		if (OB_TYPE_SUPPORT_EDITMODE(obedit->type)) {
+			if (undoname)
 				undo_editmode_name(C, undoname);
 			else
 				undo_editmode_step(C, step);
-
-			WM_event_add_notifier(C, NC_GEOM|ND_DATA, NULL);
+			
+			WM_event_add_notifier(C, NC_GEOM | ND_DATA, NULL);
 		}
 	}
 	else {
-		int do_glob_undo= 0;
-		
-		if(obact && obact->mode & OB_MODE_TEXTURE_PAINT) {
-			if(!ED_undo_paint_step(C, UNDO_PAINT_IMAGE, step, undoname) && undoname)
-				do_glob_undo= 1;
+		/* Note: we used to do a fall-through here where if the
+		 * mode-specific undo system had no more steps to undo (or
+		 * redo), the global undo would run.
+		 *
+		 * That was inconsistent with editmode, and also makes for
+		 * unecessarily tricky interaction with the other undo
+		 * systems. */
+		if (obact && obact->mode & OB_MODE_TEXTURE_PAINT) {
+			ED_undo_paint_step(C, UNDO_PAINT_IMAGE, step, undoname);
 		}
-		else if(obact && obact->mode & OB_MODE_SCULPT) {
-			if(!ED_undo_paint_step(C, UNDO_PAINT_MESH, step, undoname) && undoname)
-				do_glob_undo= 1;
+		else if (obact && obact->mode & OB_MODE_SCULPT) {
+			ED_undo_paint_step(C, UNDO_PAINT_MESH, step, undoname);
 		}
-		else if(obact && obact->mode & OB_MODE_PARTICLE_EDIT) {
-			if(step==1)
+		else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT) {
+			if (step == 1)
 				PE_undo(CTX_data_scene(C));
 			else
 				PE_redo(CTX_data_scene(C));
 		}
-		else {
-			do_glob_undo= 1;
-		}
-		
-		if(do_glob_undo) {
-			if(U.uiflag & USER_GLOBALUNDO) {
-				// note python defines not valid here anymore.
-				//#ifdef WITH_PYTHON
-				// XXX		BPY_scripts_clear_pyobjects();
-				//#endif
-				if(undoname)
-					BKE_undo_name(C, undoname);
-				else
-					BKE_undo_step(C, step);
-
-				WM_event_add_notifier(C, NC_SCENE|ND_LAYER_CONTENT, CTX_data_scene(C));
-			}
+		else if (U.uiflag & USER_GLOBALUNDO) {
+			// note python defines not valid here anymore.
+			//#ifdef WITH_PYTHON
+			// XXX		BPY_scripts_clear_pyobjects();
+			//#endif
 			
+			/* for global undo/redo we should just clear the editmode stack */
+			/* for example, texface stores image pointers */
+			undo_editmode_clear();
+			
+			ED_viewport_render_kill_jobs(C, true);
+
+			if (undoname)
+				BKE_undo_name(C, undoname);
+			else
+				BKE_undo_step(C, step);
+				
+			WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, CTX_data_scene(C));
 		}
 	}
 	
@@ -214,23 +236,23 @@ void ED_undo_pop_op(bContext *C, wmOperator *op)
 /* name optionally, function used to check for operator redo panel */
 int ED_undo_valid(const bContext *C, const char *undoname)
 {
-	Object *obedit= CTX_data_edit_object(C);
-	Object *obact= CTX_data_active_object(C);
-	ScrArea *sa= CTX_wm_area(C);
+	Object *obedit = CTX_data_edit_object(C);
+	Object *obact = CTX_data_active_object(C);
+	ScrArea *sa = CTX_wm_area(C);
 	
-	if(sa && sa->spacetype==SPACE_IMAGE) {
-		SpaceImage *sima= (SpaceImage *)sa->spacedata.first;
+	if (sa && sa->spacetype == SPACE_IMAGE) {
+		SpaceImage *sima = (SpaceImage *)sa->spacedata.first;
 		
-		if((obact && obact->mode & OB_MODE_TEXTURE_PAINT) || sima->flag & SI_DRAWTOOL) {
+		if ((obact && (obact->mode & OB_MODE_TEXTURE_PAINT)) || (sima->mode == SI_MODE_PAINT)) {
 			return 1;
 		}
 	}
 	
-	if(sa && sa->spacetype==SPACE_TEXT) {
+	if (sa && (sa->spacetype == SPACE_TEXT)) {
 		return 1;
 	}
-	else if(obedit) {
-		if ELEM7(obedit->type, OB_MESH, OB_FONT, OB_CURVE, OB_SURF, OB_MBALL, OB_LATTICE, OB_ARMATURE) {
+	else if (obedit) {
+		if (OB_TYPE_SUPPORT_EDITMODE(obedit->type)) {
 			return undo_editmode_valid(undoname);
 		}
 	}
@@ -238,19 +260,19 @@ int ED_undo_valid(const bContext *C, const char *undoname)
 		
 		/* if below tests fail, global undo gets executed */
 		
-		if(obact && obact->mode & OB_MODE_TEXTURE_PAINT) {
-			if( ED_undo_paint_valid(UNDO_PAINT_IMAGE, undoname) )
+		if (obact && obact->mode & OB_MODE_TEXTURE_PAINT) {
+			if (ED_undo_paint_valid(UNDO_PAINT_IMAGE, undoname))
 				return 1;
 		}
-		else if(obact && obact->mode & OB_MODE_SCULPT) {
-			if( ED_undo_paint_valid(UNDO_PAINT_MESH, undoname) )
+		else if (obact && obact->mode & OB_MODE_SCULPT) {
+			if (ED_undo_paint_valid(UNDO_PAINT_MESH, undoname))
 				return 1;
 		}
-		else if(obact && obact->mode & OB_MODE_PARTICLE_EDIT) {
+		else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT) {
 			return PE_undo_valid(CTX_data_scene(C));
 		}
 		
-		if(U.uiflag & USER_GLOBALUNDO) {
+		if (U.uiflag & USER_GLOBALUNDO) {
 			return BKE_undo_valid(undoname);
 		}
 	}
@@ -259,14 +281,14 @@ int ED_undo_valid(const bContext *C, const char *undoname)
 
 static int ed_undo_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	/* "last operator" should disappear, later we can tie ths with undo stack nicer */
-	WM_operator_stack_clear(C);
+	/* "last operator" should disappear, later we can tie this with undo stack nicer */
+	WM_operator_stack_clear(CTX_wm_manager(C));
 	return ed_undo_step(C, 1, NULL);
 }
 
 static int ed_undo_push_exec(bContext *C, wmOperator *op)
 {
-	char str[MAXUNDONAME];
+	char str[BKE_UNDO_STR_MAX];
 	RNA_string_get(op->ptr, "message", str);
 	ED_undo_push(C, str);
 	return OPERATOR_FINISHED;
@@ -277,104 +299,99 @@ static int ed_redo_exec(bContext *C, wmOperator *UNUSED(op))
 	return ed_undo_step(C, -1, NULL);
 }
 
-#if 0 /* UNUSED */
-void ED_undo_menu(bContext *C)
-{
-	Object *obedit= CTX_data_edit_object(C);
-	Object *obact= CTX_data_active_object(C);
-	
-	if(obedit) {
-		//if ELEM7(obedit->type, OB_MESH, OB_FONT, OB_CURVE, OB_SURF, OB_MBALL, OB_LATTICE, OB_ARMATURE)
-		//	undo_editmode_menu();
-	}
-	else {
-		if(obact && obact->mode & OB_MODE_PARTICLE_EDIT)
-			PE_undo_menu(CTX_data_scene(C), CTX_data_active_object(C));
-		else if(U.uiflag & USER_GLOBALUNDO) {
-			char *menu= BKE_undo_menu_string();
-			if(menu) {
-				short event= 0; // XXX pupmenu_col(menu, 20);
-				MEM_freeN(menu);
-				if(event>0) {
-					BKE_undo_number(C, event);
-				}
-			}
-		}
-	}
-}
-#endif
 
 /* ********************** */
 
 void ED_OT_undo(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Undo";
-	ot->description= "Undo previous action";
-	ot->idname= "ED_OT_undo";
+	ot->name = "Undo";
+	ot->description = "Undo previous action";
+	ot->idname = "ED_OT_undo";
 	
 	/* api callbacks */
-	ot->exec= ed_undo_exec;
-	ot->poll= ED_operator_screenactive;
+	ot->exec = ed_undo_exec;
+	ot->poll = ED_operator_screenactive;
 }
 
 void ED_OT_undo_push(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Undo Push";
-	ot->description= "Add an undo state (internal use only)";
-	ot->idname= "ED_OT_undo_push";
+	ot->name = "Undo Push";
+	ot->description = "Add an undo state (internal use only)";
+	ot->idname = "ED_OT_undo_push";
 	
 	/* api callbacks */
-	ot->exec= ed_undo_push_exec;
+	ot->exec = ed_undo_push_exec;
 
-	RNA_def_string(ot->srna, "message", "Add an undo step *function may be moved*", MAXUNDONAME, "Undo Message", "");
+	ot->flag = OPTYPE_INTERNAL;
+
+	RNA_def_string(ot->srna, "message", "Add an undo step *function may be moved*", BKE_UNDO_STR_MAX, "Undo Message", "");
 }
 
 void ED_OT_redo(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Redo";
-	ot->description= "Redo previous action";
-	ot->idname= "ED_OT_redo";
+	ot->name = "Redo";
+	ot->description = "Redo previous action";
+	ot->idname = "ED_OT_redo";
 	
 	/* api callbacks */
-	ot->exec= ed_redo_exec;
-	ot->poll= ED_operator_screenactive;
+	ot->exec = ed_redo_exec;
+	ot->poll = ED_operator_screenactive;
 }
 
 
-/* ui callbacks should call this rather then calling WM_operator_repeat() themselves */
+/* ui callbacks should call this rather than calling WM_operator_repeat() themselves */
 int ED_undo_operator_repeat(bContext *C, struct wmOperator *op)
 {
-	int ret= 0;
+	int ret = 0;
 
-	if(op) {
-		ARegion *ar= CTX_wm_region(C);
-		ARegion *ar1= BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_WINDOW);
+	if (op) {
+		wmWindowManager *wm = CTX_wm_manager(C);
+		struct Scene *scene = CTX_data_scene(C);
 
-		if(ar1)
+		/* keep in sync with logic in view3d_panel_operator_redo() */
+		ARegion *ar = CTX_wm_region(C);
+		ARegion *ar1 = BKE_area_find_region_active_win(CTX_wm_area(C));
+
+		if (ar1)
 			CTX_wm_region_set(C, ar1);
 
-		if(WM_operator_repeat_check(C, op) && WM_operator_poll(C, op->type)) {
+		if ( (WM_operator_repeat_check(C, op)) &&
+		     (WM_operator_poll(C, op->type)) &&
+		     /* note, undo/redo cant run if there are jobs active,
+		      * check for screen jobs only so jobs like material/texture/world preview
+		      * (which copy their data), wont stop redo, see [#29579]],
+		      *
+		      * note, - WM_operator_check_ui_enabled() jobs test _must_ stay in sync with this */
+		     (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY) == 0))
+		{
 			int retval;
 
-			if (G.f & G_DEBUG)
+			ED_viewport_render_kill_jobs(C, true);
+
+			if (G.debug & G_DEBUG)
 				printf("redo_cb: operator redo %s\n", op->type->name);
 			ED_undo_pop_op(C, op);
 
-			if(op->type->check) {
+			if (op->type->check) {
 				op->type->check(C, op); /* ignore return value since its running again anyway */
 			}
 
-			retval= WM_operator_repeat(C, op);
-			if((retval & OPERATOR_FINISHED)==0) {
-				if (G.f & G_DEBUG)
+			retval = WM_operator_repeat(C, op);
+			if ((retval & OPERATOR_FINISHED) == 0) {
+				if (G.debug & G_DEBUG)
 					printf("redo_cb: operator redo failed: %s, return %d\n", op->type->name, retval);
 				ED_undo_redo(C);
 			}
 			else {
-				ret= 1;
+				ret = 1;
+			}
+		}
+		else {
+			if (G.debug & G_DEBUG) {
+				printf("redo_cb: WM_operator_repeat_check returned false %s\n", op->type->name);
 			}
 		}
 
@@ -382,13 +399,14 @@ int ED_undo_operator_repeat(bContext *C, struct wmOperator *op)
 		CTX_wm_region_set(C, ar);
 	}
 	else {
-		if (G.f & G_DEBUG) {
-			printf("redo_cb: WM_operator_repeat_check returned false %s\n", op->type->name);
+		if (G.debug & G_DEBUG) {
+			printf("redo_cb: ED_undo_operator_repeat called with NULL 'op'\n");
 		}
 	}
 
 	return ret;
 }
+
 
 void ED_undo_operator_repeat_cb(bContext *C, void *arg_op, void *UNUSED(arg_unused))
 {
@@ -399,3 +417,151 @@ void ED_undo_operator_repeat_cb_evt(bContext *C, void *arg_op, int UNUSED(arg_ev
 {
 	ED_undo_operator_repeat(C, (wmOperator *)arg_op);
 }
+
+
+/* ************************** */
+
+enum {
+	UNDOSYSTEM_GLOBAL   = 1,
+	UNDOSYSTEM_EDITMODE = 2,
+	UNDOSYSTEM_PARTICLE = 3
+};
+
+static int get_undo_system(bContext *C)
+{
+	Object *obedit = CTX_data_edit_object(C);
+	
+	/* find out which undo system */
+	if (obedit) {
+		if (OB_TYPE_SUPPORT_EDITMODE(obedit->type)) {
+			return UNDOSYSTEM_EDITMODE;
+		}
+	}
+	else {
+		Object *obact = CTX_data_active_object(C);
+		
+		if (obact && obact->mode & OB_MODE_PARTICLE_EDIT)
+			return UNDOSYSTEM_PARTICLE;
+		else if (U.uiflag & USER_GLOBALUNDO)
+			return UNDOSYSTEM_GLOBAL;
+	}
+	
+	return 0;
+}
+
+/* create enum based on undo items */
+static EnumPropertyItem *rna_undo_itemf(bContext *C, int undosys, int *totitem)
+{
+	EnumPropertyItem item_tmp = {0}, *item = NULL;
+	int active, i = 0;
+	
+	while (TRUE) {
+		const char *name = NULL;
+		
+		if (undosys == UNDOSYSTEM_PARTICLE) {
+			name = PE_undo_get_name(CTX_data_scene(C), i, &active);
+		}
+		else if (undosys == UNDOSYSTEM_EDITMODE) {
+			name = undo_editmode_get_name(C, i, &active);
+		}
+		else {
+			name = BKE_undo_get_name(i, &active);
+		}
+		
+		if (name) {
+			item_tmp.identifier = name;
+			/* XXX This won't work with non-default contexts (e.g. operators) :/ */
+			item_tmp.name = IFACE_(name);
+			if (active)
+				item_tmp.icon = ICON_RESTRICT_VIEW_OFF;
+			else 
+				item_tmp.icon = ICON_NONE;
+			item_tmp.value = i++;
+			RNA_enum_item_add(&item, totitem, &item_tmp);
+		}
+		else
+			break;
+	}
+	
+	RNA_enum_item_end(&item, totitem);
+	
+	return item;
+}
+
+
+static int undo_history_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	int undosys, totitem = 0;
+	
+	undosys = get_undo_system(C);
+	
+	if (undosys) {
+		EnumPropertyItem *item = rna_undo_itemf(C, undosys, &totitem);
+		
+		if (totitem > 0) {
+			uiPopupMenu *pup = uiPupMenuBegin(C, RNA_struct_ui_name(op->type->srna), ICON_NONE);
+			uiLayout *layout = uiPupMenuLayout(pup);
+			uiLayout *split = uiLayoutSplit(layout, 0.0f, FALSE);
+			uiLayout *column = NULL;
+			int i, c;
+			
+			for (c = 0, i = totitem - 1; i >= 0; i--, c++) {
+				if ( (c % 20) == 0)
+					column = uiLayoutColumn(split, FALSE);
+				if (item[i].identifier)
+					uiItemIntO(column, item[i].name, item[i].icon, op->type->idname, "item", item[i].value);
+				
+			}
+			
+			MEM_freeN(item);
+			
+			uiPupMenuEnd(C, pup);
+		}
+		
+	}
+	return OPERATOR_CANCELLED;
+}
+
+/* note: also check ed_undo_step() in top if you change notifiers */
+static int undo_history_exec(bContext *C, wmOperator *op)
+{
+	if (RNA_struct_property_is_set(op->ptr, "item")) {
+		int undosys = get_undo_system(C);
+		int item = RNA_int_get(op->ptr, "item");
+		
+		if (undosys == UNDOSYSTEM_PARTICLE) {
+			PE_undo_number(CTX_data_scene(C), item);
+		}
+		else if (undosys == UNDOSYSTEM_EDITMODE) {
+			undo_editmode_number(C, item + 1);
+			WM_event_add_notifier(C, NC_GEOM | ND_DATA, NULL);
+		}
+		else {
+			ED_viewport_render_kill_jobs(C, true);
+			BKE_undo_number(C, item);
+			WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, CTX_data_scene(C));
+		}
+		WM_event_add_notifier(C, NC_WINDOW, NULL);
+		
+		return OPERATOR_FINISHED;
+	}
+	return OPERATOR_CANCELLED;
+}
+
+void ED_OT_undo_history(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Undo History";
+	ot->description = "Redo specific action in history";
+	ot->idname = "ED_OT_undo_history";
+	
+	/* api callbacks */
+	ot->invoke = undo_history_invoke;
+	ot->exec = undo_history_exec;
+	ot->poll = ED_operator_screenactive;
+	
+	RNA_def_int(ot->srna, "item", 0, 0, INT_MAX, "Item", "", 0, INT_MAX);
+
+}
+
+

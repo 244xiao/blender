@@ -1,6 +1,4 @@
 /*
- * $Id: BLO_undofile.h 35245 2011-02-27 20:35:41Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -28,8 +26,8 @@
  * external writefile function prototypes
  */
 
-#ifndef BLO_UNDOFILE_H
-#define BLO_UNDOFILE_H
+#ifndef __BLO_UNDOFILE_H__
+#define __BLO_UNDOFILE_H__
 
 /** \file BLO_undofile.h
  *  \ingroup blenloader
@@ -49,7 +47,7 @@ typedef struct MemFile {
 } MemFile;
 
 /* actually only used writefile.c */
-extern void add_memfilechunk(MemFile *compare, MemFile *current, char *buf, unsigned int size);
+extern void add_memfilechunk(MemFile *compare, MemFile *current, const char *buf, unsigned int size);
 
 /* exports */
 extern void BLO_free_memfile(MemFile *memfile);

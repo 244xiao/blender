@@ -1,15 +1,10 @@
 /*
- * $Id: physics_intern.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. The Blender
- * Foundation also sells licenses for use in proprietary software under
- * the Blender License.  See http://www.blender.org/BL/ for information
- * about this.
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -35,8 +30,8 @@
  */
 
 
-#ifndef ED_PHYSICS_INTERN_H
-#define ED_PHYSICS_INTERN_H
+#ifndef __PHYSICS_INTERN_H__
+#define __PHYSICS_INTERN_H__
 
 struct wmOperatorType;
 
@@ -47,7 +42,6 @@ void PARTICLE_OT_select_tips(struct wmOperatorType *ot);
 void PARTICLE_OT_select_linked(struct wmOperatorType *ot);
 void PARTICLE_OT_select_less(struct wmOperatorType *ot);
 void PARTICLE_OT_select_more(struct wmOperatorType *ot);
-void PARTICLE_OT_select_inverse(struct wmOperatorType *ot);
 
 void PARTICLE_OT_hide(struct wmOperatorType *ot);
 void PARTICLE_OT_reveal(struct wmOperatorType *ot);
@@ -60,7 +54,6 @@ void PARTICLE_OT_delete(struct wmOperatorType *ot);
 void PARTICLE_OT_mirror(struct wmOperatorType *ot);
 
 void PARTICLE_OT_brush_edit(struct wmOperatorType *ot);
-void PARTICLE_OT_brush_radial_control(struct wmOperatorType *ot);
 
 void PARTICLE_OT_particle_edit_toggle(struct wmOperatorType *ot);
 void PARTICLE_OT_edited_clear(struct wmOperatorType *ot);
@@ -96,6 +89,13 @@ void BOID_OT_state_move_down(struct wmOperatorType *ot);
 /* physics_fluid.c */
 void FLUID_OT_bake(struct wmOperatorType *ot);
 
+/* dynamicpaint.c */
+void DPAINT_OT_bake(struct wmOperatorType *ot);
+void DPAINT_OT_surface_slot_add(struct wmOperatorType *ot);
+void DPAINT_OT_surface_slot_remove(struct wmOperatorType *ot);
+void DPAINT_OT_type_toggle(struct wmOperatorType *ot);
+void DPAINT_OT_output_toggle(struct wmOperatorType *ot);
+
 /* physics_pointcache.c */
 void PTCACHE_OT_bake_all(struct wmOperatorType *ot);
 void PTCACHE_OT_free_bake_all(struct wmOperatorType *ot);
@@ -105,5 +105,23 @@ void PTCACHE_OT_bake_from_cache(struct wmOperatorType *ot);
 void PTCACHE_OT_add(struct wmOperatorType *ot);
 void PTCACHE_OT_remove(struct wmOperatorType *ot);
 
-#endif /* ED_PHYSICS_INTERN_H */
+/* rigidbody_object.c */
+void RIGIDBODY_OT_object_add(struct wmOperatorType *ot);
+void RIGIDBODY_OT_object_remove(struct wmOperatorType *ot);
 
+void RIGIDBODY_OT_objects_add(struct wmOperatorType *ot);
+void RIGIDBODY_OT_objects_remove(struct wmOperatorType *ot);
+
+void RIGIDBODY_OT_shape_change(struct wmOperatorType *ot);
+void RIGIDBODY_OT_mass_calculate(struct wmOperatorType *ot);
+
+/* rigidbody_constraint.c */
+void RIGIDBODY_OT_constraint_add(struct wmOperatorType *ot);
+void RIGIDBODY_OT_constraint_remove(struct wmOperatorType *ot);
+
+/*rigidbody_world.c */
+void RIGIDBODY_OT_world_add(struct wmOperatorType *ot);
+void RIGIDBODY_OT_world_remove(struct wmOperatorType *ot);
+void RIGIDBODY_OT_world_export(struct wmOperatorType *ot);
+
+#endif /* __PHYSICS_INTERN_H__ */

@@ -1,5 +1,4 @@
 /*
- * $Id: RAS_MeshObject.cpp 35174 2011-02-25 13:38:24Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -44,6 +43,10 @@
 
 #include <algorithm>
 
+extern "C" {
+#	include "BKE_deform.h"
+}
+
 /* polygon sorting */
 
 struct RAS_MeshObject::polygonSlot
@@ -61,7 +64,7 @@ struct RAS_MeshObject::polygonSlot
 		MT_Vector3 center(0, 0, 0);
 		int i;
 
-		for(i=0; i<nvert; i++) {
+		for (i=0; i<nvert; i++) {
 			m_index[i] = indexarray[offset+i];
 			center += vertexarray[m_index[i]].getXYZ();
 		}
@@ -76,7 +79,7 @@ struct RAS_MeshObject::polygonSlot
 	{
 		int i;
 
-		for(i=0; i<nvert; i++)
+		for (i=0; i<nvert; i++)
 			indexarray[offset+i] = m_index[i];
 	}
 };
@@ -112,7 +115,7 @@ RAS_MeshObject::RAS_MeshObject(Mesh* mesh)
 		int count=0;
 		// initialize weight cache for shape objects
 		// count how many keys in this mesh
-		for(kb= (KeyBlock*)m_mesh->key->block.first; kb; kb= (KeyBlock*)kb->next)
+		for (kb= (KeyBlock *)m_mesh->key->block.first; kb; kb= (KeyBlock *)kb->next)
 			count++;
 		m_cacheWeightIndex.resize(count,-1);
 	}
@@ -126,14 +129,14 @@ RAS_MeshObject::~RAS_MeshObject()
 	{
 		KeyBlock *kb;
 		// remove the weight cache to avoid memory leak 
-		for(kb= (KeyBlock*)m_mesh->key->block.first; kb; kb= (KeyBlock*)kb->next) {
-			if(kb->weights) 
+		for (kb = (KeyBlock *)m_mesh->key->block.first; kb; kb = (KeyBlock *)kb->next) {
+			if (kb->weights) 
 				MEM_freeN(kb->weights);
 			kb->weights= NULL;
 		}
 	}
 
-	for(it=m_Polygons.begin(); it!=m_Polygons.end(); it++)
+	for (it=m_Polygons.begin(); it!=m_Polygons.end(); it++)
 		delete (*it);
 
 	m_sharedvertex_map.clear();
@@ -162,7 +165,7 @@ const STR_String& RAS_MeshObject::GetMaterialName(unsigned int matid)
 { 
 	RAS_MeshMaterial* mmat = GetMeshMaterial(matid);
 
-	if(mmat)
+	if (mmat)
 		return mmat->m_bucket->GetPolyMaterial()->GetMaterialName();
 	
 	return s_emptyname;
@@ -170,7 +173,7 @@ const STR_String& RAS_MeshObject::GetMaterialName(unsigned int matid)
 
 RAS_MeshMaterial* RAS_MeshObject::GetMeshMaterial(unsigned int matid)
 {
-	if (m_materials.size() > 0 && (matid < m_materials.size()))
+	if ((m_materials.empty() == false) && (matid < m_materials.size()))
 	{
 		list<RAS_MeshMaterial>::iterator it = m_materials.begin();
 		while (matid--) ++it;
@@ -231,7 +234,7 @@ const STR_String& RAS_MeshObject::GetTextureName(unsigned int matid)
 { 
 	RAS_MeshMaterial* mmat = GetMeshMaterial(matid);
 	
-	if(mmat)
+	if (mmat)
 		return mmat->m_bucket->GetPolyMaterial()->GetTextureName();
 
 	return s_emptyname;
@@ -242,8 +245,8 @@ RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(RAS_IPolyMaterial *mat)
 	list<RAS_MeshMaterial>::iterator mit;
 
 	/* find a mesh material */
-	for(mit = m_materials.begin(); mit != m_materials.end(); mit++)
-		if(mit->m_bucket->GetPolyMaterial() == mat)
+	for (mit = m_materials.begin(); mit != m_materials.end(); mit++)
+		if (mit->m_bucket->GetPolyMaterial() == mat)
 			return &*mit;
 
 	return NULL;
@@ -255,8 +258,8 @@ int RAS_MeshObject::GetMaterialId(RAS_IPolyMaterial *mat)
 	int imat;
 
 	/* find a mesh material */
-	for(imat=0, mit = m_materials.begin(); mit != m_materials.end(); mit++, imat++)
-		if(mit->m_bucket->GetPolyMaterial() == mat)
+	for (imat=0, mit = m_materials.begin(); mit != m_materials.end(); mit++, imat++)
+		if (mit->m_bucket->GetPolyMaterial() == mat)
 			return imat;
 
 	return -1;
@@ -272,7 +275,7 @@ RAS_Polygon* RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 	mmat = GetMeshMaterial(bucket->GetPolyMaterial());
 
 	/* none found, create a new one */
-	if(!mmat) {
+	if (!mmat) {
 		RAS_MeshMaterial meshmat;
 		meshmat.m_bucket = bucket;
 		meshmat.m_baseslot = meshmat.m_bucket->AddMesh(numverts);
@@ -314,22 +317,21 @@ void RAS_MeshObject::SetVertexColor(RAS_IPolyMaterial* mat,MT_Vector4 rgba)
 	RAS_MeshSlot::iterator it;
 	size_t i;
 
-	for(slot->begin(it); !slot->end(it); slot->next(it))
-		for(i=it.startvertex; i<it.endvertex; i++)
+	for (slot->begin(it); !slot->end(it); slot->next(it))
+		for (i=it.startvertex; i<it.endvertex; i++)
 			it.vertex[i].SetRGBA(rgba);
 }
 
 void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
 								const MT_Point3& xyz,
-								const MT_Point2& uv,
-								const MT_Point2& uv2,
+								const MT_Point2 uvs[RAS_TexVert::MAX_UNIT],
 								const MT_Vector4& tangent,
 								const unsigned int rgba,
 								const MT_Vector3& normal,
 								bool flat,
 								int origindex)
 {
-	RAS_TexVert texvert(xyz, uv, uv2, tangent, rgba, normal, flat, origindex);
+	RAS_TexVert texvert(xyz, uvs, tangent, rgba, normal, flat, origindex);
 	RAS_MeshMaterial *mmat;
 	RAS_DisplayArray *darray;
 	RAS_MeshSlot *slot;
@@ -346,15 +348,15 @@ void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
 		vector<SharedVertex>& sharedmap = m_sharedvertex_map[origindex];
 		vector<SharedVertex>::iterator it;
 
-		for(it = sharedmap.begin(); it != sharedmap.end(); it++)
+		for (it = sharedmap.begin(); it != sharedmap.end(); it++)
 		{
-			if(it->m_darray != darray)
+			if (it->m_darray != darray)
 				continue;
-			if(!it->m_darray->m_vertex[it->m_offset].closeTo(&texvert))
+			if (!it->m_darray->m_vertex[it->m_offset].closeTo(&texvert))
 				continue;
 
 			/* found one, add it and we're done */
-			if(poly->IsVisible())
+			if (poly->IsVisible())
 				slot->AddPolygonVertex(it->m_offset);
 			poly->SetVertexOffset(i, it->m_offset);
 			return;
@@ -363,7 +365,7 @@ void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
 
 	/* no shared vertex found, add a new one */
 	offset = slot->AddVertex(texvert);
-	if(poly->IsVisible())
+	if (poly->IsVisible())
 		slot->AddPolygonVertex(offset);
 	poly->SetVertexOffset(i, offset);
 
@@ -384,7 +386,7 @@ int RAS_MeshObject::NumVertices(RAS_IPolyMaterial* mat)
 
 	mmat = GetMeshMaterial(mat);
 	slot = mmat->m_baseslot;
-	for(slot->begin(it); !slot->end(it); slot->next(it))
+	for (slot->begin(it); !slot->end(it); slot->next(it))
 		len += it.endvertex - it.startvertex;
 	
 	return len;
@@ -401,13 +403,13 @@ RAS_TexVert* RAS_MeshObject::GetVertex(unsigned int matid,
 
 	mmat = GetMeshMaterial(matid);
 
-	if(!mmat)
+	if (!mmat)
 		return NULL;
 	
 	slot = mmat->m_baseslot;
 	len = 0;
-	for(slot->begin(it); !slot->end(it); slot->next(it)) {
-		if(index >= len + it.endvertex - it.startvertex)
+	for (slot->begin(it); !slot->end(it); slot->next(it)) {
+		if (index >= len + it.endvertex - it.startvertex)
 			len += it.endvertex - it.startvertex;
 		else
 			return &it.vertex[index - len];
@@ -428,7 +430,7 @@ void RAS_MeshObject::AddMeshUser(void *clientobj, SG_QList *head, RAS_Deformer* 
 	list<RAS_MeshMaterial>::iterator it;
 	list<RAS_MeshMaterial>::iterator mit;
 
-	for(it = m_materials.begin();it!=m_materials.end();++it) {
+	for (it = m_materials.begin();it!=m_materials.end();++it) {
 		/* always copy from the base slot, which is never removed 
 		 * since new objects can be created with the same mesh data */
 		if (deformer && !deformer->UseVertexArray())
@@ -441,7 +443,7 @@ void RAS_MeshObject::AddMeshUser(void *clientobj, SG_QList *head, RAS_Deformer* 
 			RAS_IPolyMaterial* curmat = it->m_bucket->GetPolyMaterial();
 			if (curmat->GetFlag() & RAS_BLENDERGLSL) 
 			{
-				for(mit = m_materials.begin(); mit != it; ++mit)
+				for (mit = m_materials.begin(); mit != it; ++mit)
 				{
 					RAS_IPolyMaterial* mat = mit->m_bucket->GetPolyMaterial();
 					if ((mat->GetFlag() & RAS_BLENDERGLSL) && 
@@ -465,10 +467,10 @@ void RAS_MeshObject::RemoveFromBuckets(void *clientobj)
 {
 	list<RAS_MeshMaterial>::iterator it;
 	
-	for(it = m_materials.begin();it!=m_materials.end();++it) {
+	for (it = m_materials.begin();it!=m_materials.end();++it) {
 		RAS_MeshSlot **msp = it->m_slots[clientobj];
 
-		if(!msp)
+		if (!msp)
 			continue;
 
 		RAS_MeshSlot *ms = *msp;
@@ -520,31 +522,31 @@ void RAS_MeshObject::SortPolygons(RAS_MeshSlot& ms, const MT_Transform &transfor
 	RAS_MeshSlot::iterator it;
 	size_t j;
 
-	for(ms.begin(it); !ms.end(it); ms.next(it)) {
+	for (ms.begin(it); !ms.end(it); ms.next(it)) {
 		unsigned int nvert = (int)it.array->m_type;
 		unsigned int totpoly = it.totindex/nvert;
 
-		if(totpoly <= 1)
+		if (totpoly <= 1)
 			continue;
-		if(it.array->m_type == RAS_DisplayArray::LINE)
+		if (it.array->m_type == RAS_DisplayArray::LINE)
 			continue;
 
 		// Extract camera Z plane...
 		const MT_Vector3 pnorm(transform.getBasis()[2]);
 		// unneeded: const MT_Scalar pval = transform.getOrigin()[2];
 
-		vector<polygonSlot> slots(totpoly);
+		vector<polygonSlot> poly_slots(totpoly);
 
 		/* get indices and z into temporary array */
-		for(j=0; j<totpoly; j++)
-			slots[j].get(it.vertex, it.index, j*nvert, nvert, pnorm);
+		for (j=0; j<totpoly; j++)
+			poly_slots[j].get(it.vertex, it.index, j*nvert, nvert, pnorm);
 
 		/* sort (stable_sort might be better, if flickering happens?) */
-		std::sort(slots.begin(), slots.end(), backtofront());
+		std::sort(poly_slots.begin(), poly_slots.end(), backtofront());
 
 		/* get indices from temporary array again */
-		for(j=0; j<totpoly; j++)
-			slots[j].set(it.index, j*nvert, nvert);
+		for (j=0; j<totpoly; j++)
+			poly_slots[j].set(it.index, j*nvert, nvert);
 	}
 }
 
@@ -574,14 +576,14 @@ void RAS_MeshObject::CheckWeightCache(Object* obj)
 {
 	KeyBlock *kb;
 	int kbindex, defindex;
-	MDeformVert *dvert= NULL;
-	int totvert, i, j;
+	MDeformVert *dv= NULL;
+	int totvert, i;
 	float *weights;
 
 	if (!m_mesh->key)
 		return;
 
-	for(kbindex=0, kb= (KeyBlock*)m_mesh->key->block.first; kb; kb= (KeyBlock*)kb->next, kbindex++)
+	for (kbindex = 0, kb = (KeyBlock *)m_mesh->key->block.first; kb; kb = kb->next, kbindex++)
 	{
 		// first check the cases where the weight must be cleared
 		if (kb->vgroup[0] == 0 ||
@@ -599,19 +601,15 @@ void RAS_MeshObject::CheckWeightCache(Object* obj)
 				kb->weights = NULL;
 			}
 
-			dvert= m_mesh->dvert;
+			dv= m_mesh->dvert;
 			totvert= m_mesh->totvert;
 		
-			weights= (float*)MEM_callocN(totvert*sizeof(float), "weights");
+			weights= (float*)MEM_mallocN(totvert*sizeof(float), "weights");
 		
-			for (i=0; i < totvert; i++, dvert++) {
-				for(j=0; j<dvert->totweight; j++) {
-					if (dvert->dw[j].def_nr == defindex) {
-						weights[i]= dvert->dw[j].weight;
-						break;
-					}
-				}
+			for (i=0; i < totvert; i++, dv++) {
+				weights[i] = defvert_find_weight(dv, defindex);
 			}
+
 			kb->weights = weights;
 			m_cacheWeightIndex[kbindex] = defindex;
 		}

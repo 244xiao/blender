@@ -1,7 +1,6 @@
 /*
  * Actuator sensor
  *
- * $Id: SCA_ActuatorSensor.cpp 35169 2011-02-25 13:32:11Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -151,7 +150,7 @@ PyMethodDef SCA_ActuatorSensor::Methods[] = {
 };
 
 PyAttributeDef SCA_ActuatorSensor::Attributes[] = {
-	KX_PYATTRIBUTE_STRING_RW_CHECK("actuator",0,100,false,SCA_ActuatorSensor,m_checkactname,CheckActuator),
+	KX_PYATTRIBUTE_STRING_RW_CHECK("actuator",0,MAX_PROP_NAME,false,SCA_ActuatorSensor,m_checkactname,CheckActuator),
 	{ NULL }	//Sentinel
 };
 

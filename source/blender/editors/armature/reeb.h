@@ -1,6 +1,4 @@
 /*
- * $Id: reeb.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +25,8 @@
  */
 
  
-#ifndef REEB_H_
-#define REEB_H_
+#ifndef __REEB_H__
+#define __REEB_H__
 
 #define WITH_BF_REEB
 
@@ -43,15 +41,15 @@ struct ReebEdge;
 struct ReebNode;
 
 typedef struct ReebGraph {
-	ListBase	arcs;
-	ListBase	nodes;
+	ListBase arcs;
+	ListBase nodes;
 	
 	float length;
 	
-	FreeArc			free_arc;
-	FreeNode		free_node;
-	RadialSymmetry	radial_symmetry;
-	AxialSymmetry	axial_symmetry;
+	FreeArc         free_arc;
+	FreeNode        free_node;
+	RadialSymmetry  radial_symmetry;
+	AxialSymmetry   axial_symmetry;
 	/*********************************/
 	
 	int resolution;
@@ -63,7 +61,7 @@ typedef struct ReebGraph {
 
 typedef struct EmbedBucket {
 	float val;
-	int	  nv;
+	int nv;
 	float p[3];
 	float no[3]; /* if non-null, normal of the bucket */
 } EmbedBucket;
@@ -87,7 +85,7 @@ typedef struct ReebNode {
 
 	int index;
 	float weight;
-	int	multi_level;
+	int multi_level;
 	struct ReebNode *link_down; /* for multi resolution filtering, points to lower levels, if present */
 	struct ReebNode *link_up;
 } ReebNode;
@@ -116,19 +114,19 @@ typedef struct ReebArc {
 	int bcount;
 	struct EmbedBucket *buckets;
 
-	struct GHash *faces;	
+	struct GHash *faces;
 	float angle;
 	struct ReebArc *link_up; /* for multi resolution filtering, points to higher levels */
 } ReebArc;
 
 typedef struct ReebArcIterator {
-	HeadFct		head;
-	TailFct		tail;
-	PeekFct		peek;
-	NextFct		next;
-	NextNFct	nextN;
-	PreviousFct	previous;
-	StoppedFct	stopped;
+	HeadFct      head;
+	TailFct      tail;
+	PeekFct      peek;
+	NextFct      next;
+	NextNFct     nextN;
+	PreviousFct  previous;
+	StoppedFct   stopped;
 	
 	float *p, *no;
 	float size;
@@ -136,7 +134,7 @@ typedef struct ReebArcIterator {
 	int length;
 	int index;
 	/*********************************/
-	struct ReebArc	*arc;
+	struct ReebArc *arc;
 	int start;
 	int end;
 	int stride;
@@ -148,13 +146,13 @@ struct EdgeIndex;
 int weightToHarmonic(struct EditMesh *em, struct EdgeIndex *indexed_edges);
 int weightFromDistance(struct EditMesh *em, struct EdgeIndex *indexed_edges);
 int weightFromLoc(struct EditMesh *me, int axis);
-void weightToVCol(struct EditMesh *em, int index);
+//void weightToVCol(struct EditMesh *em, int index);
 void arcToVCol(struct ReebGraph *rg, struct EditMesh *em, int index);
-void angleToVCol(struct EditMesh *em, int index);
+//void angleToVCol(struct EditMesh *em, int index);
 void renormalizeWeight(struct EditMesh *em, float newmax);
 
-ReebGraph * generateReebGraph(struct EditMesh *me, int subdivisions);
-ReebGraph * newReebGraph(void);
+ReebGraph *generateReebGraph(struct EditMesh *me, int subdivisions);
+ReebGraph *newReebGraph(void);
 
 void initArcIterator(BArcIterator *iter, struct ReebArc *arc, struct ReebNode *head);
 void initArcIterator2(BArcIterator *iter, struct ReebArc *arc, int start, int end);
@@ -163,8 +161,6 @@ void initArcIteratorStart(BArcIterator *iter, struct ReebArc *arc, struct ReebNo
 /* Filtering */
 void filterNullReebGraph(ReebGraph *rg);
 int filterSmartReebGraph(ReebGraph *rg, float threshold);
-int filterExternalReebGraph(ReebGraph *rg, float threshold);
-int filterInternalReebGraph(ReebGraph *rg, float threshold);
 
 /* Post-Build processing */
 void repositionNodes(ReebGraph *rg);
@@ -182,7 +178,7 @@ void verifyNodeDegree(ReebGraph *rg);
 
 /*********************** PUBLIC *********************************/
 
-#define REEB_MAX_MULTI_LEVEL	10
+#define REEB_MAX_MULTI_LEVEL  10
 
 struct bContext;
 
@@ -205,4 +201,4 @@ void REEB_exportGraph(ReebGraph *rg, int count);
 void REEB_draw(void);
 
 
-#endif /*REEB_H_*/
+#endif /*__REEB_H__*/

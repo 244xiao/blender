@@ -1,6 +1,4 @@
 /*
- * $Id: SkinInfo.h 35020 2011-02-21 08:38:53Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +24,8 @@
  *  \ingroup collada
  */
 
-#ifndef __BC_SKININFO_H__
-#define __BC_SKININFO_H__
+#ifndef __SKININFO_H__
+#define __SKININFO_H__
 
 #include <map>
 #include <vector>
@@ -105,9 +103,9 @@ public:
 
 	Object* set_armature(Object *ob_arm);
 
-	bool get_joint_inv_bind_matrix(float inv_bind_mat[][4], COLLADAFW::Node *node);
+	bool get_joint_inv_bind_matrix(float inv_bind_mat[4][4], COLLADAFW::Node *node);
 
-	Object *get_armature();
+	Object *BKE_armature_from_object();
 
 	const COLLADAFW::UniqueId& get_controller_uid();
 

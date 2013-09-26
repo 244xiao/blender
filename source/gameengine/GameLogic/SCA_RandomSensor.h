@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_RandomSensor.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  *  \brief Generate random pulses
  */
 
-#ifndef __KX_RANDOMSENSOR
-#define __KX_RANDOMSENSOR
+#ifndef __SCA_RANDOMSENSOR_H__
+#define __SCA_RANDOMSENSOR_H__
 
 #include "SCA_ISensor.h"
 #include "BoolValue.h"
@@ -41,7 +39,7 @@
 
 class SCA_RandomSensor : public SCA_ISensor
 {
-	Py_Header;
+	Py_Header
 
 	unsigned int m_currentDraw;
 	int m_iteration;
@@ -70,5 +68,4 @@ public:
 #endif
 };
 
-#endif //__KX_RANDOMSENSOR
-
+#endif  /* __SCA_RANDOMSENSOR_H__ */

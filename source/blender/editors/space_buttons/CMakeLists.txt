@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -21,23 +20,34 @@
 
 set(INC
 	../include
+	../../blenfont
 	../../blenkernel
-	../../blenloader
 	../../blenlib
 	../../makesdna
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+)
+
+set(INC_SYS
 	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
 	buttons_context.c
-	buttons_header.c
 	buttons_ops.c
+	buttons_texture.c
 	space_buttons.c
 
 	buttons_intern.h
 )
 
-blender_add_lib(bf_editor_space_buttons "${SRC}" "${INC}")
+if(WITH_INTERNATIONAL)
+	add_definitions(-DWITH_INTERNATIONAL)
+endif()
+
+if(WITH_FREESTYLE)
+	add_definitions(-DWITH_FREESTYLE)
+endif()
+
+blender_add_lib(bf_editor_space_buttons "${SRC}" "${INC}" "${INC_SYS}")

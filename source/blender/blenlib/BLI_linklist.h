@@ -1,6 +1,4 @@
 /*
- * $Id: BLI_linklist.h 34966 2011-02-18 13:58:08Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
  
-#ifndef BLI_LINKLIST_H
-#define BLI_LINKLIST_H
+#ifndef __BLI_LINKLIST_H__
+#define __BLI_LINKLIST_H__
 
 /** \file BLI_linklist.h
  *  \ingroup bli
@@ -48,20 +46,20 @@ typedef struct LinkNode {
 	void *link;
 } LinkNode;
 
-int		BLI_linklist_length		(struct LinkNode *list);
-int		BLI_linklist_index		(struct LinkNode *list, void *ptr);
+int     BLI_linklist_length(struct LinkNode *list);
+int     BLI_linklist_index(struct LinkNode *list, void *ptr);
 
-struct LinkNode *BLI_linklist_find	(struct LinkNode *list, int index);
+struct LinkNode *BLI_linklist_find(struct LinkNode *list, int index);
 
-void	BLI_linklist_reverse	(struct LinkNode **listp);
+void    BLI_linklist_reverse(struct LinkNode **listp);
 
-void	BLI_linklist_prepend		(struct LinkNode **listp, void *ptr);
-void	BLI_linklist_append	    	(struct LinkNode **listp, void *ptr);
-void	BLI_linklist_prepend_arena	(struct LinkNode **listp, void *ptr, struct MemArena *ma);
-void	BLI_linklist_insert_after	(struct LinkNode **listp, void *ptr);
+void    BLI_linklist_prepend(struct LinkNode **listp, void *ptr);
+void    BLI_linklist_append(struct LinkNode **listp, void *ptr);
+void    BLI_linklist_prepend_arena(struct LinkNode **listp, void *ptr, struct MemArena *ma);
+void    BLI_linklist_insert_after(struct LinkNode **listp, void *ptr);
 
-void	BLI_linklist_free		(struct LinkNode *list, LinkNodeFreeFP freefunc);
-void	BLI_linklist_apply		(struct LinkNode *list, LinkNodeApplyFP applyfunc, void *userdata);
+void    BLI_linklist_free(struct LinkNode *list, LinkNodeFreeFP freefunc);
+void    BLI_linklist_freeN(struct LinkNode *list);
+void    BLI_linklist_apply(struct LinkNode *list, LinkNodeApplyFP applyfunc, void *userdata);
 
 #endif
-

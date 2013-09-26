@@ -1,6 +1,4 @@
 /*
- * $Id: GPG_Canvas.cpp 35170 2011-02-25 13:35:11Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -108,6 +106,39 @@ void GPG_Canvas::SwapBuffers()
 	{
 		m_window->swapBuffers();
 	}
+}
+
+void GPG_Canvas::ResizeWindow(int width, int height)
+{
+	if (m_window->getState() == GHOST_kWindowStateFullScreen)
+	{
+		GHOST_ISystem* system = GHOST_ISystem::getSystem();
+		GHOST_DisplaySetting setting;
+		setting.xPixels = width;
+		setting.yPixels = height;
+		//XXX allow these to be changed or kept from previous state
+		setting.bpp = 32;
+		setting.frequency = 60;
+
+		system->updateFullScreen(setting, &m_window);
+	}
+
+	m_window->setClientSize(width, height);
+
+	Resize(width, height);
+}
+
+void GPG_Canvas::SetFullScreen(bool enable)
+{
+	if (enable)
+		m_window->setState(GHOST_kWindowStateFullScreen);
+	else
+		m_window->setState(GHOST_kWindowStateNormal);
+}
+
+bool GPG_Canvas::GetFullScreen()
+{
+	return m_window->getState() == GHOST_kWindowStateFullScreen;
 }
 
 float GPG_Canvas::GetMouseNormalizedX(int x)

@@ -1,6 +1,4 @@
-/* 
- * $Id: ED_physics.h 35016 2011-02-21 07:25:24Z jesterking $
- *
+/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,19 +29,32 @@
  *  \ingroup editors
  */
 
-#ifndef ED_PHYSICS_H
-#define ED_PHYSICS_H
+#ifndef __ED_PHYSICS_H__
+#define __ED_PHYSICS_H__
 
+struct bContext;
+struct ReportList;
 struct wmKeyConfig;
+
+struct Scene;
+struct Object;
 
 /* particle_edit.c */
 int PE_poll(struct bContext *C);
 int PE_hair_poll(struct bContext *C);
 int PE_poll_view3d(struct bContext *C);
 
+/* rigidbody_object.c */
+bool ED_rigidbody_object_add(struct Scene *scene, struct Object *ob, int type, struct ReportList *reports);
+void ED_rigidbody_object_remove(struct Scene *scene, struct Object *ob);
+
+/* rigidbody_constraint.c */
+bool ED_rigidbody_constraint_add(struct Scene *scene, struct Object *ob, int type, struct ReportList *reports);
+void ED_rigidbody_constraint_remove(struct Scene *scene, struct Object *ob);
+
 /* operators */
 void ED_operatortypes_physics(void);
 void ED_keymap_physics(struct wmKeyConfig *keyconf);
 
-#endif /* ED_PHYSICS_H */
+#endif /* __ED_PHYSICS_H__ */
 

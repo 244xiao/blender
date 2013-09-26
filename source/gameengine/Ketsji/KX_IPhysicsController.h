@@ -1,6 +1,4 @@
 /*
- * $Id: KX_IPhysicsController.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_IPHYSICSCONTROLLER_H
-#define __KX_IPHYSICSCONTROLLER_H
+#ifndef __KX_IPHYSICSCONTROLLER_H__
+#define __KX_IPHYSICSCONTROLLER_H__
 
 #include "SG_Controller.h"
 #include "MT_Vector3.h"
@@ -43,11 +41,11 @@
 struct KX_ClientObjectInfo;
 
 /**
-	Physics Controller, a special kind of Scene Graph Transformation Controller.
-	It get's callbacks from Physics in case a transformation change took place.
-	Each time the scene graph get's updated, the controller get's a chance
-	in the 'Update' method to reflect changed.
-*/
+ * Physics Controller, a special kind of Scene Graph Transformation Controller.
+ * It get's callbacks from Physics in case a transformation change took place.
+ * Each time the scene graph get's updated, the controller get's a chance
+ * in the 'Update' method to reflect changed.
+ */
 
 class KX_IPhysicsController : public SG_Controller
 							 
@@ -55,11 +53,12 @@ class KX_IPhysicsController : public SG_Controller
 protected:
 	bool		m_bDyna;
 	bool		m_bSensor;
+	bool		m_bCharacter;
 	bool		m_bCompound;
 	bool		m_suspendDynamics;
 	void*		m_userdata;
 public:
-	KX_IPhysicsController(bool dyna,bool sensor,bool compound, void* userdata);
+	KX_IPhysicsController(bool dyna,bool sensor,bool character,bool compound, void* userdata);
 	virtual ~KX_IPhysicsController();
 
 
@@ -71,11 +70,14 @@ public:
 	virtual void	RelativeRotate(const MT_Matrix3x3& drot,bool local)=0;
 	virtual void	ApplyTorque(const MT_Vector3& torque,bool local)=0;
 	virtual void	ApplyForce(const MT_Vector3& force,bool local)=0;
+	virtual void	SetWalkDirection(const MT_Vector3& dir,bool local)=0;
 	virtual MT_Vector3 GetLinearVelocity()=0;
 	virtual MT_Vector3 GetAngularVelocity()=0;
 	virtual MT_Vector3 GetVelocity(const MT_Point3& pos)=0;
+	virtual MT_Vector3 GetWalkDirection()=0;
 	virtual void	SetAngularVelocity(const MT_Vector3& ang_vel,bool local)=0;
 	virtual void	SetLinearVelocity(const MT_Vector3& lin_vel,bool local)=0;
+	virtual void	Jump()=0;
 	virtual void	resolveCombinedVelocities(float linvelX,float linvelY,float linvelZ,float angVelX,float angVelY,float angVelZ) = 0;
 
 	virtual	void	getOrientation(MT_Quaternion& orn)=0;
@@ -111,12 +113,20 @@ public:
 		m_bSensor = isSensor;
 	}
 
+	void	SetCharacter(bool isCharacter) {
+		m_bCharacter = isCharacter;
+	}
+
 	bool	IsDyna(void) {
 		return m_bDyna;
 	}
 
 	bool	IsSensor(void) {
 		return m_bSensor;
+	}
+
+	bool	IsCharacter(void) {
+		return m_bCharacter;
 	}
 
 	bool	IsCompound(void) {
@@ -134,11 +144,8 @@ public:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_IPhysicsController"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_IPhysicsController")
 #endif
 };
 
-#endif //__KX_IPHYSICSCONTROLLER_H
-
+#endif  /* __KX_IPHYSICSCONTROLLER_H__ */

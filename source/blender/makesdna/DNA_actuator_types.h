@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_actuator_types.h 35140 2011-02-25 10:20:37Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -29,10 +27,12 @@
 
 /** \file DNA_actuator_types.h
  *  \ingroup DNA
+ *
+ * #bActuator type is specifically for use by Object logic-bricks in the game-engine.
  */
 
-#ifndef DNA_ACTUATOR_TYPES_H
-#define DNA_ACTUATOR_TYPES_H
+#ifndef __DNA_ACTUATOR_TYPES_H__
+#define __DNA_ACTUATOR_TYPES_H__
 
 struct Object;
 struct Mesh;
@@ -48,21 +48,23 @@ typedef struct bAddObjectActuator {
 	struct Object *ob;
 } bAddObjectActuator;
 
-typedef struct bActionActuator {								
-	struct bAction *act;	/* Pointer to action */				
-	short	type, flag;		/* Playback type */  // not in use
-	float	sta, end;		/* Start & End frames */			
-	char	name[32];		/* For property-driven playback */	
-	char	frameProp[32];	/* Set this property to the actions current frame */
-	short	blendin;		/* Number of frames of blending */
-	short	priority;		/* Execution priority */
-	short	end_reset;	/* Ending the actuator (negative pulse) wont reset the the action to its starting frame */
-	short	strideaxis;		/* Displacement axis */
-	float	stridelength;	/* Displacement incurred by cycle */ // not in use
-} bActionActuator;												
+typedef struct bActionActuator {
+	struct bAction *act;    /* Pointer to action */
+	short   type, flag;     /* Playback type */  // not in use
+	float   sta, end;       /* Start & End frames */
+	char    name[64];       /* For property-driven playback, MAX_NAME */
+	char    frameProp[64];  /* Set this property to the actions current frame, MAX_NAME */
+	short   blendin;        /* Number of frames of blending */
+	short   priority;       /* Execution priority */
+	short   layer;          /* Animation layer */
+	short   end_reset;      /* Ending the actuator (negative pulse) wont reset the the action to its starting frame */
+	short   strideaxis;     /* Displacement axis */
+	short   pad;
+	float   stridelength;   /* Displacement incurred by cycle */ // not in use
+	float   layer_weight;   /* How much of the previous layer to use for blending. (<0 = disable, 0 = add mode) */
+} bActionActuator;
 
-typedef struct Sound3D
-{
+typedef struct Sound3D {
 	float min_gain;
 	float max_gain;
 	float reference_distance;
@@ -89,7 +91,7 @@ typedef struct bEditObjectActuator {
 	short type, flag;
 	struct Object *ob;
 	struct Mesh *me;
-	char name[32];
+	char name[64];	/* MAX_NAME */
 	float linVelocity[3]; /* initial lin. velocity on creation */
 	float angVelocity[3]; /* initial ang. velocity on creation */
 	float mass;
@@ -106,7 +108,7 @@ typedef struct bSceneActuator {
 
 typedef struct bPropertyActuator {
 	int pad, type;
-	char name[32], value[32];
+	char name[64], value[64];	/* MAX_NAME */
 	struct Object *ob;
 } bPropertyActuator;
 
@@ -120,11 +122,12 @@ typedef struct bObjectActuator {
 	struct Object *reference;
 } bObjectActuator;
 
+/* deprecated, handled by bActionActuator now */
 typedef struct bIpoActuator {
 	short flag, type;
 	float sta, end;
-	char name[32];
-	char frameProp[32];	/* Set this property to the actions current frame */
+	char name[64];		/* MAX_NAME */
+	char frameProp[64];	/* Set this property to the actions current frame, MAX_NAME */
 	
 	short pad1, pad2, pad3, pad4;
 	
@@ -133,10 +136,10 @@ typedef struct bIpoActuator {
 typedef struct bCameraActuator {
 	struct Object *ob;
 	float height, min, max;
-	float pad;
+	float damping;
 	short pad1, axis;
 	float pad2;
-} bCameraActuator ;
+} bCameraActuator;
 
 typedef struct bConstraintActuator {
 	short type, mode;
@@ -145,13 +148,13 @@ typedef struct bConstraintActuator {
 	int pad;
 	float minloc[3], maxloc[3];
 	float minrot[3], maxrot[3];
-	char matprop[32];
+	char matprop[64];	/* MAX_NAME */
 } bConstraintActuator;
 
 typedef struct bGroupActuator {
 	short flag, type;
 	int sta, end;
-	char name[32];		/* property or groupkey */
+	char name[64];		/* property or groupkey, MAX_NAME */
 	
 	short pad[3], cur, butsta, butend;/* not referenced, can remove? */
 	/* struct Group *group;		not used, remove */
@@ -166,16 +169,16 @@ typedef struct bRandomActuator {
 	int int_arg_2;
 	float float_arg_1;
 	float float_arg_2;
-	char  propname[32];
+	char  propname[64];	/* MAX_NAME */
 } bRandomActuator;
 
 typedef struct bMessageActuator {
-	char toPropName[32];	/* Send to all objects with this propertyname. Empty to broadcast. */
+	char toPropName[64];	/* Send to all objects with this propertyname. Empty to broadcast. MAX_NAME. */
 	struct Object *toObject;/* (Possible future use) pointer to a single destination object. */
-	char subject[32];		/* Message Subject to send. */
+	char subject[64];		/* Message Subject to send. MAX_NAME. */
 	short bodyType, pad1;	/* bodyType is either 'User defined text' or PropName */
 	int pad2;
-	char body[32];			/* Either User Defined Text or our PropName to send value of */
+	char body[64];			/* Either User Defined Text or our PropName to send value of, MAX_NAME */
 } bMessageActuator;
 
 typedef struct bGameActuator {
@@ -192,18 +195,18 @@ typedef struct bVisibilityActuator {
 	int flag;
 } bVisibilityActuator;
 
-typedef struct bTwoDFilterActuator{
+typedef struct bTwoDFilterActuator {
 	char pad[4];
 	/* Tells what type of 2D Filter */
 	short type;
 	/* (flag == 0) means 2D filter is activate and
-	   (flag != 0) means 2D filter is inactive */
+	 * (flag != 0) means 2D filter is inactive */
 	short flag;
 	int   int_arg;
 	/* a float argument */
 	float float_arg;
 	struct Text *text;
-}bTwoDFilterActuator;
+} bTwoDFilterActuator;
 
 typedef struct bParentActuator {
 	char pad[2];
@@ -218,13 +221,29 @@ typedef struct bStateActuator {
 } bStateActuator;
 
 typedef struct bArmatureActuator {
-	char posechannel[32];
-	char constraint[32];
+	char posechannel[64];	/* MAX_NAME */
+	char constraint[64];	/* MAX_NAME */
 	int type;		/* 0=run, 1=enable, 2=disable, 3=set target, 4=set weight */
 	float weight;
+	float influence;
+	float pad;
 	struct Object *target;
 	struct Object *subtarget;
 } bArmatureActuator;
+
+typedef struct bSteeringActuator {
+	char pad[5];
+	char flag;
+	short facingaxis;
+	int type;		/* 0=seek, 1=flee, 2=path following */
+	float dist;
+	float velocity;
+	float acceleration;
+	float turnspeed;
+	int updateTime;
+	struct Object *target;
+	struct Object *navmesh;
+} bSteeringActuator;
 
 typedef struct bActuator {
 	struct bActuator *next, *prev, *mynew;
@@ -234,7 +253,7 @@ typedef struct bActuator {
 	 */
 	short flag;
 	short otype, go;
-	char name[32];
+	char name[64];	/* MAX_NAME */
 
 	/**
 	 * data must point to an object actuator type struct.
@@ -244,7 +263,7 @@ typedef struct bActuator {
 	/**
 	 * For ipo's and props: to find out which object the actuator
 	 * belongs to */
-	struct Object *ob;		
+	struct Object *ob;
 	
 } bActuator;
 
@@ -260,10 +279,13 @@ typedef struct bActuator {
 #define ACT_ANG_VEL_LOCAL		32
 //#define ACT_ADD_LIN_VEL_LOCAL	64
 #define ACT_ADD_LIN_VEL			64
+#define ACT_ADD_CHAR_LOC		128
+#define ACT_CHAR_JUMP			256
 
 /* objectactuator->type */
-#define ACT_OBJECT_NORMAL	0
-#define ACT_OBJECT_SERVO	1
+#define ACT_OBJECT_NORMAL		0
+#define ACT_OBJECT_SERVO		1
+#define ACT_OBJECT_CHARACTER	2
 
 /* actuator->type */
 #define ACT_OBJECT		0
@@ -291,6 +313,7 @@ typedef struct bActuator {
 #define ACT_SHAPEACTION 21
 #define ACT_STATE		22
 #define ACT_ARMATURE	23
+#define ACT_STEERING    24
 
 /* actuator flag */
 #define ACT_SHOW		1
@@ -494,8 +517,9 @@ typedef struct bActuator {
 #define ACT_ARM_DISABLE		2
 #define ACT_ARM_SETTARGET	3
 #define ACT_ARM_SETWEIGHT	4
-/* update this define if more type are addedd */
-#define ACT_ARM_MAXTYPE		4
+#define ACT_ARM_SETINFLUENCE	5
+/* update this define if more types are added */
+#define ACT_ARM_MAXTYPE		5
 
 /* stateactuator->type */
 #define ACT_STATE_SET		0
@@ -503,10 +527,14 @@ typedef struct bActuator {
 #define ACT_STATE_REMOVE	2
 #define ACT_STATE_CHANGE	3
 
-/* cameraactuator->axis */
-#define ACT_CAMERA_X		(float)'x'
-#define ACT_CAMERA_Y		(float)'y'
+/* steeringactuator->type */
+#define ACT_STEERING_SEEK   0
+#define ACT_STEERING_FLEE   1
+#define ACT_STEERING_PATHFOLLOWING   2
+/* steeringactuator->flag */
+#define ACT_STEERING_SELFTERMINATED   1
+#define ACT_STEERING_ENABLEVISUALIZATION   2
+#define ACT_STEERING_AUTOMATICFACING   4
+#define ACT_STEERING_NORMALUP  8
 
-#endif
-
-
+#endif  /* __DNA_ACTUATOR_TYPES_H__ */

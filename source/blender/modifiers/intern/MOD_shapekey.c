@@ -1,34 +1,32 @@
 /*
-* $Id: MOD_shapekey.c 35178 2011-02-25 13:57:17Z jesterking $
-*
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software  Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-* The Original Code is Copyright (C) 2005 by the Blender Foundation.
-* All rights reserved.
-*
-* Contributor(s): Daniel Dunbar
-*                 Ton Roosendaal,
-*                 Ben Batt,
-*                 Brecht Van Lommel,
-*                 Campbell Barton
-*
-* ***** END GPL LICENSE BLOCK *****
-*
-*/
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2005 by the Blender Foundation.
+ * All rights reserved.
+ *
+ * Contributor(s): Daniel Dunbar
+ *                 Ton Roosendaal,
+ *                 Ben Batt,
+ *                 Brecht Van Lommel,
+ *                 Campbell Barton
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ *
+ */
 
 /** \file blender/modifiers/intern/MOD_shapekey.c
  *  \ingroup modifiers
@@ -51,87 +49,90 @@
 #include "MEM_guardedalloc.h"
 
 static void deformVerts(ModifierData *md, Object *ob,
-						DerivedMesh *UNUSED(derivedData),
-						float (*vertexCos)[3],
-						int numVerts,
-						int UNUSED(useRenderParams),
-						int UNUSED(isFinalCalc))
+                        DerivedMesh *UNUSED(derivedData),
+                        float (*vertexCos)[3],
+                        int numVerts,
+                        ModifierApplyFlag UNUSED(flag))
 {
-	KeyBlock *kb= ob_get_keyblock(ob);
+	Key *key = BKE_key_from_object(ob);
 	float (*deformedVerts)[3];
 
-	if(kb && kb->totelem == numVerts) {
-		deformedVerts= (float(*)[3])do_ob_key(md->scene, ob);
-		if(deformedVerts) {
-			memcpy(vertexCos, deformedVerts, sizeof(float)*3*numVerts);
+	if (key && key->block.first) {
+		int deformedVerts_tot;
+		deformedVerts = (float(*)[3])BKE_key_evaluate_object(md->scene, ob, &deformedVerts_tot);
+		if (deformedVerts) {
+			if (numVerts == deformedVerts_tot) {
+				memcpy(vertexCos, deformedVerts, sizeof(float) * 3 * numVerts);
+			}
 			MEM_freeN(deformedVerts);
 		}
 	}
 }
 
 static void deformMatrices(ModifierData *md, Object *ob, DerivedMesh *derivedData,
-						   float (*vertexCos)[3], float (*defMats)[3][3], int numVerts)
+                           float (*vertexCos)[3], float (*defMats)[3][3], int numVerts)
 {
-	Key *key= ob_get_key(ob);
-	KeyBlock *kb= ob_get_keyblock(ob);
+	Key *key = BKE_key_from_object(ob);
+	KeyBlock *kb = BKE_keyblock_from_object(ob);
 	float scale[3][3];
 
 	(void)vertexCos; /* unused */
 
-	if(kb && kb->totelem==numVerts && kb!=key->refkey) {
+	if (kb && kb->totelem == numVerts && kb != key->refkey) {
 		int a;
 
-		if(ob->shapeflag & OB_SHAPE_LOCK) scale_m3_fl(scale, 1);
+		if (ob->shapeflag & OB_SHAPE_LOCK) scale_m3_fl(scale, 1);
 		else scale_m3_fl(scale, kb->curval);
 
-		for(a=0; a<numVerts; a++)
+		for (a = 0; a < numVerts; a++)
 			copy_m3_m3(defMats[a], scale);
 	}
 
-	deformVerts(md, ob, derivedData, vertexCos, numVerts, 0, 0);
+	deformVerts(md, ob, derivedData, vertexCos, numVerts, 0);
 }
 
 static void deformVertsEM(ModifierData *md, Object *ob,
-						struct EditMesh *UNUSED(editData),
-						DerivedMesh *derivedData,
-						float (*vertexCos)[3],
-						int numVerts)
+                          struct BMEditMesh *UNUSED(editData),
+                          DerivedMesh *derivedData,
+                          float (*vertexCos)[3],
+                          int numVerts)
 {
-	Key *key= ob_get_key(ob);
+	Key *key = BKE_key_from_object(ob);
 
-	if(key && key->type == KEY_RELATIVE)
-		deformVerts(md, ob, derivedData, vertexCos, numVerts, 0, 0);
+	if (key && key->type == KEY_RELATIVE)
+		deformVerts(md, ob, derivedData, vertexCos, numVerts, 0);
 }
 
 static void deformMatricesEM(ModifierData *UNUSED(md), Object *ob,
-						struct EditMesh *UNUSED(editData),
-						DerivedMesh *UNUSED(derivedData),
-						float (*vertexCos)[3],
-						float (*defMats)[3][3],
-						int numVerts)
+                             struct BMEditMesh *UNUSED(editData),
+                             DerivedMesh *UNUSED(derivedData),
+                             float (*vertexCos)[3],
+                             float (*defMats)[3][3],
+                             int numVerts)
 {
-	Key *key= ob_get_key(ob);
-	KeyBlock *kb= ob_get_keyblock(ob);
+	Key *key = BKE_key_from_object(ob);
+	KeyBlock *kb = BKE_keyblock_from_object(ob);
 	float scale[3][3];
 
 	(void)vertexCos; /* unused */
 
-	if(kb && kb->totelem==numVerts && kb!=key->refkey) {
+	if (kb && kb->totelem == numVerts && kb != key->refkey) {
 		int a;
 		scale_m3_fl(scale, kb->curval);
 
-		for(a=0; a<numVerts; a++)
+		for (a = 0; a < numVerts; a++)
 			copy_m3_m3(defMats[a], scale);
 	}
 }
+
 
 ModifierTypeInfo modifierType_ShapeKey = {
 	/* name */              "ShapeKey",
 	/* structName */        "ShapeKeyModifierData",
 	/* structSize */        sizeof(ShapeKeyModifierData),
 	/* type */              eModifierTypeType_OnlyDeform,
-	/* flags */             eModifierTypeFlag_AcceptsCVs
-							| eModifierTypeFlag_SupportsEditmode,
+	/* flags */             eModifierTypeFlag_AcceptsCVs |
+	                        eModifierTypeFlag_SupportsEditmode,
 
 	/* copyData */          NULL,
 	/* deformVerts */       deformVerts,
@@ -148,5 +149,6 @@ ModifierTypeInfo modifierType_ShapeKey = {
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ NULL,
-	/* foreachIDLink */     NULL
+	/* foreachIDLink */     NULL,
+	/* foreachTexLink */    NULL,
 };

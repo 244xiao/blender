@@ -32,7 +32,7 @@ class FBlender(FApplication):
         Implements FApplication.GetPrettyName()
         
         """
-        return "Blender 2.57"
+        return "Blender 2.59"
     
     def GetSettingsForOperation(self, operation):
         """GetSettingsForOperation(operation) -> list_of_FSettingEntry
@@ -153,11 +153,10 @@ print("\\n\\ndone testing.\\n\\n")"""
     
     def WriteImport(self, filename, logname, outputDir, settings, isAnimated, cameraRig, lightingRig):
         """WriteImport(filename, logname, outputDir, settings, isAnimated, cameraRig, lightingRig) -> list_of_str
-                
         """
         outputFormat = ".png"
         
-        command = ("\"" + self.configDict["blenderPath"] + "\" -b \"" + self.configDict["blenderEmpty"] + "\" -o ")
+        command = ("\"" + self.configDict["blenderPath"] + "\" --background -noaudio \"" + self.configDict["blenderEmpty"] + "\" -o ")
         
         baseName = FUtils.GetProperFilename(filename)
         self.__currentImportProperName = baseName
@@ -165,7 +164,7 @@ print("\\n\\ndone testing.\\n\\n")"""
         self.__currentFilename = outputFilename
         imageFilename = os.path.join(outputDir, "result" + outputFormat)
         self.__currentImageName = imageFilename
-        command = (command + "\"" + imageFilename + "\" -P \"" + self.__blenderScript.name + "\" -- \""+ self.configDict["blenderDefaultDae"] +"\" \"" + outputFilename + "\" \"" + imageFilename + "\" \"" + filename+"\"")
+        command = (command + "\"" + imageFilename + "\" --python \"" + self.__blenderScript.name + "\" -- \""+ self.configDict["blenderDefaultDae"] +"\" \"" + outputFilename + "\" \"" + imageFilename + "\" \"" + filename+"\"")
         
         print "***Importing: %s" % (filename)
         print "   Command %s" % (command)        

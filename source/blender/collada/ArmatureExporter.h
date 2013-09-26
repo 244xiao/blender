@@ -1,6 +1,4 @@
 /*
- * $Id: ArmatureExporter.h 35020 2011-02-21 08:38:53Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,6 +28,7 @@
 #ifndef __ARMATUREEXPORTER_H__
 #define __ARMATUREEXPORTER_H__
 
+#include <list>
 #include <string>
 //#include <vector>
 
@@ -42,39 +41,40 @@
 #include "DNA_listBase.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
+#include "DNA_constraint_types.h"
 #include "DNA_scene_types.h"
 
 #include "TransformWriter.h"
 #include "InstanceWriter.h"
 
+#include "ExportSettings.h"
+
+class SceneExporter;
+
 // XXX exporter writes wrong data for shared armatures.  A separate
 // controller should be written for each armature-mesh binding how do
 // we make controller ids then?
-class ArmatureExporter: public COLLADASW::LibraryControllers, protected TransformWriter, protected InstanceWriter
+class ArmatureExporter : public COLLADASW::LibraryControllers, protected TransformWriter, protected InstanceWriter
 {
-private:
-	Scene *scene;
-
 public:
-	ArmatureExporter(COLLADASW::StreamWriter *sw);
+	ArmatureExporter(COLLADASW::StreamWriter *sw, const ExportSettings *export_settings);
 
 	// write bone nodes
-	void add_armature_bones(Object *ob_arm, Scene *sce);
+	void add_armature_bones(Object *ob_arm, Scene *sce, SceneExporter *se,
+	                        std::list<Object *>& child_objects);
 
-	bool is_skinned_mesh(Object *ob);
+	bool add_instance_controller(Object *ob);
 
-	void add_instance_controller(Object *ob);
+	//void export_controllers(Scene *sce);*/
 
-	void export_controllers(Scene *sce);
-
-	void operator()(Object *ob);
+	//void operator()(Object *ob);
 
 private:
-
 	UnitConverter converter;
+	const ExportSettings *export_settings;
 
 #if 0
-	std::vector<Object*> written_armatures;
+	std::vector<Object *> written_armatures;
 
 	bool already_written(Object *ob_arm);
 
@@ -83,59 +83,20 @@ private:
 	void find_objects_using_armature(Object *ob_arm, std::vector<Object *>& objects, Scene *sce);
 #endif
 
-	Object *get_assigned_armature(Object *ob);
-
 	std::string get_joint_sid(Bone *bone, Object *ob_arm);
 
-	// parent_mat is armature-space
-	void add_bone_node(Bone *bone, Object *ob_arm);
+	// Scene, SceneExporter and the list of child_objects
+	// are required for writing bone parented objects
+	void add_bone_node(Bone *bone, Object *ob_arm, Scene *sce, SceneExporter *se,
+	                   std::list<Object *>& child_objects);
 
 	void add_bone_transform(Object *ob_arm, Bone *bone, COLLADASW::Node& node);
 
+	void add_blender_leaf_bone(Bone *bone, Object *ob_arm, COLLADASW::Node& node);
+
 	std::string get_controller_id(Object *ob_arm, Object *ob);
 
-	// ob should be of type OB_MESH
-	// both args are required
-	void export_controller(Object* ob, Object *ob_arm);
-
-	void add_joints_element(ListBase *defbase,
-							const std::string& joints_source_id, const std::string& inv_bind_mat_source_id);
-
-	void add_bind_shape_mat(Object *ob);
-
-	std::string add_joints_source(Object *ob_arm, ListBase *defbase, const std::string& controller_id);
-
-	std::string add_inv_bind_mats_source(Object *ob_arm, ListBase *defbase, const std::string& controller_id);
-
-	Bone *get_bone_from_defgroup(Object *ob_arm, bDeformGroup* def);
-
-	bool is_bone_defgroup(Object *ob_arm, bDeformGroup* def);
-
-	std::string add_weights_source(Mesh *me, const std::string& controller_id);
-
-	void add_vertex_weights_element(const std::string& weights_source_id, const std::string& joints_source_id, Mesh *me,
-									Object *ob_arm, ListBase *defbase);
+	void write_bone_URLs(COLLADASW::InstanceController &ins, Object *ob_arm, Bone *bone);
 };
-
-/*
-struct GeometryFunctor {
-	// f should have
-	// void operator()(Object* ob)
-	template<class Functor>
-	void forEachMeshObjectInScene(Scene *sce, Functor &f)
-	{
-		
-		Base *base= (Base*) sce->base.first;
-		while(base) {
-			Object *ob = base->object;
-			
-			if (ob->type == OB_MESH && ob->data) {
-				f(ob);
-			}
-			base= base->next;
-			
-		}
-	}
-};*/
 
 #endif

@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_IController.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __KX_ICONTROLLER
-#define __KX_ICONTROLLER
+#ifndef __SCA_ICONTROLLER_H__
+#define __SCA_ICONTROLLER_H__
 
 #include "SCA_ILogicBrick.h"
 #include "PyObjectPlus.h"
@@ -44,7 +42,7 @@
  */
 class SCA_IController : public SCA_ILogicBrick
 {
-	Py_Header;
+	Py_Header
 protected:
 	std::vector<class SCA_ISensor*>		m_linkedsensors;
 	std::vector<class SCA_IActuator*>	m_linkedactuators;
@@ -67,8 +65,8 @@ public:
 	void	UnlinkAllActuators();
 	void	UnlinkActuator(class SCA_IActuator* actua);
 	void	UnlinkSensor(class SCA_ISensor* sensor);
-	void    SetState(unsigned int state) { m_statemask = state; }
-	void    ApplyState(unsigned int state);
+	void	SetState(unsigned int state) { m_statemask = state; }
+	void	ApplyState(unsigned int state);
 	void	Deactivate()
 	{
 		// the controller can only be part of a sensor m_newControllers list
@@ -108,8 +106,7 @@ public:
 	static PyObject*	pyattr_get_state(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_sensors(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_actuators(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 };
 
-#endif
-
+#endif  /* __SCA_ICONTROLLER_H__ */

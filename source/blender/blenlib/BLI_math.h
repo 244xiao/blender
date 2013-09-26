@@ -1,6 +1,4 @@
 /*
- * $Id: BLI_math.h 34966 2011-02-18 13:58:08Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -25,8 +23,8 @@
  * ***** END GPL LICENSE BLOCK *****
  * */
 
-#ifndef BLI_MATH_H
-#define BLI_MATH_H
+#ifndef __BLI_MATH_H__
+#define __BLI_MATH_H__
 
 /** \file BLI_math.h
  *  \ingroup bli
@@ -60,6 +58,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_geom.h"
+#include "BLI_math_interp.h"
 
-#endif /* BLI_MATH_H */
+#endif /* __BLI_MATH_H__ */
 

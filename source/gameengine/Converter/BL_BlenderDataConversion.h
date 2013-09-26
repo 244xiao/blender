@@ -1,6 +1,4 @@
 /*
- * $Id: BL_BlenderDataConversion.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,15 +29,16 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BLENDER_CONVERT
-#define __BLENDER_CONVERT
+#ifndef __BL_BLENDERDATACONVERSION_H__
+#define __BL_BLENDERDATACONVERSION_H__
 
-#include "GEN_HashedPtr.h"
+#include "CTR_HashedPtr.h"
 #include "STR_String.h"
 #include "KX_Python.h"
 #include "KX_PhysicsEngineEnums.h"
+#include "SCA_IInputDevice.h"
 
-class RAS_MeshObject* BL_ConvertMesh(struct Mesh* mesh,struct Object* lightobj,class KX_Scene* scene, class KX_BlenderSceneConverter *converter);
+class RAS_MeshObject* BL_ConvertMesh(struct Mesh* mesh,struct Object* lightobj,class KX_Scene* scene, class KX_BlenderSceneConverter *converter, bool libloading);
 
 void BL_ConvertBlenderObjects(struct Main* maggie,
 							  class KX_Scene* kxscene,
@@ -48,8 +47,10 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							  class RAS_IRenderTools* rendertools,
 							  class RAS_ICanvas* canvas, 
 							  class KX_BlenderSceneConverter* sceneconverter, 
-							  bool alwaysUseExpandFraming
+							  bool alwaysUseExpandFraming,
+							  bool libloading=false
 							  );
 
-#endif // __BLENDER_CONVERT
+SCA_IInputDevice::KX_EnumInputs ConvertKeyCode(int key_code);
 
+#endif  /* __BL_BLENDERDATACONVERSION_H__ */

@@ -1,6 +1,4 @@
 /*
- * $Id: KX_Camera.cpp 36095 2011-04-11 01:18:25Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -40,19 +38,19 @@
 #include "KX_Python.h"
 #include "KX_PyMath.h"
 KX_Camera::KX_Camera(void* sgReplicationInfo,
-					 SG_Callbacks callbacks,
-					 const RAS_CameraData& camdata,
-					 bool frustum_culling,
-					 bool delete_node)
-					:
-					KX_GameObject(sgReplicationInfo,callbacks),
-					m_camdata(camdata),
-					m_dirty(true),
-					m_normalized(false),
-					m_frustum_culling(frustum_culling),
-					m_set_projection_matrix(false),
-					m_set_frustum_center(false),
-					m_delete_node(delete_node)
+                     SG_Callbacks callbacks,
+                     const RAS_CameraData& camdata,
+                     bool frustum_culling,
+                     bool delete_node)
+    :
+      KX_GameObject(sgReplicationInfo,callbacks),
+      m_camdata(camdata),
+      m_dirty(true),
+      m_normalized(false),
+      m_frustum_culling(frustum_culling),
+      m_set_projection_matrix(false),
+      m_set_frustum_center(false),
+      m_delete_node(delete_node)
 {
 	// setting a name would be nice...
 	m_name = "cam";
@@ -69,7 +67,7 @@ KX_Camera::~KX_Camera()
 		delete m_pSGNode;
 		m_pSGNode = NULL;
 	}
-}	
+}
 
 
 CValue*	KX_Camera::GetReplica()
@@ -121,7 +119,7 @@ const MT_Point3 KX_Camera::GetCameraLocation() const
 	//MT_Transform trans;
 	//trans.setBasis(NodeGetWorldOrientation());
 	
-	return NodeGetWorldPosition();		
+	return NodeGetWorldPosition();
 }
 
 
@@ -135,8 +133,8 @@ const MT_Quaternion KX_Camera::GetCameraOrientation() const
 
 
 /**
-* Sets the projection matrix that is used by the rasterizer.
-*/
+ * Sets the projection matrix that is used by the rasterizer.
+ */
 void KX_Camera::SetProjectionMatrix(const MT_Matrix4x4 & mat)
 {
 	m_projection_matrix = mat;
@@ -148,8 +146,8 @@ void KX_Camera::SetProjectionMatrix(const MT_Matrix4x4 & mat)
 
 
 /**
-* Sets the modelview matrix that is used by the rasterizer.
-*/
+ * Sets the modelview matrix that is used by the rasterizer.
+ */
 void KX_Camera::SetModelviewMatrix(const MT_Matrix4x4 & mat)
 {
 	m_modelview_matrix = mat;
@@ -160,8 +158,8 @@ void KX_Camera::SetModelviewMatrix(const MT_Matrix4x4 & mat)
 
 
 /**
-* Gets the projection matrix that is used by the rasterizer.
-*/
+ * Gets the projection matrix that is used by the rasterizer.
+ */
 const MT_Matrix4x4& KX_Camera::GetProjectionMatrix() const
 {
 	return m_projection_matrix;
@@ -170,8 +168,8 @@ const MT_Matrix4x4& KX_Camera::GetProjectionMatrix() const
 
 
 /**
-* Gets the modelview matrix that is used by the rasterizer.
-*/
+ * Gets the modelview matrix that is used by the rasterizer.
+ */
 const MT_Matrix4x4& KX_Camera::GetModelviewMatrix() const
 {
 	return m_modelview_matrix;
@@ -189,9 +187,9 @@ void KX_Camera::InvalidateProjectionMatrix(bool valid)
 }
 
 
-/*
-* These getters retrieve the clip data and the focal length
-*/
+/**
+ * These getters retrieve the clip data and the focal length
+ */
 float KX_Camera::GetLens() const
 {
 	return m_camdata.m_lens;
@@ -202,7 +200,26 @@ float KX_Camera::GetScale() const
 	return m_camdata.m_scale;
 }
 
+/**
+ * Gets the horizontal size of the sensor - for camera matching.
+ */
+float KX_Camera::GetSensorWidth() const
+{
+	return m_camdata.m_sensor_x;
+}
 
+/**
+ * Gets the vertical size of the sensor - for camera matching.
+ */
+float KX_Camera::GetSensorHeight() const
+{
+	return m_camdata.m_sensor_y;
+}
+/** Gets the mode FOV is calculating from sensor dimensions */
+short KX_Camera::GetSensorFit() const
+{
+	return m_camdata.m_sensor_fit;
+}
 
 float KX_Camera::GetCameraNear() const
 {
@@ -271,38 +288,38 @@ void KX_Camera::ExtractFrustumSphere()
 	if (m_set_frustum_center)
 		return;
 
-    // compute sphere for the general case and not only symmetric frustum:
-    // the mirror code in ImageRender can use very asymmetric frustum.
-    // We will put the sphere center on the line that goes from origin to the center of the far clipping plane
-    // This is the optimal position if the frustum is symmetric or very asymmetric and probably close
-    // to optimal for the general case. The sphere center position is computed so that the distance to 
-    // the near and far extreme frustum points are equal.
+	// compute sphere for the general case and not only symmetric frustum:
+	// the mirror code in ImageRender can use very asymmetric frustum.
+	// We will put the sphere center on the line that goes from origin to the center of the far clipping plane
+	// This is the optimal position if the frustum is symmetric or very asymmetric and probably close
+	// to optimal for the general case. The sphere center position is computed so that the distance to
+	// the near and far extreme frustum points are equal.
 
-    // get the transformation matrix from device coordinate to camera coordinate
+	// get the transformation matrix from device coordinate to camera coordinate
 	MT_Matrix4x4 clip_camcs_matrix = m_projection_matrix;
 	clip_camcs_matrix.invert();
 
-	if (m_projection_matrix[3][3] == MT_Scalar(0.0)) 
+	if (m_projection_matrix[3][3] == MT_Scalar(0.0))
 	{
 		// frustrum projection
 		// detect which of the corner of the far clipping plane is the farthest to the origin
 		MT_Vector4 nfar;    // far point in device normalized coordinate
 		MT_Point3 farpoint; // most extreme far point in camera coordinate
 		MT_Point3 nearpoint;// most extreme near point in camera coordinate
-		MT_Point3 farcenter(0.,0.,0.);// center of far cliping plane in camera coordinate
+		MT_Point3 farcenter(0.0, 0.0, 0.0);// center of far cliping plane in camera coordinate
 		MT_Scalar F=-1.0, N; // square distance of far and near point to origin
 		MT_Scalar f, n;     // distance of far and near point to z axis. f is always > 0 but n can be < 0
 		MT_Scalar e, s;     // far and near clipping distance (<0)
 		MT_Scalar c;        // slope of center line = distance of far clipping center to z axis / far clipping distance
 		MT_Scalar z;        // projection of sphere center on z axis (<0)
 		// tmp value
-		MT_Vector4 npoint(1., 1., 1., 1.);
+		MT_Vector4 npoint(1.0, 1.0, 1.0, 1.0);
 		MT_Vector4 hpoint;
 		MT_Point3 point;
 		MT_Scalar len;
 		for (int i=0; i<4; i++)
 		{
-    		hpoint = clip_camcs_matrix*npoint;
+			hpoint = clip_camcs_matrix*npoint;
 			point.setValue(hpoint[0]/hpoint[3], hpoint[1]/hpoint[3], hpoint[2]/hpoint[3]);
 			len = point.dot(point);
 			if (len > F)
@@ -320,8 +337,8 @@ void KX_Camera::ExtractFrustumSphere()
 		// the far center is the average of the far clipping points
 		farcenter *= 0.25;
 		// the extreme near point is the opposite point on the near clipping plane
-		nfar.setValue(-nfar[0], -nfar[1], -1., 1.);
-   		nfar = clip_camcs_matrix*nfar;
+		nfar.setValue(-nfar[0], -nfar[1], -1.0, 1.0);
+		nfar = clip_camcs_matrix*nfar;
 		nearpoint.setValue(nfar[0]/nfar[3], nfar[1]/nfar[3], nfar[2]/nfar[3]);
 		// this is a frustrum projection
 		N = nearpoint.dot(nearpoint);
@@ -340,12 +357,12 @@ void KX_Camera::ExtractFrustumSphere()
 		z = (F-N)/(2.0*(e-s+c*(f-n)));
 		m_frustum_center = MT_Point3(farcenter[0]*z/e, farcenter[1]*z/e, z);
 		m_frustum_radius = m_frustum_center.distance(farpoint);
-	} 
+	}
 	else
 	{
 		// orthographic projection
 		// The most extreme points on the near and far plane. (normalized device coords)
-		MT_Vector4 hnear(1., 1., 1., 1.), hfar(-1., -1., -1., 1.);
+		MT_Vector4 hnear(1.0, 1.0, 1.0, 1.0), hfar(-1.0, -1.0, -1.0, 1.0);
 		
 		// Transform to hom camera local space
 		hnear = clip_camcs_matrix*hnear;
@@ -370,9 +387,9 @@ bool KX_Camera::PointInsideFrustum(const MT_Point3& x)
 {
 	ExtractClipPlanes();
 	
-	for( unsigned int i = 0; i < 6 ; i++ )
+	for ( unsigned int i = 0; i < 6 ; i++ )
 	{
-		if (m_planes[i][0]*x[0] + m_planes[i][1]*x[1] + m_planes[i][2]*x[2] + m_planes[i][3] < 0.)
+		if (m_planes[i][0] * x[0] + m_planes[i][1] * x[1] + m_planes[i][2] * x[2] + m_planes[i][3] < 0.0)
 			return false;
 	}
 	return true;
@@ -384,13 +401,13 @@ int KX_Camera::BoxInsideFrustum(const MT_Point3 *box)
 	
 	unsigned int insideCount = 0;
 	// 6 view frustum planes
-	for( unsigned int p = 0; p < 6 ; p++ )
+	for ( unsigned int p = 0; p < 6 ; p++ )
 	{
 		unsigned int behindCount = 0;
 		// 8 box vertices.
 		for (unsigned int v = 0; v < 8 ; v++)
 		{
-			if (m_planes[p][0]*box[v][0] + m_planes[p][1]*box[v][1] + m_planes[p][2]*box[v][2] + m_planes[p][3] < 0.)
+			if (m_planes[p][0] * box[v][0] + m_planes[p][1] * box[v][1] + m_planes[p][2] * box[v][2] + m_planes[p][3] < 0.0)
 				behindCount++;
 		}
 		
@@ -576,7 +593,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, sphereInsideFrustum,
 		MT_Point3 center;
 		if (PyVecTo(pycenter, center))
 		{
-			return PyLong_FromSsize_t(SphereInsideFrustum(center, radius)); /* new ref */
+			return PyLong_FromLong(SphereInsideFrustum(center, radius)); /* new ref */
 		}
 	}
 
@@ -627,7 +644,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, boxInsideFrustum,
 			return NULL;
 	}
 	
-	return PyLong_FromSsize_t(BoxInsideFrustum(box)); /* new ref */
+	return PyLong_FromLong(BoxInsideFrustum(box)); /* new ref */
 }
 
 KX_PYMETHODDEF_DOC_O(KX_Camera, pointInsideFrustum,
@@ -649,7 +666,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, pointInsideFrustum,
 	MT_Point3 point;
 	if (PyVecTo(value, point))
 	{
-		return PyLong_FromSsize_t(PointInsideFrustum(point)); /* new ref */
+		return PyLong_FromLong(PointInsideFrustum(point)); /* new ref */
 	}
 	
 	PyErr_SetString(PyExc_TypeError, "camera.pointInsideFrustum(point): KX_Camera, expected point argument.");
@@ -695,15 +712,15 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_Camera, setOnTop,
 	Py_RETURN_NONE;
 }
 
-PyObject* KX_Camera::pyattr_get_perspective(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_perspective(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyBool_FromLong(self->m_camdata.m_perspective);
 }
 
 int KX_Camera::pyattr_set_perspective(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	int param = PyObject_IsTrue( value );
 	if (param == -1) {
 		PyErr_SetString(PyExc_AttributeError, "camera.perspective = bool: KX_Camera, expected True/False or 0/1");
@@ -715,15 +732,15 @@ int KX_Camera::pyattr_set_perspective(void *self_v, const KX_PYATTRIBUTE_DEF *at
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject* KX_Camera::pyattr_get_lens(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_lens(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyFloat_FromDouble(self->m_camdata.m_lens);
 }
 
 int KX_Camera::pyattr_set_lens(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
 	if (param == -1) {
 		PyErr_SetString(PyExc_AttributeError, "camera.lens = float: KX_Camera, expected a float greater then zero");
@@ -735,15 +752,15 @@ int KX_Camera::pyattr_set_lens(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, 
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject* KX_Camera::pyattr_get_ortho_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_ortho_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyFloat_FromDouble(self->m_camdata.m_scale);
 }
 
 int KX_Camera::pyattr_set_ortho_scale(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
 	if (param == -1) {
 		PyErr_SetString(PyExc_AttributeError, "camera.ortho_scale = float: KX_Camera, expected a float greater then zero");
@@ -755,15 +772,15 @@ int KX_Camera::pyattr_set_ortho_scale(void *self_v, const KX_PYATTRIBUTE_DEF *at
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject* KX_Camera::pyattr_get_near(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_near(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyFloat_FromDouble(self->m_camdata.m_clipstart);
 }
 
 int KX_Camera::pyattr_set_near(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
 	if (param == -1) {
 		PyErr_SetString(PyExc_AttributeError, "camera.near = float: KX_Camera, expected a float greater then zero");
@@ -775,15 +792,15 @@ int KX_Camera::pyattr_set_near(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, 
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject* KX_Camera::pyattr_get_far(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_far(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyFloat_FromDouble(self->m_camdata.m_clipend);
 }
 
 int KX_Camera::pyattr_set_far(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
 	if (param == -1) {
 		PyErr_SetString(PyExc_AttributeError, "camera.far = float: KX_Camera, expected a float greater then zero");
@@ -796,15 +813,15 @@ int KX_Camera::pyattr_set_far(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, P
 }
 
 
-PyObject* KX_Camera::pyattr_get_use_viewport(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_use_viewport(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyBool_FromLong(self->GetViewport());
 }
 
 int KX_Camera::pyattr_set_use_viewport(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	int param = PyObject_IsTrue( value );
 	if (param == -1) {
 		PyErr_SetString(PyExc_AttributeError, "camera.useViewport = bool: KX_Camera, expected True or False");
@@ -815,15 +832,15 @@ int KX_Camera::pyattr_set_use_viewport(void *self_v, const KX_PYATTRIBUTE_DEF *a
 }
 
 
-PyObject* KX_Camera::pyattr_get_projection_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_projection_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyObjectFrom(self->GetProjectionMatrix()); 
 }
 
 int KX_Camera::pyattr_set_projection_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	MT_Matrix4x4 mat;
 	if (!PyMatTo(value, mat)) 
 		return PY_SET_ATTR_FAIL;
@@ -832,34 +849,34 @@ int KX_Camera::pyattr_set_projection_matrix(void *self_v, const KX_PYATTRIBUTE_D
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject* KX_Camera::pyattr_get_modelview_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_modelview_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyObjectFrom(self->GetModelviewMatrix()); 
 }
 
-PyObject* KX_Camera::pyattr_get_camera_to_world(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_camera_to_world(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyObjectFrom(self->GetCameraToWorld());
 }
 
-PyObject* KX_Camera::pyattr_get_world_to_camera(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_Camera::pyattr_get_world_to_camera(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_Camera* self= static_cast<KX_Camera*>(self_v);
+	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	return PyObjectFrom(self->GetWorldToCamera()); 
 }
 
 
-PyObject* KX_Camera::pyattr_get_INSIDE(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{	return PyLong_FromSsize_t(INSIDE); }
-PyObject* KX_Camera::pyattr_get_OUTSIDE(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{	return PyLong_FromSsize_t(OUTSIDE); }
-PyObject* KX_Camera::pyattr_get_INTERSECT(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
-{	return PyLong_FromSsize_t(INTERSECT); }
+PyObject *KX_Camera::pyattr_get_INSIDE(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{	return PyLong_FromLong(INSIDE); }
+PyObject *KX_Camera::pyattr_get_OUTSIDE(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{	return PyLong_FromLong(OUTSIDE); }
+PyObject *KX_Camera::pyattr_get_INTERSECT(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{	return PyLong_FromLong(INTERSECT); }
 
 
-bool ConvertPythonToCamera(PyObject * value, KX_Camera **object, bool py_none_ok, const char *error_prefix)
+bool ConvertPythonToCamera(PyObject *value, KX_Camera **object, bool py_none_ok, const char *error_prefix)
 {
 	if (value==NULL) {
 		PyErr_Format(PyExc_TypeError, "%s, python pointer NULL, should never happen", error_prefix);
@@ -885,7 +902,9 @@ bool ConvertPythonToCamera(PyObject * value, KX_Camera **object, bool py_none_ok
 		if (*object) {
 			return true;
 		} else {
-			PyErr_Format(PyExc_ValueError, "%s, requested name \"%s\" did not match any KX_Camera in this scene", error_prefix, _PyUnicode_AsString(value));
+			PyErr_Format(PyExc_ValueError,
+			             "%s, requested name \"%s\" did not match any KX_Camera in this scene",
+			             error_prefix, _PyUnicode_AsString(value));
 			return false;
 		}
 	}
@@ -923,7 +942,9 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 
 	if (!PyVecTo(value, vect))
 	{
-		if(ConvertPythonToGameObject(value, &obj, true, ""))
+		PyErr_Clear();
+
+		if (ConvertPythonToGameObject(value, &obj, true, ""))
 		{
 			PyErr_Clear();
 			vect = MT_Vector3(obj->NodeGetWorldPosition());
@@ -935,7 +956,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 		}
 	}
 
-	GLint viewport[4];
+	const GLint *viewport;
 	GLdouble win[3];
 	GLdouble modelmatrix[16];
 	GLdouble projmatrix[16];
@@ -946,7 +967,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 	m_modelmatrix.getValue(modelmatrix);
 	m_projmatrix.getValue(projmatrix);
 
-	glGetIntegerv(GL_VIEWPORT, viewport);
+	viewport = KX_GetActiveEngine()->GetCanvas()->GetViewPort();
 
 	gluProject(vect[0], vect[1], vect[2], modelmatrix, projmatrix, viewport, &win[0], &win[1], &win[2]);
 
@@ -955,8 +976,8 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 
 	vect[1] = 1.0 - vect[1]; //to follow Blender window coordinate system (Top-Down)
 
-	PyObject* ret = PyTuple_New(2);
-	if(ret){
+	PyObject *ret = PyTuple_New(2);
+	if (ret) {
 		PyTuple_SET_ITEM(ret, 0, PyFloat_FromDouble(vect[0]));
 		PyTuple_SET_ITEM(ret, 1, PyFloat_FromDouble(vect[1]));
 		return ret;
@@ -978,7 +999,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 	MT_Vector3 vect;
 	MT_Point3 campos, screenpos;
 
-	GLint viewport[4];
+	const GLint *viewport;
 	GLdouble win[3];
 	GLdouble modelmatrix[16];
 	GLdouble projmatrix[16];
@@ -989,7 +1010,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 	m_modelmatrix.getValue(modelmatrix);
 	m_projmatrix.getValue(projmatrix);
 
-	glGetIntegerv(GL_VIEWPORT, viewport);
+	viewport = KX_GetActiveEngine()->GetCanvas()->GetViewPort();
 
 	vect[0] = x * viewport[2];
 	vect[1] = y * viewport[3];
@@ -997,7 +1018,8 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 	vect[0] += viewport[0];
 	vect[1] += viewport[1];
 
-	glReadPixels(x, y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &vect[2]);
+	vect[2] = 0.f;
+
 	gluUnProject(vect[0], vect[1], vect[2], modelmatrix, projmatrix, viewport, &win[0], &win[1], &win[2]);
 
 	campos = this->GetCameraLocation();
@@ -1019,17 +1041,17 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay,
 	if (!PyArg_ParseTuple(args,"ddd|s:getScreenRay",&x,&y,&dist,&propName))
 		return NULL;
 
-	PyObject* argValue = PyTuple_New(2);
-	if (argValue) {
-		PyTuple_SET_ITEM(argValue, 0, PyFloat_FromDouble(x));
-		PyTuple_SET_ITEM(argValue, 1, PyFloat_FromDouble(y));
-	}
+	PyObject *argValue = PyTuple_New(2);
+	PyTuple_SET_ITEM(argValue, 0, PyFloat_FromDouble(x));
+	PyTuple_SET_ITEM(argValue, 1, PyFloat_FromDouble(y));
 
-	if(!PyVecTo(PygetScreenVect(argValue), vect))
+	if (!PyVecTo(PygetScreenVect(argValue), vect))
 	{
 		Py_DECREF(argValue);
 		PyErr_SetString(PyExc_TypeError,
-			"Error in getScreenRay. Invalid 2D coordinate. Expected a normalized 2D screen coordinate, a distance and an optional property argument");
+		                "Error in getScreenRay. Invalid 2D coordinate. "
+		                "Expected a normalized 2D screen coordinate, "
+		                "a distance and an optional property argument");
 		return NULL;
 	}
 	Py_DECREF(argValue);
@@ -1044,7 +1066,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenRay,
 		if (propName)
 			PyTuple_SET_ITEM(argValue, 2, PyUnicode_FromString(propName));
 
-		PyObject* ret= this->PyrayCastTo(argValue,NULL);
+		PyObject *ret= this->PyrayCastTo(argValue,NULL);
 		Py_DECREF(argValue);
 		return ret;
 	}

@@ -1,6 +1,4 @@
 /*
- * $Id: BIF_gl.h 36025 2011-04-05 23:55:52Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,25 +30,35 @@
  *  \ingroup editorui
  */
 
-#ifndef BIF_GL_H
-#define BIF_GL_H
+#ifndef __BIF_GL_H__
+#define __BIF_GL_H__
 
 #include "GL/glew.h"
 
-	/*
-	 * these should be phased out. cpack should be replaced in
-	 * code with calls to glColor3ub. - zr
-	 */
+#ifdef __APPLE__
+
+/* hacking pointsize and linewidth */
+#define glPointSize(f)	glPointSize(U.pixelsize*(f))
+#define glLineWidth(f)	glLineWidth(U.pixelsize*(f))
+
+#endif
+
+/*
+ * these should be phased out. cpack should be replaced in
+ * code with calls to glColor3ub. - zr
+ */
 /* 
  *
  * This define converts a numerical value to the equivalent 24-bit
  * color, while not being endian-sensitive. On little-endians, this
- * is the same as doing a 'naive'indexing, on big-endian, it is not!
+ * is the same as doing a 'naive' indexing, on big-endian, it is not!
  * */
-#define cpack(x)	glColor3ub( ((x)&0xFF), (((x)>>8)&0xFF), (((x)>>16)&0xFF) )
+#define cpack(x)    glColor3ub( ((x) & 0xFF), (((x) >> 8) & 0xFF), (((x) >> 16) & 0xFF) )
 
-#define glMultMatrixf(x)		glMultMatrixf( (float *)(x))
-#define glLoadMatrixf(x)		glLoadMatrixf( (float *)(x))
+#define glMultMatrixf(x)  glMultMatrixf( (float *)(x))
+#define glLoadMatrixf(x)  glLoadMatrixf( (float *)(x))
 
-#endif /* #ifdef BIF_GL_H */
+#define GLA_PIXEL_OFS 0.375f
+
+#endif /* #ifdef __BIF_GL_H__ */
 

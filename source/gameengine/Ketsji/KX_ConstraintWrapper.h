@@ -1,6 +1,4 @@
 /*
- * $Id: KX_ConstraintWrapper.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,26 +29,26 @@
  *  \ingroup ketsji
  */
 
-#ifndef KX_CONSTRAINT_WRAPPER
-#define KX_CONSTRAINT_WRAPPER
+#ifndef __KX_CONSTRAINTWRAPPER_H__
+#define __KX_CONSTRAINTWRAPPER_H__
 
 #include "Value.h"
 #include "PHY_DynamicTypes.h"
 
 class	KX_ConstraintWrapper : public PyObjectPlus
 {
-	Py_Header;
+	Py_Header
 public:
 	KX_ConstraintWrapper(PHY_ConstraintType ctype,int constraintId,class PHY_IPhysicsEnvironment* physenv);
 	virtual ~KX_ConstraintWrapper ();
-	int			getConstraintId() { return m_constraintId;};
+	int			getConstraintId() { return m_constraintId; }
 	
 #ifdef WITH_PYTHON
 	KX_PYMETHOD_NOARGS(KX_ConstraintWrapper,GetConstraintId);
 	KX_PYMETHOD(KX_ConstraintWrapper,SetParam);
 	KX_PYMETHOD(KX_ConstraintWrapper,GetParam);
 
-	static PyObject* pyattr_get_constraintId(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *pyattr_get_constraintId(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 #endif
 
 private:
@@ -59,5 +57,4 @@ private:
 	PHY_IPhysicsEnvironment* m_physenv;
 };
 
-#endif //KX_CONSTRAINT_WRAPPER
-
+#endif  /* __KX_CONSTRAINTWRAPPER_H__ */

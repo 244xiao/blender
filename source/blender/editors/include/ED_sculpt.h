@@ -1,6 +1,4 @@
 /*
- * $Id: ED_sculpt.h 35016 2011-02-21 07:25:24Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -29,11 +27,12 @@
  *  \ingroup editors
  */
 
-#ifndef ED_SCULPT_H
-#define ED_SCULPT_H
+#ifndef __ED_SCULPT_H__
+#define __ED_SCULPT_H__
 
 struct ARegion;
 struct bContext;
+struct MultiresModifierData;
 struct Object;
 struct RegionView3D;
 struct wmKeyConfig;
@@ -42,17 +41,25 @@ struct wmWindowManager;
 /* sculpt.c */
 void ED_operatortypes_sculpt(void);
 void sculpt_get_redraw_planes(float planes[4][4], struct ARegion *ar,
-				   struct RegionView3D *rv3d, struct Object *ob);
+                              struct RegionView3D *rv3d, struct Object *ob);
 void ED_sculpt_force_update(struct bContext *C);
-void ED_sculpt_modifiers_changed(struct Object *ob);
+float *ED_sculpt_get_last_stroke(struct Object *ob);
+void ED_sculpt_get_average_stroke(struct Object *ob, float stroke[3]);
+int ED_sculpt_minmax(struct bContext *C, float min[3], float max[3]);
+int ED_sculpt_mask_layers_ensure(struct Object *ob,
+                                  struct MultiresModifierData *mmd);
+enum {
+	ED_SCULPT_MASK_LAYER_CALC_VERT = (1 << 0),
+	ED_SCULPT_MASK_LAYER_CALC_LOOP = (1 << 1)
+};
 
 /* paint_ops.c */
 void ED_operatortypes_paint(void);
 void ED_keymap_paint(struct wmKeyConfig *keyconf);
 
 /* paint_undo.c */
-#define UNDO_PAINT_IMAGE	0
-#define UNDO_PAINT_MESH		1
+#define UNDO_PAINT_IMAGE    0
+#define UNDO_PAINT_MESH     1
 
 int ED_undo_paint_step(struct bContext *C, int type, int step, const char *name);
 void ED_undo_paint_free(void);

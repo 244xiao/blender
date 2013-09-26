@@ -1,6 +1,4 @@
 /*
- * $Id: KX_ISceneConverter.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_ISCENECONVERTER_H
-#define __KX_ISCENECONVERTER_H
+#ifndef __KX_ISCENECONVERTER_H__
+#define __KX_ISCENECONVERTER_H__
 
 #include "STR_String.h"
 #include "KX_Python.h"
@@ -51,17 +49,21 @@ public:
 	virtual ~KX_ISceneConverter () {};
 
 	/*
-	scenename: name of the scene to be converted,
-		if the scenename is empty, convert the 'default' scene (whatever this means)
-	destinationscene: pass an empty scene, everything goes into this
-	dictobj: python dictionary (for pythoncontrollers)
-	*/
+	 * scenename: name of the scene to be converted,
+	 * if the scenename is empty, convert the 'default' scene (whatever this means)
+	 * destinationscene: pass an empty scene, everything goes into this
+	 * dictobj: python dictionary (for pythoncontrollers)
+	 */
 	virtual void ConvertScene(
 		class KX_Scene* destinationscene,
 		class RAS_IRenderTools* rendertools, 
-		class RAS_ICanvas*  canvas)=0;
+		class RAS_ICanvas*  canvas,
+		bool libloading=false)=0;
 	
 	virtual void RemoveScene(class KX_Scene *scene)=0;
+
+	// handle any pending merges from asynchronous loads
+	virtual void MergeAsyncLoads()=0;
 
 	virtual void	SetAlwaysUseExpandFraming(bool to_what) = 0;
 
@@ -87,15 +89,16 @@ public:
 	virtual void SetGLSLMaterials(bool val) =0;
 	virtual bool GetGLSLMaterials()=0;
 
+	// cache materials during conversion
+	virtual void SetCacheMaterials(bool val) =0;
+	virtual bool GetCacheMaterials()=0;
+
 	virtual struct Scene* GetBlenderSceneForName(const STR_String& name)=0;
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_ISceneConverter"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_ISceneConverter")
 #endif
 };
 
-#endif //__KX_ISCENECONVERTER_H
-
+#endif  /* __KX_ISCENECONVERTER_H__ */

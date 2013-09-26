@@ -1,6 +1,4 @@
 /*
- * $Id: KX_BlenderKeyboardDevice.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup blroutines
  */
 
-#ifndef __KX_BLENDERKEYBOARDDEVICE
-#define __KX_BLENDERKEYBOARDDEVICE
+#ifndef __KX_BLENDERKEYBOARDDEVICE_H__
+#define __KX_BLENDERKEYBOARDDEVICE_H__
 
 #include "KX_BlenderInputDevice.h"
 
@@ -52,14 +50,13 @@ public:
 	virtual bool	ConvertBlenderEvent(unsigned short incode,short val);
 	virtual void	NextFrame();
 	virtual void	HookEscape();
+private:
+	/* short		m_exit_key; */ /* UNUSED */
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_BlenderKeyboardDevice"); }
-	void operator delete(void *mem) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BlenderKeyboardDevice")
 #endif
 };
 
-#endif //__KX_BLENDERKEYBOARDDEVICE
-
+#endif  /* __KX_BLENDERKEYBOARDDEVICE_H__ */

@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_texture_types.h 34941 2011-02-17 20:48:12Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +24,6 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_TEXTURE_TYPES_H
-#define DNA_TEXTURE_TYPES_H
 
 /** \file DNA_texture_types.h
  *  \ingroup DNA
@@ -35,6 +31,10 @@
  *  \author nzc
  */
 
+#ifndef __DNA_TEXTURE_TYPES_H__
+#define __DNA_TEXTURE_TYPES_H__
+
+#include "DNA_defs.h"
 #include "DNA_ID.h"
 #include "DNA_image_types.h" /* ImageUser */
 
@@ -44,7 +44,6 @@ extern "C" {
 
 struct AnimData;
 struct Ipo;
-struct PluginTex;
 struct ColorBand;
 struct EnvMap;
 struct Object;
@@ -52,13 +51,15 @@ struct Tex;
 struct Image;
 struct PreviewImage;
 struct ImBuf;
+struct Ocean;
+struct CurveMapping;
 
 typedef struct MTex {
 
 	short texco, mapto, maptoneg, blendtype;
 	struct Object *object;
 	struct Tex *tex;
-	char uvname[32];
+	char uvname[64];	/* MAX_CUSTOMDATA_LAYER_NAME */
 	
 	char projx, projy, projz, mapping;
 	float ofs[3], size[3], rot;
@@ -95,36 +96,12 @@ typedef struct MTex {
 #ifndef DNA_USHORT_FIX
 #define DNA_USHORT_FIX
 /**
- * @deprecated This typedef serves to avoid badly typed functions when
- * @deprecated compiling while delivering a proper dna.c. Do not use
- * @deprecated it in any case.
+ * \deprecated This typedef serves to avoid badly typed functions when
+ * \deprecated compiling while delivering a proper dna.c. Do not use
+ * \deprecated it in any case.
  */
 typedef unsigned short dna_ushort_fix;
 #endif
-
-typedef struct PluginTex {
-	char name[160];
-	void *handle;
-	
-	char *pname;
-	char *stnames;
-
-	int stypes;
-	int vars;
-	void *varstr;
-	float *result;
-	float *cfra;
-	
-	float data[32];
-
-	int (*doit)(void);
-	void (*instance_init)(void *);
-
-	/* should be void (*)(unsigned short)... patched */	
-	void (*callback)(dna_ushort_fix);
-	
-	int version, pad;
-} PluginTex;
 
 typedef struct CBData {
 	float r, g, b, a, pos;
@@ -181,9 +158,10 @@ typedef struct PointDensity {
 	short pdpad3[3];
 	float noise_fac;
 	
-	float speed_scale;
+	float speed_scale, falloff_speed_scale, pdpad2;
 	struct ColorBand *coba;	/* for time -> color */
 	
+	struct CurveMapping *falloff_curve; /* falloff density curve */
 } PointDensity;
 
 typedef struct VoxelData {
@@ -193,11 +171,14 @@ typedef struct VoxelData {
 	short flag;
 	short extend;
 	short smoked_type;
+	short data_type;
+	short pad;
+	int _pad;
 	
 	struct Object *object; /* for rendering smoke sims */
-	float int_multiplier;	
+	float int_multiplier;
 	int still_frame;
-	char source_path[240];
+	char source_path[1024];  /* 1024 = FILE_MAX */
 
 	/* temporary data */
 	float *dataset;
@@ -206,6 +187,15 @@ typedef struct VoxelData {
 	
 } VoxelData;
 
+typedef struct OceanTex {
+	struct Object *object;
+	char oceanmod[64];
+	
+	int output;
+	int pad;
+	
+} OceanTex;
+	
 typedef struct Tex {
 	ID id;
 	struct AnimData *adt;	/* animation data (must be immediately after id for utilities to use it) */ 
@@ -217,10 +207,10 @@ typedef struct Tex {
 	/* newnoise: musgrave parameters */
 	float mg_H, mg_lacunarity, mg_octaves, mg_offset, mg_gain;
 
-	/* newnoise: distorted noise amount, musgrave & voronoi ouput scale */
+	/* newnoise: distorted noise amount, musgrave & voronoi output scale */
 	float dist_amount, ns_outscale;
 
-	/* newnoise: voronoi nearest neighbour weights, minkovsky exponent, distance metric & color type */
+	/* newnoise: voronoi nearest neighbor weights, minkovsky exponent, distance metric & color type */
 	float vn_w1;
 	float vn_w2;
 	float vn_w3;
@@ -253,25 +243,27 @@ typedef struct Tex {
 	struct ImageUser iuser;
 	
 	struct bNodeTree *nodetree;
-	struct Ipo *ipo;				// XXX depreceated... old animation system
+	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
 	struct Image *ima;
-	struct PluginTex *plugin;
 	struct ColorBand *coba;
 	struct EnvMap *env;
-	struct PreviewImage * preview;
+	struct PreviewImage *preview;
 	struct PointDensity *pd;
 	struct VoxelData *vd;
+	struct OceanTex *ot;
 	
 	char use_nodes;
 	char pad[7];
 	
 } Tex;
 
-/* used for mapping node. note: rot is in degrees */
+/* used for mapping and texture nodes. note: rot is now in radians */
 
 typedef struct TexMapping {
 	float loc[3], rot[3], size[3];
 	int flag;
+	char projx, projy, projz, mapping;
+	int pad;
 	
 	float mat[4][4];
 	float min[3], max[3];
@@ -279,10 +271,24 @@ typedef struct TexMapping {
 
 } TexMapping;
 
-/* texmap->flag */
-#define TEXMAP_CLIP_MIN	1
-#define TEXMAP_CLIP_MAX	2
+typedef struct ColorMapping {
+	struct ColorBand coba;
 
+	float bright, contrast, saturation;
+	int flag;
+
+	float blend_color[3];
+	float blend_factor;
+	int blend_type, pad[3];
+} ColorMapping;
+
+/* texmap->flag */
+#define TEXMAP_CLIP_MIN		1
+#define TEXMAP_CLIP_MAX		2
+#define TEXMAP_UNIT_MATRIX	4
+
+/* colormap->flag */
+#define COLORMAP_USE_RAMP 1
 
 /* **************** TEX ********************* */
 
@@ -295,13 +301,14 @@ typedef struct TexMapping {
 #define TEX_STUCCI		6
 #define TEX_NOISE		7
 #define TEX_IMAGE		8
-#define TEX_PLUGIN		9
+//#define TEX_PLUGIN		9 /* Deprecated */
 #define TEX_ENVMAP		10
 #define TEX_MUSGRAVE	11
 #define TEX_VORONOI		12
 #define TEX_DISTNOISE	13
 #define TEX_POINTDENSITY	14
 #define TEX_VOXELDATA		15
+#define TEX_OCEAN		16
 
 /* musgrave stype */
 #define TEX_MFRACTAL		0
@@ -340,6 +347,7 @@ typedef struct TexMapping {
 #define TEX_NORMALMAP	2048
 #define TEX_GAUSS_MIP	4096
 #define TEX_FILTER_MIN	8192
+#define TEX_DERIVATIVEMAP	16384
 
 /* texfilter */
 // TXF_BOX -> blender's old texture filtering method
@@ -463,6 +471,9 @@ typedef struct TexMapping {
 #define MTEX_5TAP_BUMP		512
 #define MTEX_BUMP_OBJECTSPACE	1024
 #define MTEX_BUMP_TEXTURESPACE	2048
+/* #define MTEX_BUMP_FLIPPED 	4096 */ /* UNUSED */
+#define MTEX_BICUBIC_BUMP		8192
+#define MTEX_MAPTO_BOUNDS		16384
 
 /* blendtype */
 #define MTEX_BLEND		0
@@ -479,14 +490,17 @@ typedef struct TexMapping {
 #define MTEX_BLEND_SAT		11
 #define MTEX_BLEND_VAL		12
 #define MTEX_BLEND_COLOR	13
-#define MTEX_NUM_BLENDTYPES	14
+/* free for use */
 #define MTEX_SOFT_LIGHT     15 
 #define MTEX_LIN_LIGHT      16
 
 /* brush_map_mode */
-#define MTEX_MAP_MODE_FIXED    0
+#define MTEX_MAP_MODE_VIEW     0
 #define MTEX_MAP_MODE_TILED    1
 #define MTEX_MAP_MODE_3D       2
+#define MTEX_MAP_MODE_AREA     3
+#define MTEX_MAP_MODE_RANDOM   4
+#define MTEX_MAP_MODE_STENCIL  5
 
 /* **************** EnvMap ********************* */
 
@@ -517,6 +531,8 @@ typedef struct TexMapping {
 #define TEX_PD_FALLOFF_SOFT		2
 #define TEX_PD_FALLOFF_CONSTANT	3
 #define TEX_PD_FALLOFF_ROOT		4
+#define TEX_PD_FALLOFF_PARTICLE_AGE 5
+#define TEX_PD_FALLOFF_PARTICLE_VEL 6
 
 /* psys_cache_space */
 #define TEX_PD_OBJECTLOC	0
@@ -524,8 +540,8 @@ typedef struct TexMapping {
 #define TEX_PD_WORLDSPACE	2
 
 /* flag */
-#define TEX_PD_TURBULENCE	1
-
+#define TEX_PD_TURBULENCE		1
+#define TEX_PD_FALLOFF_CURVE	2
 
 /* noise_influence */
 #define TEX_PD_NOISE_STATIC		0
@@ -567,7 +583,24 @@ typedef struct TexMapping {
 #define TEX_VD_SMOKEDENSITY		0
 #define TEX_VD_SMOKEHEAT		1
 #define TEX_VD_SMOKEVEL			2
+#define TEX_VD_SMOKEFLAME		3
 
+/* data_type */
+#define TEX_VD_INTENSITY		0
+#define TEX_VD_RGBA_PREMUL		1
+
+/******************** Ocean *****************************/
+/* output */
+#define TEX_OCN_DISPLACEMENT	1
+#define TEX_OCN_FOAM			2
+#define TEX_OCN_JPLUS			3
+#define TEX_OCN_EMINUS			4	
+#define TEX_OCN_EPLUS			5
+
+/* flag */
+#define TEX_OCN_GENERATE_NORMALS	1	
+#define TEX_OCN_XZ				2	
+	
 #ifdef __cplusplus
 }
 #endif

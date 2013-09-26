@@ -1,6 +1,4 @@
 /*
- * $Id: outliner_ops.c 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,26 +28,24 @@
  *  \ingroup spoutliner
  */
 
-
-#include <stdlib.h>
-
 #include "DNA_space_types.h"
+
+#include "BLI_utildefines.h"
+
+#include "RNA_access.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "RNA_access.h"
-
-
 #include "outliner_intern.h"
 
+
 /* ************************** registration **********************************/
-
-
 
 void outliner_operatortypes(void)
 {
 	WM_operatortype_append(OUTLINER_OT_item_activate);
+	WM_operatortype_append(OUTLINER_OT_select_border);
 	WM_operatortype_append(OUTLINER_OT_item_openclose);
 	WM_operatortype_append(OUTLINER_OT_item_rename);
 	WM_operatortype_append(OUTLINER_OT_operation);
@@ -57,6 +53,8 @@ void outliner_operatortypes(void)
 	WM_operatortype_append(OUTLINER_OT_group_operation);
 	WM_operatortype_append(OUTLINER_OT_id_operation);
 	WM_operatortype_append(OUTLINER_OT_data_operation);
+	WM_operatortype_append(OUTLINER_OT_animdata_operation);
+	WM_operatortype_append(OUTLINER_OT_action_set);
 
 	WM_operatortype_append(OUTLINER_OT_show_one_level);
 	WM_operatortype_append(OUTLINER_OT_show_active);
@@ -75,19 +73,43 @@ void outliner_operatortypes(void)
 	
 	WM_operatortype_append(OUTLINER_OT_drivers_add_selected);
 	WM_operatortype_append(OUTLINER_OT_drivers_delete_selected);
+
+	WM_operatortype_append(OUTLINER_OT_parent_drop);
+	WM_operatortype_append(OUTLINER_OT_parent_clear);
+	WM_operatortype_append(OUTLINER_OT_scene_drop);
+	WM_operatortype_append(OUTLINER_OT_material_drop);
 }
 
 void outliner_keymap(wmKeyConfig *keyconf)
 {
-	wmKeyMap *keymap= WM_keymap_find(keyconf, "Outliner", SPACE_OUTLINER, 0);
+	wmKeyMap *keymap = WM_keymap_find(keyconf, "Outliner", SPACE_OUTLINER, 0);
+	wmKeyMapItem *kmi;
 	
 	WM_keymap_add_item(keymap, "OUTLINER_OT_item_rename", LEFTMOUSE, KM_DBL_CLICK, 0, 0);
+
+	kmi = WM_keymap_add_item(keymap, "OUTLINER_OT_item_activate", LEFTMOUSE, KM_CLICK, 0, 0);
+	RNA_boolean_set(kmi->ptr, "recursive", FALSE);
+	RNA_boolean_set(kmi->ptr, "extend", FALSE);
+
+	kmi = WM_keymap_add_item(keymap, "OUTLINER_OT_item_activate", LEFTMOUSE, KM_CLICK, KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "recursive", FALSE);
+	RNA_boolean_set(kmi->ptr, "extend", TRUE);
+
+	kmi = WM_keymap_add_item(keymap, "OUTLINER_OT_item_activate", LEFTMOUSE, KM_CLICK, KM_CTRL, 0);
+	RNA_boolean_set(kmi->ptr, "recursive", TRUE);
+	RNA_boolean_set(kmi->ptr, "extend", FALSE);
+
+	kmi = WM_keymap_add_item(keymap, "OUTLINER_OT_item_activate", LEFTMOUSE, KM_CLICK, KM_CTRL | KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "recursive", TRUE);
+	RNA_boolean_set(kmi->ptr, "extend", TRUE);
+
+
+	WM_keymap_add_item(keymap, "OUTLINER_OT_select_border", BKEY, KM_PRESS, 0, 0);
 	
-	RNA_boolean_set(WM_keymap_add_item(keymap, "OUTLINER_OT_item_activate", LEFTMOUSE, KM_RELEASE, 0, 0)->ptr, "extend", 0);
-	RNA_boolean_set(WM_keymap_add_item(keymap, "OUTLINER_OT_item_activate", LEFTMOUSE, KM_PRESS, KM_SHIFT, 0)->ptr, "extend", 1);
-	
-	RNA_boolean_set(WM_keymap_add_item(keymap, "OUTLINER_OT_item_openclose", RETKEY, KM_PRESS, 0, 0)->ptr, "all", 0);
-	RNA_boolean_set(WM_keymap_add_item(keymap, "OUTLINER_OT_item_openclose", RETKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "all", 1);
+	kmi = WM_keymap_add_item(keymap, "OUTLINER_OT_item_openclose", RETKEY, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "all", FALSE);
+	kmi = WM_keymap_add_item(keymap, "OUTLINER_OT_item_openclose", RETKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "all", TRUE);
 	
 	WM_keymap_add_item(keymap, "OUTLINER_OT_item_rename", LEFTMOUSE, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "OUTLINER_OT_operation", RIGHTMOUSE, KM_PRESS, 0, 0);
@@ -98,10 +120,12 @@ void outliner_keymap(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "OUTLINER_OT_show_active", PADPERIOD, KM_PRESS, 0, 0);
 	
 	WM_keymap_add_item(keymap, "OUTLINER_OT_scroll_page", PAGEDOWNKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(WM_keymap_add_item(keymap, "OUTLINER_OT_scroll_page", PAGEUPKEY, KM_PRESS, 0, 0)->ptr, "up", 1);
+	kmi = WM_keymap_add_item(keymap, "OUTLINER_OT_scroll_page", PAGEUPKEY, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "up", TRUE);
 	
 	WM_keymap_add_item(keymap, "OUTLINER_OT_show_one_level", PADPLUSKEY, KM_PRESS, 0, 0); /* open */
-	RNA_boolean_set(WM_keymap_add_item(keymap, "OUTLINER_OT_show_one_level", PADMINUS, KM_PRESS, 0, 0)->ptr, "open", 0); /* close */
+	kmi = WM_keymap_add_item(keymap, "OUTLINER_OT_show_one_level", PADMINUS, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "open", FALSE); /* close */
 	
 	WM_keymap_verify_item(keymap, "OUTLINER_OT_selected_toggle", AKEY, KM_PRESS, 0, 0);
 	WM_keymap_verify_item(keymap, "OUTLINER_OT_expanded_toggle", AKEY, KM_PRESS, KM_SHIFT, 0);

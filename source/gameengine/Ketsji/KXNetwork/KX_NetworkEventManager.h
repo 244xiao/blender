@@ -1,6 +1,4 @@
 /*
- * $Id: KX_NetworkEventManager.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -29,11 +27,11 @@
 
 /** \file KX_NetworkEventManager.h
  *  \ingroup ketsjinet
- *  \brief Ketsji Logic Extenstion: Network Event Manager class
+ *  \brief Ketsji Logic Extension: Network Event Manager class
  */
 
-#ifndef KX_NETWORK_EVENTMANAGER_H
-#define KX_NETWORK_EVENTMANAGER_H
+#ifndef __KX_NETWORKEVENTMANAGER_H__
+#define __KX_NETWORKEVENTMANAGER_H__
 
 #include "SCA_EventManager.h"
 
@@ -43,7 +41,7 @@ class KX_NetworkEventManager : public SCA_EventManager
 
 public:
 	KX_NetworkEventManager(class SCA_LogicManager* logicmgr,
-			       class NG_NetworkDeviceInterface *ndi);
+	                       class NG_NetworkDeviceInterface *ndi);
 	virtual ~KX_NetworkEventManager ();
 
 	virtual void NextFrame();
@@ -51,8 +49,7 @@ public:
 
 	SCA_LogicManager* GetLogicManager() { return m_logicmgr; }
 	class NG_NetworkDeviceInterface* GetNetworkDevice() {
-	    return m_ndi; }
+		return m_ndi; }
 };
 
-#endif //KX_NETWORK_EVENTMANAGER_H
-
+#endif  /* __KX_NETWORKEVENTMANAGER_H__ */

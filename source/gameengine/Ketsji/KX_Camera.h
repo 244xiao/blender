@@ -1,6 +1,4 @@
 /*
- * $Id: KX_Camera.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  *  \brief Camera in the gameengine. Cameras are also used for views.
  */
 
-#ifndef __KX_CAMERA
-#define __KX_CAMERA
+#ifndef __KX_CAMERA_H__
+#define __KX_CAMERA_H__
 
 
 #include "MT_Transform.h"
@@ -47,12 +45,12 @@
 
 #ifdef WITH_PYTHON
 /* utility conversion function */
-bool ConvertPythonToCamera(PyObject * value, KX_Camera **object, bool py_none_ok, const char *error_prefix);
+bool ConvertPythonToCamera(PyObject *value, KX_Camera **object, bool py_none_ok, const char *error_prefix);
 #endif
 
 class KX_Camera : public KX_GameObject
 {
-	Py_Header;
+	Py_Header
 protected:
 	friend class KX_Scene;
 	/** Camera parameters (clips distances, focal length). These
@@ -65,12 +63,13 @@ protected:
 	// Never used, I think...
 //	void MoveTo(const MT_Point3& movevec)
 //	{
-		/*MT_Transform camtrans;
+#if 0
+		MT_Transform camtrans;
 		camtrans.invert(m_trans1);
 		MT_Matrix3x3 camorient = camtrans.getBasis();
 		camtrans.translate(camorient.inverse()*movevec);
 		m_trans1.invert(camtrans);
-		*/
+#endif
 //	}
 
 	/**
@@ -121,7 +120,7 @@ protected:
 	/**
 	 * whether the camera should delete the node itself (only for shadow camera)
 	 */
-	bool		 m_delete_node;
+	bool         m_delete_node;
 
 	/**
 	 * Extracts the camera clip frames from the projection and world-to-camera matrices.
@@ -147,7 +146,7 @@ protected:
 
 public:
 
-	enum { INSIDE, INTERSECT, OUTSIDE } ;
+	enum { INSIDE, INTERSECT, OUTSIDE };
 
 	KX_Camera(void* sgReplicationInfo,SG_Callbacks callbacks,const RAS_CameraData& camdata, bool frustum_culling = true, bool delete_node = false);
 	virtual ~KX_Camera();
@@ -157,7 +156,7 @@ public:
 	 * instance allocated on the heap. Ownership of the new 
 	 * object belongs with the caller.
 	 */
-	virtual	CValue*				
+	virtual	CValue*
 	GetReplica(
 	);
 	virtual void ProcessReplica();
@@ -187,13 +186,13 @@ public:
 	bool				hasValidProjectionMatrix() const;
 	
 	/** Sets the validity of the projection matrix.  Call this if you change camera
-	    data (eg lens, near plane, far plane) and require the projection matrix to be
-	    recalculated.
+	 *  data (eg lens, near plane, far plane) and require the projection matrix to be
+	 *  recalculated.
 	 */
 	void				InvalidateProjectionMatrix(bool valid = false);
 	
 	/** Gets the modelview matrix that is used by the rasterizer. 
-	 *  @warning If the Camera is a dynamic object then this method may return garbage.  Use GetCameraToWorld() instead.
+	 *  \warning If the Camera is a dynamic object then this method may return garbage.  Use GetCameraToWorld() instead.
 	 */
 	const MT_Matrix4x4&		GetModelviewMatrix() const;
 
@@ -201,6 +200,12 @@ public:
 	float				GetLens() const;
 	/** Gets the ortho scale. */
 	float				GetScale() const;
+	/** Gets the horizontal size of the sensor - for camera matching */
+	float				GetSensorWidth() const;
+	/** Gets the vertical size of the sensor - for camera matching */
+	float				GetSensorHeight() const;
+	/** Gets the mode FOV is calculating from sensor dimensions */
+	short				GetSensorFit() const;
 	/** Gets the near clip distance. */
 	float				GetCameraNear() const;
 	/** Gets the far clip distance. */
@@ -213,21 +218,21 @@ public:
 	/**
 	 * Tests if the given sphere is inside this camera's view frustum.
 	 *
-	 * @param center The center of the sphere, in world coordinates.
-	 * @param radius The radius of the sphere.
-	 * @return INSIDE, INTERSECT, or OUTSIDE depending on the sphere's relation to the frustum.
+	 * \param center The center of the sphere, in world coordinates.
+	 * \param radius The radius of the sphere.
+	 * \return INSIDE, INTERSECT, or OUTSIDE depending on the sphere's relation to the frustum.
 	 */
 	int SphereInsideFrustum(const MT_Point3& center, const MT_Scalar &radius);
 	/**
 	 * Tests the given eight corners of a box with the view frustum.
 	 *
-	 * @param box a pointer to eight MT_Point3 representing the world coordinates of the corners of the box.
-	 * @return INSIDE, INTERSECT, or OUTSIDE depending on the box's relation to the frustum.
+	 * \param box a pointer to eight MT_Point3 representing the world coordinates of the corners of the box.
+	 * \return INSIDE, INTERSECT, or OUTSIDE depending on the box's relation to the frustum.
 	 */
 	int BoxInsideFrustum(const MT_Point3 *box);
 	/**
 	 * Tests the given point against the view frustum.
-	 * @return true if the given point is inside or on the view frustum; false if it is outside.
+	 * \return true if the given point is inside or on the view frustum; false if it is outside.
 	 */
 	bool PointInsideFrustum(const MT_Point3& x);
 	
@@ -281,8 +286,8 @@ public:
 	KX_PYMETHOD_DOC_NOARGS(KX_Camera, getCameraToWorld);
 	KX_PYMETHOD_DOC_NOARGS(KX_Camera, getWorldToCamera);
 	
-	KX_PYMETHOD_DOC_VARARGS(KX_Camera, setViewport);	
-	KX_PYMETHOD_DOC_NOARGS(KX_Camera, setOnTop);	
+	KX_PYMETHOD_DOC_VARARGS(KX_Camera, setViewport);
+	KX_PYMETHOD_DOC_NOARGS(KX_Camera, setOnTop);
 
 	KX_PYMETHOD_DOC_O(KX_Camera, getScreenPosition);
 	KX_PYMETHOD_DOC_VARARGS(KX_Camera, getScreenVect);
@@ -316,5 +321,4 @@ public:
 #endif
 };
 
-#endif //__KX_CAMERA
-
+#endif  /* __KX_CAMERA_H__ */

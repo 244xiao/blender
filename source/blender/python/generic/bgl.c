@@ -1,6 +1,4 @@
-/* 
- * $Id: bgl.c 35624 2011-03-19 11:12:48Z campbellbarton $
- *
+/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,24 +15,20 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * This is a new part of Blender.
- *
- * Contributor(s): Willian P. Germano
+ * Contributor(s): Willian P. Germano, Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK *****
-*/
+ */
 
 /** \file blender/python/generic/bgl.c
  *  \ingroup pygen
+ *
+ * This file is the 'bgl' module which wraps OpenGL functions and constants,
+ * allowing script writers to make OpenGL calls in their Python scripts.
+ *
+ * \note
+ * This module is very similar to 'PyOpenGL' which could replace 'bgl' one day.
  */
-
-
-/* This file is the 'bgl' module.
- * The BGL submodule "wraps" OpenGL functions and constants,
- * allowing script writers to make OpenGL calls in their Python scripts. */
 
 #include <Python.h>
 
@@ -44,104 +38,213 @@
 
 #include "BLI_utildefines.h"
 
-
-static char Method_Buffer_doc[] =
-	"(type, dimensions, [template]) - Create a new Buffer object\n\n\
-(type) - The format to store data in\n\
-(dimensions) - An int or sequence specifying the dimensions of the buffer\n\
-[template] - A sequence of matching dimensions to the buffer to be created\n\
-  which will be used to initialize the Buffer.\n\n\
-If a template is not passed in all fields will be initialized to 0.\n\n\
-The type should be one of GL_BYTE, GL_SHORT, GL_INT, GL_FLOAT, or GL_DOUBLE.\n\
-If the dimensions are specified as an int a linear buffer will be\n\
-created. If a sequence is passed for the dimensions the buffer\n\
-will have len(sequence) dimensions, where the size for each dimension\n\
-is determined by the value in the sequence at that index.\n\n\
-For example, passing [100, 100] will create a 2 dimensional\n\
-square buffer. Passing [16, 16, 32] will create a 3 dimensional\n\
-buffer which is twice as deep as it is wide or high.";
-
-static PyObject *Method_Buffer( PyObject * self, PyObject *args );
+static PyObject *Buffer_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+static PyObject *Method_ShaderSource(PyObject *self, PyObject *args);
 
 /* Buffer sequence methods */
 
-static int Buffer_len( PyObject * self );
-static PyObject *Buffer_item( PyObject * self, int i );
-static PyObject *Buffer_slice( PyObject * self, int begin, int end );
-static int Buffer_ass_item( PyObject * self, int i, PyObject * v );
-static int Buffer_ass_slice( PyObject * self, int begin, int end,
-				 PyObject * seq );
+static int Buffer_len(Buffer *self);
+static PyObject *Buffer_item(Buffer *self, int i);
+static PyObject *Buffer_slice(Buffer *self, int begin, int end);
+static int Buffer_ass_item(Buffer *self, int i, PyObject *v);
+static int Buffer_ass_slice(Buffer *self, int begin, int end, PyObject *seq);
+static PyObject *Buffer_subscript(Buffer *self, PyObject *item);
+static int Buffer_ass_subscript(Buffer *self, PyObject *item, PyObject *value);
 
 static PySequenceMethods Buffer_SeqMethods = {
-	( lenfunc ) Buffer_len,						/*sq_length */
-	( binaryfunc ) NULL,						/*sq_concat */
-	( ssizeargfunc ) NULL,						/*sq_repeat */
-	( ssizeargfunc ) Buffer_item,				/*sq_item */
-	( ssizessizeargfunc ) Buffer_slice,			/*sq_slice, deprecated TODO, replace */
-	( ssizeobjargproc ) Buffer_ass_item,		/*sq_ass_item */
-	( ssizessizeobjargproc ) Buffer_ass_slice,	/*sq_ass_slice, deprecated TODO, replace */
-	(objobjproc) NULL,							/* sq_contains */
-	(binaryfunc) NULL,							/* sq_inplace_concat */
-	(ssizeargfunc) NULL,						/* sq_inplace_repeat */
+	(lenfunc) Buffer_len,                       /*sq_length */
+	(binaryfunc) NULL,                          /*sq_concat */
+	(ssizeargfunc) NULL,                        /*sq_repeat */
+	(ssizeargfunc) Buffer_item,                 /*sq_item */
+	(ssizessizeargfunc) NULL,                   /*sq_slice, deprecated, handled in Buffer_item */
+	(ssizeobjargproc) Buffer_ass_item,          /*sq_ass_item */
+	(ssizessizeobjargproc) NULL,                /*sq_ass_slice, deprecated handled in Buffer_ass_item */
+	(objobjproc) NULL,                          /* sq_contains */
+	(binaryfunc) NULL,                          /* sq_inplace_concat */
+	(ssizeargfunc) NULL,                        /* sq_inplace_repeat */
 };
 
-static void Buffer_dealloc( PyObject * self );
-static PyObject *Buffer_tolist( PyObject * self );
-static PyObject *Buffer_dimensions( PyObject * self );
-static PyObject *Buffer_getattr( PyObject * self, char *name );
-static PyObject *Buffer_repr( PyObject * self );
+
+static PyMappingMethods Buffer_AsMapping = {
+	(lenfunc)Buffer_len,
+	(binaryfunc)Buffer_subscript,
+	(objobjargproc)Buffer_ass_subscript
+};
+
+static void Buffer_dealloc(Buffer *self);
+static PyObject *Buffer_repr(Buffer *self);
+
+static PyObject *Buffer_to_list(Buffer *self)
+{
+	int i, len = self->dimensions[0];
+	PyObject *list = PyList_New(len);
+
+	for (i = 0; i < len; i++) {
+		PyList_SET_ITEM(list, i, Buffer_item(self, i));
+	}
+
+	return list;
+}
+
+static PyObject *Buffer_to_list_recursive(Buffer *self)
+{
+	PyObject *list;
+
+	if (self->ndimensions > 1) {
+		int i, len = self->dimensions[0];
+		list = PyList_New(len);
+
+		for (i = 0; i < len; i++) {
+			Buffer *sub = (Buffer *)Buffer_item(self, i);
+			PyList_SET_ITEM(list, i, Buffer_to_list_recursive(sub));
+			Py_DECREF(sub);
+		}
+	}
+	else {
+		list = Buffer_to_list(self);
+	}
+
+	return list;
+}
+
+static PyObject *Buffer_dimensions(Buffer *self, void *UNUSED(arg))
+{
+	PyObject *list = PyList_New(self->ndimensions);
+	int i;
+
+	for (i = 0; i < self->ndimensions; i++) {
+		PyList_SET_ITEM(list, i, PyLong_FromLong(self->dimensions[i]));
+	}
+
+	return list;
+}
+
+static PyMethodDef Buffer_methods[] = {
+	{"to_list", (PyCFunction)Buffer_to_list_recursive, METH_NOARGS,
+	 "return the buffer as a list"},
+	{NULL, NULL, 0, NULL}
+};
+
+static PyGetSetDef Buffer_getseters[] = {
+	{(char *)"dimensions", (getter)Buffer_dimensions, NULL, NULL, NULL},
+	{NULL, NULL, NULL, NULL, NULL}
+};
+
 
 PyTypeObject BGL_bufferType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	"buffer",		/*tp_name */
-	sizeof( Buffer ),	/*tp_basicsize */
-	0,			/*tp_itemsize */
-	( destructor ) Buffer_dealloc,	/*tp_dealloc */
-	( printfunc ) 0,	/*tp_print */
-	( getattrfunc ) Buffer_getattr,	/*tp_getattr */
-	( setattrfunc ) 0,	/*tp_setattr */
-	NULL,		/*tp_compare */
-	( reprfunc ) Buffer_repr,	/*tp_repr */
-	NULL,			/*tp_as_number */
-	&Buffer_SeqMethods,	/*tp_as_sequence */
+	"bgl.Buffer",               /*tp_name */
+	sizeof(Buffer),             /*tp_basicsize */
+	0,                          /*tp_itemsize */
+	(destructor)Buffer_dealloc, /*tp_dealloc */
+	(printfunc)NULL,            /*tp_print */
+	NULL,                       /*tp_getattr */
+	NULL,                       /*tp_setattr */
+	NULL,                       /*tp_compare */
+	(reprfunc) Buffer_repr,     /*tp_repr */
+	NULL,                       /*tp_as_number */
+	&Buffer_SeqMethods,         /*tp_as_sequence */
+	&Buffer_AsMapping,          /* PyMappingMethods *tp_as_mapping; */
+
+	/* More standard operations (here for binary compatibility) */
+
+	NULL, /* hashfunc tp_hash; */
+	NULL,                       /* ternaryfunc tp_call; */
+	NULL,                       /* reprfunc tp_str; */
+	NULL,                       /* getattrofunc tp_getattro; */
+	NULL,                       /* setattrofunc tp_setattro; */
+
+	/* Functions to access object as input/output buffer */
+	NULL,                       /* PyBufferProcs *tp_as_buffer; */
+
+	/*** Flags to define presence of optional/expanded features ***/
+	Py_TPFLAGS_DEFAULT,         /* long tp_flags; */
+
+	NULL,                       /*  char *tp_doc;  Documentation string */
+	/*** Assigned meaning in release 2.0 ***/
+	/* call function for all accessible objects */
+	NULL,                       /* traverseproc tp_traverse; */
+
+	/* delete references to contained objects */
+	NULL,                       /* inquiry tp_clear; */
+
+	/***  Assigned meaning in release 2.1 ***/
+	/*** rich comparisons ***/
+	NULL,                       /* richcmpfunc tp_richcompare; */
+
+	/***  weak reference enabler ***/
+	0,                          /* long tp_weaklistoffset; */
+
+	/*** Added in release 2.2 ***/
+	/*   Iterators */
+	NULL, /* getiterfunc tp_iter; */
+	NULL,                       /* iternextfunc tp_iternext; */
+	/*** Attribute descriptor and subclassing stuff ***/
+	Buffer_methods,             /* struct PyMethodDef *tp_methods; */
+	NULL,                       /* struct PyMemberDef *tp_members; */
+	Buffer_getseters,           /* struct PyGetSetDef *tp_getset; */
+	NULL,                       /*tp_base*/
+	NULL,                       /*tp_dict*/
+	NULL,                       /*tp_descr_get*/
+	NULL,                       /*tp_descr_set*/
+	0,                          /*tp_dictoffset*/
+	NULL,                       /*tp_init*/
+	NULL,                       /*tp_alloc*/
+	Buffer_new,                 /*tp_new*/
+	NULL,                       /*tp_free*/
+	NULL,                       /*tp_is_gc*/
+	NULL,                       /*tp_bases*/
+	NULL,                       /*tp_mro*/
+	NULL,                       /*tp_cache*/
+	NULL,                       /*tp_subclasses*/
+	NULL,                       /*tp_weaklist*/
+	NULL                        /*tp_del*/
 };
 
-/* #ifndef __APPLE__ */
-
-#define BGL_Wrap(nargs, funcname, ret, arg_list) \
-static PyObject *Method_##funcname (PyObject *UNUSED(self), PyObject *args) {\
-	arg_def##nargs arg_list; \
-	ret_def_##ret; \
-	if(!PyArg_ParseTuple(args, arg_str##nargs arg_list, arg_ref##nargs arg_list)) return NULL;\
-	ret_set_##ret gl##funcname (arg_var##nargs arg_list);\
-	ret_ret_##ret; \
+#define BGL_Wrap(nargs, funcname, ret, arg_list)                              \
+static PyObject *Method_##funcname (PyObject *UNUSED(self), PyObject *args)   \
+{                                                                             \
+	arg_def##nargs arg_list;                                                  \
+	ret_def_##ret;                                                            \
+	if (!PyArg_ParseTuple(args,                                               \
+	                      arg_str##nargs arg_list,                            \
+	                      arg_ref##nargs arg_list))                           \
+	{                                                                         \
+		return NULL;                                                          \
+	}                                                                         \
+	ret_set_##ret gl##funcname (arg_var##nargs arg_list);                     \
+	ret_ret_##ret;                                                            \
 }
 
-#define BGLU_Wrap(nargs, funcname, ret, arg_list) \
-static PyObject *Method_##funcname (PyObject *UNUSED(self), PyObject *args) {\
-	arg_def##nargs arg_list; \
-	ret_def_##ret; \
-	if(!PyArg_ParseTuple(args, arg_str##nargs arg_list, arg_ref##nargs arg_list)) return NULL;\
-	ret_set_##ret glu##funcname (arg_var##nargs arg_list);\
-	ret_ret_##ret; \
+#define BGLU_Wrap(nargs, funcname, ret, arg_list)                             \
+static PyObject *Method_##funcname (PyObject *UNUSED(self), PyObject *args)   \
+{                                                                             \
+	arg_def##nargs arg_list;                                                  \
+	ret_def_##ret;                                                            \
+	if (!PyArg_ParseTuple(args,                                               \
+						  arg_str##nargs arg_list,                            \
+						  arg_ref##nargs arg_list))                           \
+	{                                                                         \
+		return NULL;                                                          \
+	}                                                                         \
+	ret_set_##ret glu##funcname (arg_var##nargs arg_list);                    \
+	ret_ret_##ret;                                                            \
 }
-
-/* #endif */
 
 /********/
 int BGL_typeSize(int type)
 {
 	switch (type) {
-		case GL_BYTE: 
-		  return sizeof(char);
-		case GL_SHORT: 
-		  return sizeof(short);
-		case GL_INT: 
-		  return sizeof(int);
-		case GL_FLOAT: 
-		  return sizeof(float);
+		case GL_BYTE:
+			return sizeof(char);
+		case GL_SHORT:
+			return sizeof(short);
+		case GL_INT:
+			return sizeof(int);
+		case GL_FLOAT:
+			return sizeof(float);
 		case GL_DOUBLE:
-		  return sizeof(double);
+			return sizeof(double);
 	}
 	return -1;
 }
@@ -149,326 +252,371 @@ int BGL_typeSize(int type)
 Buffer *BGL_MakeBuffer(int type, int ndimensions, int *dimensions, void *initbuffer)
 {
 	Buffer *buffer;
-	void *buf= NULL;
+	void *buf = NULL;
 	int i, size, length;
- 
-	length= 1;
-	for (i=0; i<ndimensions; i++) 
-		length*= dimensions[i];
- 
-	size= BGL_typeSize(type);
- 
-	buf= MEM_mallocN(length*size, "Buffer buffer");
 
-	buffer= (Buffer *) PyObject_NEW(Buffer, &BGL_bufferType);
-	buffer->parent= NULL;
-	buffer->ndimensions= ndimensions;
-	buffer->dimensions= MEM_mallocN(ndimensions*sizeof(int), "Buffer dimensions");
-	memcpy(buffer->dimensions, dimensions, ndimensions*sizeof(int));
-	buffer->type= type;
-	buffer->buf.asvoid= buf;
- 
+	length = 1;
+	for (i = 0; i < ndimensions; i++) {
+		length *= dimensions[i];
+	}
+
+	size = BGL_typeSize(type);
+
+	buf = MEM_mallocN(length * size, "Buffer buffer");
+
+	buffer = (Buffer *)PyObject_NEW(Buffer, &BGL_bufferType);
+	buffer->parent = NULL;
+	buffer->ndimensions = ndimensions;
+	buffer->dimensions = MEM_mallocN(ndimensions * sizeof(int), "Buffer dimensions");
+	memcpy(buffer->dimensions, dimensions, ndimensions * sizeof(int));
+	buffer->type = type;
+	buffer->buf.asvoid = buf;
+
 	if (initbuffer) {
-		memcpy(buffer->buf.asvoid, initbuffer, length*size);
+		memcpy(buffer->buf.asvoid, initbuffer, length * size);
 	}
 	else {
-		memset(buffer->buf.asvoid, 0, length*size);
-		/*
-		for (i= 0; i<length; i++) {
-			if (type==GL_BYTE) 
-				buffer->buf.asbyte[i]= 0;
-			else if (type==GL_SHORT) 
-				buffer->buf.asshort[i]= 0;
-			else if (type==GL_INT) 
-				buffer->buf.asint[i]= 0;
-			else if (type==GL_FLOAT) 
-				buffer->buf.asfloat[i]= 0.0f;
-			else if (type==GL_DOUBLE)
-				buffer->buf.asdouble[i]= 0.0;
-		}
-		*/
+		memset(buffer->buf.asvoid, 0, length * size);
 	}
 	return buffer;
 }
 
-#define MAX_DIMENSIONS	256
-static PyObject *Method_Buffer (PyObject *UNUSED(self), PyObject *args)
+
+#define MAX_DIMENSIONS  256
+static PyObject *Buffer_new(PyTypeObject *UNUSED(type), PyObject *args, PyObject *kwds)
 {
-	PyObject *length_ob= NULL, *init= NULL;
+	PyObject *length_ob = NULL, *init = NULL;
 	Buffer *buffer;
 	int dimensions[MAX_DIMENSIONS];
-	
-	int i, type;
-	int ndimensions = 0;
-	
-	if (!PyArg_ParseTuple(args, "iO|O", &type, &length_ob, &init)) {
-		PyErr_SetString(PyExc_AttributeError, "expected an int and one or two PyObjects");
+
+	int type;
+	Py_ssize_t i, ndimensions = 0;
+
+	if (kwds && PyDict_Size(kwds)) {
+		PyErr_SetString(PyExc_TypeError,
+		                "bgl.Buffer(): takes no keyword args");
+		return NULL;
+	}
+
+	if (!PyArg_ParseTuple(args, "iO|O: bgl.Buffer", &type, &length_ob, &init)) {
 		return NULL;
 	}
 	if (!ELEM5(type, GL_BYTE, GL_SHORT, GL_INT, GL_FLOAT, GL_DOUBLE)) {
-		PyErr_SetString(PyExc_AttributeError, "invalid first argument type, should be one of GL_BYTE, GL_SHORT, GL_INT, GL_FLOAT or GL_DOUBLE");
+		PyErr_SetString(PyExc_AttributeError,
+		                "invalid first argument type, should be one of "
+		                "GL_BYTE, GL_SHORT, GL_INT, GL_FLOAT or GL_DOUBLE");
 		return NULL;
 	}
 
 	if (PyLong_Check(length_ob)) {
-		ndimensions= 1;
-		if(((dimensions[0]= PyLong_AsLong(length_ob)) < 1)) {
-			PyErr_SetString(PyExc_AttributeError, "dimensions must be between 1 and "STRINGIFY(MAX_DIMENSIONS));
+		ndimensions = 1;
+		if (((dimensions[0] = PyLong_AsLong(length_ob)) < 1)) {
+			PyErr_SetString(PyExc_AttributeError,
+			                "dimensions must be between 1 and "STRINGIFY(MAX_DIMENSIONS));
 			return NULL;
 		}
 	}
 	else if (PySequence_Check(length_ob)) {
-		ndimensions= PySequence_Size(length_ob);
+		ndimensions = PySequence_Size(length_ob);
 		if (ndimensions > MAX_DIMENSIONS) {
-			PyErr_SetString(PyExc_AttributeError, "too many dimensions, max is "STRINGIFY(MAX_DIMENSIONS));
+			PyErr_SetString(PyExc_AttributeError,
+			                "too many dimensions, max is "STRINGIFY(MAX_DIMENSIONS));
 			return NULL;
 		}
 		else if (ndimensions < 1) {
-			PyErr_SetString(PyExc_AttributeError, "sequence must have at least one dimension");
+			PyErr_SetString(PyExc_AttributeError,
+			                "sequence must have at least one dimension");
 			return NULL;
 		}
-		for (i=0; i<ndimensions; i++) {
-			PyObject *ob= PySequence_GetItem(length_ob, i);
+		for (i = 0; i < ndimensions; i++) {
+			PyObject *ob = PySequence_GetItem(length_ob, i);
 
-			if (!PyLong_Check(ob)) dimensions[i]= 1;
-			else dimensions[i]= PyLong_AsLong(ob);
+			if (!PyLong_Check(ob))
+				dimensions[i] = 1;
+			else
+				dimensions[i] = PyLong_AsLong(ob);
 			Py_DECREF(ob);
 
-			if(dimensions[i] < 1) {
-				PyErr_SetString(PyExc_AttributeError, "dimensions must be between 1 and "STRINGIFY(MAX_DIMENSIONS));
+			if (dimensions[i] < 1) {
+				PyErr_SetString(PyExc_AttributeError,
+				                "dimensions must be between 1 and "STRINGIFY(MAX_DIMENSIONS));
 				return NULL;
 			}
 		}
 	}
 	else {
-		PyErr_Format(PyExc_TypeError, "invalid second argument argument expected a sequence or an int, not a %.200s", Py_TYPE(length_ob)->tp_name);
+		PyErr_Format(PyExc_TypeError,
+		             "invalid second argument argument expected a sequence "
+		             "or an int, not a %.200s", Py_TYPE(length_ob)->tp_name);
 		return NULL;
 	}
-	
-	buffer= BGL_MakeBuffer(type, ndimensions, dimensions, NULL);
+
+	buffer = BGL_MakeBuffer(type, ndimensions, dimensions, NULL);
 	if (init && ndimensions) {
-		if (Buffer_ass_slice((PyObject *) buffer, 0, dimensions[0], init)) {
+		if (Buffer_ass_slice(buffer, 0, dimensions[0], init)) {
 			Py_DECREF(buffer);
 			return NULL;
 		}
 	}
-	
-	return (PyObject *) buffer;
+
+	return (PyObject *)buffer;
 }
 
 /*@ Buffer sequence methods */
 
-static int Buffer_len(PyObject *self)
+static int Buffer_len(Buffer *self)
 {
-	Buffer *buf= (Buffer *) self;
-	return buf->dimensions[0];
+	return self->dimensions[0];
 }
 
-static PyObject *Buffer_item(PyObject *self, int i)
+static PyObject *Buffer_item(Buffer *self, int i)
 {
-	Buffer *buf= (Buffer *) self;
-
-	if (i >= buf->dimensions[0]) {
+	if (i >= self->dimensions[0] || i < 0) {
 		PyErr_SetString(PyExc_IndexError, "array index out of range");
 		return NULL;
 	}
 
-	if (buf->ndimensions==1) {
-		switch (buf->type) {
-			case GL_BYTE: return Py_BuildValue("b", buf->buf.asbyte[i]);
-			case GL_SHORT: return Py_BuildValue("h", buf->buf.asshort[i]);
-			case GL_INT: return Py_BuildValue("i", buf->buf.asint[i]);
-			case GL_FLOAT: return PyFloat_FromDouble(buf->buf.asfloat[i]);
-			case GL_DOUBLE: return Py_BuildValue("d", buf->buf.asdouble[i]);
+	if (self->ndimensions == 1) {
+		switch (self->type) {
+			case GL_BYTE:   return Py_BuildValue("b", self->buf.asbyte[i]);
+			case GL_SHORT:  return Py_BuildValue("h", self->buf.asshort[i]);
+			case GL_INT:    return Py_BuildValue("i", self->buf.asint[i]);
+			case GL_FLOAT:  return PyFloat_FromDouble(self->buf.asfloat[i]);
+			case GL_DOUBLE: return Py_BuildValue("d", self->buf.asdouble[i]);
 		}
 	}
 	else {
 		Buffer *newbuf;
 		int j, length, size;
- 
-		length= 1;
-		for (j=1; j<buf->ndimensions; j++) {
-			length*= buf->dimensions[j];
+
+		length = 1;
+		for (j = 1; j < self->ndimensions; j++) {
+			length *= self->dimensions[j];
 		}
-		size= BGL_typeSize(buf->type);
+		size = BGL_typeSize(self->type);
 
-		newbuf= (Buffer *) PyObject_NEW(Buffer, &BGL_bufferType);
-    
+		newbuf = (Buffer *)PyObject_NEW(Buffer, &BGL_bufferType);
+
 		Py_INCREF(self);
-		newbuf->parent= self;
+		newbuf->parent = (PyObject *)self;
 
-		newbuf->ndimensions= buf->ndimensions-1;
-		newbuf->type= buf->type;
-		newbuf->buf.asvoid= buf->buf.asbyte + i*length*size;
-		newbuf->dimensions= MEM_mallocN(newbuf->ndimensions*sizeof(int),
-			"Buffer dimensions");
-		memcpy(newbuf->dimensions, buf->dimensions+1,
-			newbuf->ndimensions*sizeof(int));
+		newbuf->ndimensions = self->ndimensions - 1;
+		newbuf->type = self->type;
+		newbuf->buf.asvoid = self->buf.asbyte + i * length * size;
+		newbuf->dimensions = MEM_mallocN(newbuf->ndimensions * sizeof(int), "Buffer dimensions");
+		memcpy(newbuf->dimensions, self->dimensions + 1, newbuf->ndimensions * sizeof(int));
 
-		return (PyObject *) newbuf;
+		return (PyObject *)newbuf;
 	}
-  
+
 	return NULL;
 }
 
-static PyObject *Buffer_slice(PyObject *self, int begin, int end)
+static PyObject *Buffer_slice(Buffer *self, int begin, int end)
 {
-	Buffer *buf= (Buffer *) self;
 	PyObject *list;
 	int count;
 	
-	if (begin<0) begin= 0;
-	if (end>buf->dimensions[0]) 
-		end= buf->dimensions[0];
-	if (begin>end) begin= end;
+	if (begin < 0) begin = 0;
+	if (end > self->dimensions[0]) end = self->dimensions[0];
+	if (begin > end) begin = end;
 	  
-	list= PyList_New(end-begin);
+	list = PyList_New(end - begin);
 
-	for (count= begin; count<end; count++) {
-		PyList_SET_ITEM(list, count-begin, Buffer_item(self, count));
+	for (count = begin; count < end; count++) {
+		PyList_SET_ITEM(list, count - begin, Buffer_item(self, count));
 	}
 	return list;
 }
 
-static int Buffer_ass_item(PyObject *self, int i, PyObject *v)
+static int Buffer_ass_item(Buffer *self, int i, PyObject *v)
 {
-	Buffer *buf= (Buffer *) self;
-	
-	if (i >= buf->dimensions[0]) {
-		PyErr_SetString(PyExc_IndexError, "array assignment index out of range");
+	if (i >= self->dimensions[0] || i < 0) {
+		PyErr_SetString(PyExc_IndexError,
+		                "array assignment index out of range");
 		return -1;
 	}
-	
-	if (buf->ndimensions!=1) {
-		PyObject *row= Buffer_item(self, i);
-		int ret;
 
-		if (!row) return -1;
-		ret= Buffer_ass_slice(row, 0, buf->dimensions[1], v);
-		Py_DECREF(row);
-		return ret;
+	if (self->ndimensions != 1) {
+		Buffer *row = (Buffer *)Buffer_item(self, i);
+
+		if (row) {
+			int ret = Buffer_ass_slice(row, 0, self->dimensions[1], v);
+			Py_DECREF(row);
+			return ret;
+		}
+		else {
+			return -1;
+		}
 	}
 
-	if (buf->type==GL_BYTE) {
-		if (!PyArg_Parse(v, "b:Coordinates must be ints", &buf->buf.asbyte[i]))
-		return -1;
+	switch (self->type) {
+		case GL_BYTE:   return PyArg_Parse(v, "b:Expected ints",   &self->buf.asbyte[i])   ? 0 : -1;
+		case GL_SHORT:  return PyArg_Parse(v, "h:Expected ints",   &self->buf.asshort[i])  ? 0 : -1;
+		case GL_INT:    return PyArg_Parse(v, "i:Expected ints",   &self->buf.asint[i])    ? 0 : -1;
+		case GL_FLOAT:  return PyArg_Parse(v, "f:Expected floats", &self->buf.asfloat[i])  ? 0 : -1;
+		case GL_DOUBLE: return PyArg_Parse(v, "d:Expected floats", &self->buf.asdouble[i]) ? 0 : -1;
+		default:        return 0; /* should never happen */
 	}
-	else if (buf->type==GL_SHORT) {
-		if (!PyArg_Parse(v, "h:Coordinates must be ints", &buf->buf.asshort[i]))
-			return -1;
-	  
-	}
-	else if (buf->type==GL_INT) {
-		if (!PyArg_Parse(v, "i:Coordinates must be ints", &buf->buf.asint[i]))
-			return -1;
-	}
-	else if (buf->type==GL_FLOAT) {
-		if (!PyArg_Parse(v, "f:Coordinates must be floats", &buf->buf.asfloat[i]))
-			return -1;
-	}
-	else if (buf->type==GL_DOUBLE) {
-		if (!PyArg_Parse(v, "d:Coordinates must be floats", &buf->buf.asdouble[i]))
-			return -1;
-	}
-	return 0;
 }
 
-static int Buffer_ass_slice(PyObject *self, int begin, int end, PyObject *seq)
+static int Buffer_ass_slice(Buffer *self, int begin, int end, PyObject *seq)
 {
-	Buffer *buf= (Buffer *) self;
 	PyObject *item;
-	int count, err=0;
+	int count, err = 0;
 	
-	if (begin<0) begin= 0;
-	if (end>buf->dimensions[0]) end= buf->dimensions[0];
-	if (begin>end) begin= end;
+	if (begin < 0) begin = 0;
+	if (end > self->dimensions[0]) end = self->dimensions[0];
+	if (begin > end) begin = end;
 	
 	if (!PySequence_Check(seq)) {
-		PyErr_SetString(PyExc_TypeError,
-			"illegal argument type for built-in operation");
+		PyErr_Format(PyExc_TypeError,
+		             "buffer[:] = value, invalid assignment. "
+		             "Expected a sequence, not an %.200s type",
+		             Py_TYPE(seq)->tp_name);
 		return -1;
 	}
 
-	if (PySequence_Size(seq)!=(end-begin)) {
-		int seq_len = PySequence_Size(seq);
-		char err_str[128];
-		sprintf(err_str, "size mismatch in assignment. Expected size: %d (size provided: %d)", seq_len, (end-begin));
-		PyErr_SetString(PyExc_TypeError, err_str);
+	/* re-use count var */
+	if ((count = PySequence_Size(seq)) != (end - begin)) {
+		PyErr_Format(PyExc_TypeError,
+		             "buffer[:] = value, size mismatch in assignment. "
+		             "Expected: %d (given: %d)", count, end - begin);
 		return -1;
 	}
 	
-	for (count= begin; count<end; count++) {
-		item= PySequence_GetItem(seq, count-begin);
-		err= Buffer_ass_item(self, count, item);
-		Py_DECREF(item);
-		if (err) break;
+	for (count = begin; count < end; count++) {
+		item = PySequence_GetItem(seq, count - begin);
+		if (item) {
+			err = Buffer_ass_item(self, count, item);
+			Py_DECREF(item);
+		}
+		else {
+			err = -1;
+		}
+		if (err) {
+			break;
+		}
 	}
 	return err;
 }
 
-static void Buffer_dealloc(PyObject *self)
+static PyObject *Buffer_subscript(Buffer *self, PyObject *item)
 {
-	Buffer *buf = (Buffer *)self;
+	if (PyIndex_Check(item)) {
+		Py_ssize_t i;
+		i = PyNumber_AsSsize_t(item, PyExc_IndexError);
+		if (i == -1 && PyErr_Occurred())
+			return NULL;
+		if (i < 0)
+			i += self->dimensions[0];
+		return Buffer_item(self, i);
+	}
+	else if (PySlice_Check(item)) {
+		Py_ssize_t start, stop, step, slicelength;
 
-	if (buf->parent) Py_DECREF (buf->parent);
-	else MEM_freeN (buf->buf.asvoid);
+		if (PySlice_GetIndicesEx(item, self->dimensions[0], &start, &stop, &step, &slicelength) < 0)
+			return NULL;
 
-	MEM_freeN (buf->dimensions);
-	
-	PyObject_DEL (self);
+		if (slicelength <= 0) {
+			return PyTuple_New(0);
+		}
+		else if (step == 1) {
+			return Buffer_slice(self, start, stop);
+		}
+		else {
+			PyErr_SetString(PyExc_IndexError,
+			                "slice steps not supported with vectors");
+			return NULL;
+		}
+	}
+	else {
+		PyErr_Format(PyExc_TypeError,
+		             "buffer indices must be integers, not %.200s",
+		             Py_TYPE(item)->tp_name);
+		return NULL;
+	}
 }
 
-static PyObject *Buffer_tolist(PyObject *self)
+static int Buffer_ass_subscript(Buffer *self, PyObject *item, PyObject *value)
 {
-	int i, len= ((Buffer *)self)->dimensions[0];
-	PyObject *list= PyList_New(len);
+	if (PyIndex_Check(item)) {
+		Py_ssize_t i = PyNumber_AsSsize_t(item, PyExc_IndexError);
+		if (i == -1 && PyErr_Occurred())
+			return -1;
+		if (i < 0)
+			i += self->dimensions[0];
+		return Buffer_ass_item(self, i, value);
+	}
+	else if (PySlice_Check(item)) {
+		Py_ssize_t start, stop, step, slicelength;
 
-	for (i=0; i<len; i++) {
-		PyList_SET_ITEM(list, i, Buffer_item(self, i));
+		if (PySlice_GetIndicesEx(item, self->dimensions[0], &start, &stop, &step, &slicelength) < 0)
+			return -1;
+
+		if (step == 1)
+			return Buffer_ass_slice(self, start, stop, value);
+		else {
+			PyErr_SetString(PyExc_IndexError,
+			                "slice steps not supported with vectors");
+			return -1;
+		}
+	}
+	else {
+		PyErr_Format(PyExc_TypeError,
+		             "buffer indices must be integers, not %.200s",
+		             Py_TYPE(item)->tp_name);
+		return -1;
+	}
+}
+
+
+static void Buffer_dealloc(Buffer *self)
+{
+	if (self->parent) {
+		Py_DECREF(self->parent);
+	}
+	else {
+		MEM_freeN(self->buf.asvoid);
 	}
 
-	return list;
+	MEM_freeN(self->dimensions);
+
+	PyObject_DEL(self);
 }
 
-static PyObject *Buffer_dimensions(PyObject *self)
+
+static PyObject *Buffer_repr(Buffer *self)
 {
-	Buffer *buffer= (Buffer *) self;
-	PyObject *list= PyList_New(buffer->ndimensions);
-	int i;
-  
-	for (i= 0; i<buffer->ndimensions; i++) {
-		PyList_SET_ITEM(list, i, PyLong_FromLong(buffer->dimensions[i]));
+	PyObject *list = Buffer_to_list_recursive(self);
+	PyObject *repr;
+	const char *typestr;
+
+	switch (self->type) {
+		case GL_BYTE:   typestr = "GL_BYTE"; break;
+		case GL_SHORT:  typestr = "GL_SHORT"; break;
+		case GL_INT:    typestr = "GL_BYTE"; break;
+		case GL_FLOAT:  typestr = "GL_FLOAT"; break;
+		case GL_DOUBLE: typestr = "GL_DOUBLE"; break;
+		default:        typestr = "UNKNOWN"; break;
 	}
 
-	return list;
-}
-
-static PyObject *Buffer_getattr(PyObject *self, char *name)
-{
-	if (strcmp(name, "list")==0) return Buffer_tolist(self);
-	else if (strcmp(name, "dimensions")==0) return Buffer_dimensions(self);
-	
-	PyErr_SetString(PyExc_AttributeError, name);
-	return NULL;
-}
-
-static PyObject *Buffer_repr(PyObject *self)
-{
-	PyObject *list= Buffer_tolist(self);
-	PyObject *repr= PyObject_Repr(list);
+	repr = PyUnicode_FromFormat("Buffer(%s, %R)", typestr, list);
 	Py_DECREF(list);
-	
+
 	return repr;
 }
 
 
-BGL_Wrap(2, Accum,          void,     (GLenum, GLfloat))
-BGL_Wrap(2, AlphaFunc,      void,     (GLenum, GLclampf))
+BGL_Wrap(2, Accum,          void,       (GLenum, GLfloat))
+BGL_Wrap(1, ActiveTexture,  void,       (GLenum))
+BGL_Wrap(2, AlphaFunc,      void,       (GLenum, GLclampf))
 BGL_Wrap(3, AreTexturesResident,  GLboolean,  (GLsizei, GLuintP, GLbooleanP))
-BGL_Wrap(1, Begin,          void,     (GLenum))
-BGL_Wrap(2, BindTexture,    void,   (GLenum, GLuint))
-BGL_Wrap(7, Bitmap,         void,     (GLsizei, GLsizei, GLfloat,
-						GLfloat, GLfloat, GLfloat, GLubyteP))
+BGL_Wrap(2, AttachShader,   void,       (GLuint, GLuint))
+BGL_Wrap(1, Begin,          void,       (GLenum))
+BGL_Wrap(2, BindTexture,    void,       (GLenum, GLuint))
+BGL_Wrap(7, Bitmap,         void,       (GLsizei, GLsizei, GLfloat,
+                                         GLfloat, GLfloat, GLfloat, GLubyteP))
 BGL_Wrap(2, BlendFunc,        void,     (GLenum, GLenum))
 BGL_Wrap(1, CallList,         void,     (GLuint))
 BGL_Wrap(3, CallLists,        void,     (GLsizei, GLenum, GLvoidP))
@@ -513,14 +661,20 @@ BGL_Wrap(4, Color4us,         void,     (GLushort, GLushort, GLushort, GLushort)
 BGL_Wrap(1, Color4usv,        void,     (GLushortP))
 BGL_Wrap(4, ColorMask,        void,     (GLboolean, GLboolean, GLboolean, GLboolean))
 BGL_Wrap(2, ColorMaterial,    void,     (GLenum, GLenum))
+BGL_Wrap(1, CompileShader,    void,     (GLuint))
 BGL_Wrap(5, CopyPixels,       void,     (GLint, GLint, GLsizei, GLsizei, GLenum))
 BGL_Wrap(8, CopyTexImage2D,   void,     (GLenum, GLint, GLenum, GLint, GLint, GLsizei, GLsizei, GLint))
+BGL_Wrap(1, CreateProgram,    GLuint,   (void))
+BGL_Wrap(1, CreateShader,     GLuint,   (GLenum))
 BGL_Wrap(1, CullFace,         void,     (GLenum))
 BGL_Wrap(2, DeleteLists,      void,     (GLuint, GLsizei))
-BGL_Wrap(2, DeleteTextures,   void,   (GLsizei, GLuintP))
+BGL_Wrap(1, DeleteProgram,    void,     (GLuint))
+BGL_Wrap(1, DeleteShader,     void,     (GLuint))
+BGL_Wrap(2, DeleteTextures,   void,     (GLsizei, GLuintP))
 BGL_Wrap(1, DepthFunc,        void,     (GLenum))
 BGL_Wrap(1, DepthMask,        void,     (GLboolean))
 BGL_Wrap(2, DepthRange,       void,     (GLclampd, GLclampd))
+BGL_Wrap(2, DetachShader,     void,     (GLuint, GLuint))
 BGL_Wrap(1, Disable,          void,     (GLenum))
 BGL_Wrap(1, DrawBuffer,       void,     (GLenum))
 BGL_Wrap(5, DrawPixels,       void,     (GLsizei, GLsizei, GLenum, GLenum, GLvoidP))
@@ -550,9 +704,10 @@ BGL_Wrap(2, Fogi,             void,     (GLenum, GLint))
 BGL_Wrap(2, Fogiv,            void,     (GLenum, GLintP))
 BGL_Wrap(1, FrontFace,        void,     (GLenum))
 BGL_Wrap(6, Frustum,          void,     (GLdouble, GLdouble,
-						GLdouble, GLdouble, GLdouble, GLdouble))
+                                         GLdouble, GLdouble, GLdouble, GLdouble))
 BGL_Wrap(1, GenLists,         GLuint,   (GLsizei))
 BGL_Wrap(2, GenTextures,      void,   (GLsizei, GLuintP))
+BGL_Wrap(4, GetAttachedShaders, void,   (GLuint, GLsizei, GLsizeiP, GLuintP))
 BGL_Wrap(2, GetBooleanv,      void,     (GLenum, GLbooleanP))
 BGL_Wrap(2, GetClipPlane,     void,     (GLenum, GLdoubleP))
 BGL_Wrap(2, GetDoublev,       void,     (GLenum, GLdoubleP))
@@ -569,7 +724,12 @@ BGL_Wrap(3, GetMaterialiv,    void,     (GLenum, GLenum, GLintP))
 BGL_Wrap(2, GetPixelMapfv,    void,     (GLenum, GLfloatP))
 BGL_Wrap(2, GetPixelMapuiv,   void,     (GLenum, GLuintP))
 BGL_Wrap(2, GetPixelMapusv,   void,     (GLenum, GLushortP))
-BGL_Wrap(1, GetPolygonStipple,void,     (GLubyteP))
+BGL_Wrap(1, GetPolygonStipple, void,     (GLubyteP))
+BGL_Wrap(4, GetProgramInfoLog, void,    (GLuint, GLsizei, GLsizeiP, GLcharP))
+BGL_Wrap(3, GetProgramiv,     void,     (GLuint, GLenum, GLintP))
+BGL_Wrap(4, GetShaderInfoLog, void,     (GLuint, GLsizei, GLsizeiP, GLcharP))
+BGL_Wrap(3, GetShaderiv,      void,     (GLuint, GLenum, GLintP))
+BGL_Wrap(4, GetShaderSource,  void,     (GLuint, GLsizei, GLsizeiP, GLcharP))
 BGL_Wrap(1, GetString,        GLstring,   (GLenum))
 BGL_Wrap(3, GetTexEnvfv,      void,     (GLenum, GLenum, GLfloatP))
 BGL_Wrap(3, GetTexEnviv,      void,     (GLenum, GLenum, GLintP))
@@ -581,6 +741,7 @@ BGL_Wrap(4, GetTexLevelParameterfv, void,     (GLenum, GLint, GLenum, GLfloatP))
 BGL_Wrap(4, GetTexLevelParameteriv, void,     (GLenum, GLint, GLenum, GLintP))
 BGL_Wrap(3, GetTexParameterfv,    void,     (GLenum, GLenum, GLfloatP))
 BGL_Wrap(3, GetTexParameteriv,    void,     (GLenum, GLenum, GLintP))
+BGL_Wrap(2, GetUniformLocation, GLint, (GLuint, GLstring))
 BGL_Wrap(2, Hint,           void,     (GLenum, GLenum))
 BGL_Wrap(1, IndexMask,      void,     (GLuint))
 BGL_Wrap(1, Indexd,         void,     (GLdouble))
@@ -594,6 +755,8 @@ BGL_Wrap(1, Indexsv,        void,     (GLshortP))
 BGL_Wrap(1, InitNames,      void,     (void))
 BGL_Wrap(1, IsEnabled,      GLboolean,  (GLenum))
 BGL_Wrap(1, IsList,         GLboolean,  (GLuint))
+BGL_Wrap(1, IsProgram,      GLboolean,  (GLuint))
+BGL_Wrap(1, IsShader,       GLboolean,  (GLuint))
 BGL_Wrap(1, IsTexture,      GLboolean,  (GLuint))
 BGL_Wrap(2, LightModelf,    void,     (GLenum, GLfloat))
 BGL_Wrap(2, LightModelfv,   void,     (GLenum, GLfloatP))
@@ -605,6 +768,7 @@ BGL_Wrap(3, Lighti,         void,     (GLenum, GLenum, GLint))
 BGL_Wrap(3, Lightiv,        void,     (GLenum, GLenum, GLintP))
 BGL_Wrap(2, LineStipple,    void,     (GLint, GLushort))
 BGL_Wrap(1, LineWidth,      void,     (GLfloat))
+BGL_Wrap(1, LinkProgram,    void,     (GLuint))
 BGL_Wrap(1, ListBase,       void,     (GLuint))
 BGL_Wrap(1, LoadIdentity,   void,     (void))
 BGL_Wrap(1, LoadMatrixd,    void,     (GLdoubleP))
@@ -612,19 +776,19 @@ BGL_Wrap(1, LoadMatrixf,    void,     (GLfloatP))
 BGL_Wrap(1, LoadName,       void,     (GLuint))
 BGL_Wrap(1, LogicOp,        void,     (GLenum))
 BGL_Wrap(6, Map1d,          void,     (GLenum, GLdouble, GLdouble,
-						GLint, GLint, GLdoubleP))
+                                       GLint, GLint, GLdoubleP))
 BGL_Wrap(6, Map1f,          void,     (GLenum, GLfloat, GLfloat,
-						GLint, GLint, GLfloatP))
+                                       GLint, GLint, GLfloatP))
 BGL_Wrap(10, Map2d,         void,     (GLenum, GLdouble, GLdouble,
-						GLint, GLint, GLdouble, GLdouble, GLint, GLint, GLdoubleP))
+                                       GLint, GLint, GLdouble, GLdouble, GLint, GLint, GLdoubleP))
 BGL_Wrap(10, Map2f,         void,     (GLenum, GLfloat, GLfloat,
-						GLint, GLint, GLfloat, GLfloat, GLint, GLint, GLfloatP))
+                                       GLint, GLint, GLfloat, GLfloat, GLint, GLint, GLfloatP))
 BGL_Wrap(3, MapGrid1d,        void,     (GLint, GLdouble, GLdouble))
 BGL_Wrap(3, MapGrid1f,        void,     (GLint, GLfloat, GLfloat))
 BGL_Wrap(6, MapGrid2d,        void,     (GLint, GLdouble, GLdouble,
-						GLint, GLdouble, GLdouble))
+                                         GLint, GLdouble, GLdouble))
 BGL_Wrap(6, MapGrid2f,        void,     (GLint, GLfloat, GLfloat,
-						GLint, GLfloat, GLfloat))
+                                         GLint, GLfloat, GLfloat))
 BGL_Wrap(3, Materialf,        void,     (GLenum, GLenum, GLfloat))
 BGL_Wrap(3, Materialfv,       void,     (GLenum, GLenum, GLfloatP))
 BGL_Wrap(3, Materiali,        void,     (GLenum, GLenum, GLint))
@@ -644,7 +808,7 @@ BGL_Wrap(1, Normal3iv,        void,     (GLintP))
 BGL_Wrap(3, Normal3s,         void,     (GLshort, GLshort, GLshort))
 BGL_Wrap(1, Normal3sv,        void,     (GLshortP))
 BGL_Wrap(6, Ortho,            void,     (GLdouble, GLdouble,
-						GLdouble, GLdouble, GLdouble, GLdouble))
+                                         GLdouble, GLdouble, GLdouble, GLdouble))
 BGL_Wrap(1, PassThrough,      void,     (GLfloat))
 BGL_Wrap(3, PixelMapfv,       void,     (GLenum, GLint, GLfloatP))
 BGL_Wrap(3, PixelMapuiv,      void,     (GLenum, GLint, GLuintP))
@@ -693,7 +857,7 @@ BGL_Wrap(4, RasterPos4s,      void,     (GLshort, GLshort, GLshort, GLshort))
 BGL_Wrap(1, RasterPos4sv,     void,     (GLshortP))
 BGL_Wrap(1, ReadBuffer,       void,     (GLenum))
 BGL_Wrap(7, ReadPixels,       void,     (GLint, GLint, GLsizei,
-						GLsizei, GLenum, GLenum, GLvoidP))
+                                         GLsizei, GLenum, GLenum, GLvoidP))
 BGL_Wrap(4, Rectd,          void,     (GLdouble, GLdouble, GLdouble, GLdouble))
 BGL_Wrap(2, Rectdv,         void,     (GLdoubleP, GLdoubleP))
 BGL_Wrap(4, Rectf,          void,     (GLfloat, GLfloat, GLfloat, GLfloat))
@@ -756,15 +920,42 @@ BGL_Wrap(3, TexGenfv,       void,     (GLenum, GLenum, GLfloatP))
 BGL_Wrap(3, TexGeni,        void,     (GLenum, GLenum, GLint))
 BGL_Wrap(3, TexGeniv,       void,     (GLenum, GLenum, GLintP))
 BGL_Wrap(8, TexImage1D,     void,     (GLenum, GLint, GLint,
-						GLsizei, GLint, GLenum, GLenum, GLvoidP))
+                                       GLsizei, GLint, GLenum, GLenum, GLvoidP))
 BGL_Wrap(9, TexImage2D,     void,     (GLenum, GLint, GLint,
-						GLsizei, GLsizei, GLint, GLenum, GLenum, GLvoidP))
+                                       GLsizei, GLsizei, GLint, GLenum, GLenum, GLvoidP))
 BGL_Wrap(3, TexParameterf,      void,     (GLenum, GLenum, GLfloat))
 BGL_Wrap(3, TexParameterfv,     void,     (GLenum, GLenum, GLfloatP))
 BGL_Wrap(3, TexParameteri,      void,     (GLenum, GLenum, GLint))
 BGL_Wrap(3, TexParameteriv,     void,     (GLenum, GLenum, GLintP))
 BGL_Wrap(3, Translated,         void,     (GLdouble, GLdouble, GLdouble))
 BGL_Wrap(3, Translatef,         void,     (GLfloat, GLfloat, GLfloat))
+BGL_Wrap(2, Uniform1f,          void,     (GLint, GLfloat))
+BGL_Wrap(3, Uniform2f,          void,     (GLint, GLfloat, GLfloat))
+BGL_Wrap(4, Uniform3f,          void,     (GLint, GLfloat, GLfloat, GLfloat))
+BGL_Wrap(5, Uniform4f,          void,     (GLint, GLfloat, GLfloat, GLfloat, GLfloat))
+BGL_Wrap(3, Uniform1fv,         void,     (GLint, GLsizei, GLfloatP))
+BGL_Wrap(3, Uniform2fv,         void,     (GLint, GLsizei, GLfloatP))
+BGL_Wrap(3, Uniform3fv,         void,     (GLint, GLsizei, GLfloatP))
+BGL_Wrap(3, Uniform4fv,         void,     (GLint, GLsizei, GLfloatP))
+BGL_Wrap(2, Uniform1i,          void,     (GLint, GLint))
+BGL_Wrap(3, Uniform2i,          void,     (GLint, GLint, GLint))
+BGL_Wrap(4, Uniform3i,          void,     (GLint, GLint, GLint, GLint))
+BGL_Wrap(5, Uniform4i,          void,     (GLint, GLint, GLint, GLint, GLint))
+BGL_Wrap(3, Uniform1iv,         void,     (GLint, GLsizei, GLintP))
+BGL_Wrap(3, Uniform2iv,         void,     (GLint, GLsizei, GLintP))
+BGL_Wrap(3, Uniform3iv,         void,     (GLint, GLsizei, GLintP))
+BGL_Wrap(3, Uniform4iv,         void,     (GLint, GLsizei, GLintP))
+BGL_Wrap(4, UniformMatrix2fv,   void,     (GLint, GLsizei, GLboolean, GLfloatP))
+BGL_Wrap(4, UniformMatrix3fv,   void,     (GLint, GLsizei, GLboolean, GLfloatP))
+BGL_Wrap(4, UniformMatrix4fv,   void,     (GLint, GLsizei, GLboolean, GLfloatP))
+BGL_Wrap(4, UniformMatrix2x3fv, void,     (GLint, GLsizei, GLboolean, GLfloatP))
+BGL_Wrap(4, UniformMatrix3x2fv, void,     (GLint, GLsizei, GLboolean, GLfloatP))
+BGL_Wrap(4, UniformMatrix2x4fv, void,     (GLint, GLsizei, GLboolean, GLfloatP))
+BGL_Wrap(4, UniformMatrix4x2fv, void,     (GLint, GLsizei, GLboolean, GLfloatP))
+BGL_Wrap(4, UniformMatrix3x4fv, void,     (GLint, GLsizei, GLboolean, GLfloatP))
+BGL_Wrap(4, UniformMatrix4x3fv, void,     (GLint, GLsizei, GLboolean, GLfloatP))
+BGL_Wrap(1, UseProgram,         void,     (GLuint))
+BGL_Wrap(1, ValidateProgram,    void,     (GLuint))
 BGL_Wrap(2, Vertex2d,           void,     (GLdouble, GLdouble))
 BGL_Wrap(1, Vertex2dv,          void,     (GLdoubleP))
 BGL_Wrap(2, Vertex2f,           void,     (GLfloat, GLfloat))
@@ -790,12 +981,12 @@ BGL_Wrap(1, Vertex4iv,          void,     (GLintP))
 BGL_Wrap(4, Vertex4s,           void,     (GLshort, GLshort, GLshort, GLshort))
 BGL_Wrap(1, Vertex4sv,          void,     (GLshortP))
 BGL_Wrap(4, Viewport,           void,     (GLint, GLint, GLsizei, GLsizei))
-BGLU_Wrap(4, Perspective,       void,     	(GLdouble, GLdouble, GLdouble, GLdouble))
-BGLU_Wrap(9, LookAt,       		void,     	(GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble))
-BGLU_Wrap(4, Ortho2D,       	void,     	(GLdouble, GLdouble, GLdouble, GLdouble))
-BGLU_Wrap(5, PickMatrix,       	void,     	(GLdouble, GLdouble, GLdouble, GLdouble, GLintP))
-BGLU_Wrap(9, Project,			GLint,		(GLdouble, GLdouble, GLdouble, GLdoubleP, GLdoubleP, GLintP, GLdoubleP, GLdoubleP, GLdoubleP))
-BGLU_Wrap(9, UnProject,			GLint,		(GLdouble, GLdouble, GLdouble, GLdoubleP, GLdoubleP, GLintP, GLdoubleP, GLdoubleP, GLdoubleP))
+BGLU_Wrap(4, Perspective,       void,       (GLdouble, GLdouble, GLdouble, GLdouble))
+BGLU_Wrap(9, LookAt,            void,       (GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble, GLdouble))
+BGLU_Wrap(4, Ortho2D,           void,       (GLdouble, GLdouble, GLdouble, GLdouble))
+BGLU_Wrap(5, PickMatrix,        void,       (GLdouble, GLdouble, GLdouble, GLdouble, GLintP))
+BGLU_Wrap(9, Project,           GLint,      (GLdouble, GLdouble, GLdouble, GLdoubleP, GLdoubleP, GLintP, GLdoubleP, GLdoubleP, GLdoubleP))
+BGLU_Wrap(9, UnProject,         GLint,      (GLdouble, GLdouble, GLdouble, GLdoubleP, GLdoubleP, GLintP, GLdoubleP, GLdoubleP, GLdoubleP))
 
 #undef MethodDef
 #define MethodDef(func) {"gl"#func, Method_##func, METH_VARARGS, "no string"}
@@ -804,12 +995,13 @@ BGLU_Wrap(9, UnProject,			GLint,		(GLdouble, GLdouble, GLdouble, GLdoubleP, GLdo
  * {"glAccum", Method_Accumfunc, METH_VARARGS} */
 
 static struct PyMethodDef BGL_methods[] = {
-  {"Buffer", Method_Buffer, METH_VARARGS, Method_Buffer_doc}, 
 
 /* #ifndef __APPLE__ */
 	MethodDef(Accum),
+	MethodDef(ActiveTexture),
 	MethodDef(AlphaFunc),
 	MethodDef(AreTexturesResident), 
+	MethodDef(AttachShader),
 	MethodDef(Begin),
 	MethodDef(BindTexture), 
 	MethodDef(Bitmap),
@@ -857,14 +1049,20 @@ static struct PyMethodDef BGL_methods[] = {
 	MethodDef(Color4usv),
 	MethodDef(ColorMask),
 	MethodDef(ColorMaterial),
+	MethodDef(CompileShader),
 	MethodDef(CopyPixels),
 	MethodDef(CopyTexImage2D),
+	MethodDef(CreateProgram),
+	MethodDef(CreateShader),
 	MethodDef(CullFace),
 	MethodDef(DeleteLists),
+	MethodDef(DeleteProgram),
+	MethodDef(DeleteShader),
 	MethodDef(DeleteTextures),
 	MethodDef(DepthFunc),
 	MethodDef(DepthMask),
 	MethodDef(DepthRange),
+	MethodDef(DetachShader),
 	MethodDef(Disable),
 	MethodDef(DrawBuffer),
 	MethodDef(DrawPixels),
@@ -896,6 +1094,7 @@ static struct PyMethodDef BGL_methods[] = {
 	MethodDef(Frustum),
 	MethodDef(GenLists),
 	MethodDef(GenTextures), 
+	MethodDef(GetAttachedShaders),
 	MethodDef(GetBooleanv),
 	MethodDef(GetClipPlane),
 	MethodDef(GetDoublev),
@@ -913,6 +1112,11 @@ static struct PyMethodDef BGL_methods[] = {
 	MethodDef(GetPixelMapuiv),
 	MethodDef(GetPixelMapusv),
 	MethodDef(GetPolygonStipple),
+	MethodDef(GetProgramInfoLog),
+	MethodDef(GetProgramiv),
+	MethodDef(GetShaderInfoLog),
+	MethodDef(GetShaderiv),
+	MethodDef(GetShaderSource),
 	MethodDef(GetString),
 	MethodDef(GetTexEnvfv),
 	MethodDef(GetTexEnviv),
@@ -924,6 +1128,7 @@ static struct PyMethodDef BGL_methods[] = {
 	MethodDef(GetTexLevelParameteriv),
 	MethodDef(GetTexParameterfv),
 	MethodDef(GetTexParameteriv),
+	MethodDef(GetUniformLocation),
 	MethodDef(Hint),
 	MethodDef(IndexMask),
 	MethodDef(Indexd),
@@ -937,6 +1142,8 @@ static struct PyMethodDef BGL_methods[] = {
 	MethodDef(InitNames),
 	MethodDef(IsEnabled),
 	MethodDef(IsList),
+	MethodDef(IsProgram),
+	MethodDef(IsShader),
 	MethodDef(IsTexture), 
 	MethodDef(LightModelf),
 	MethodDef(LightModelfv),
@@ -948,6 +1155,7 @@ static struct PyMethodDef BGL_methods[] = {
 	MethodDef(Lightiv),
 	MethodDef(LineStipple),
 	MethodDef(LineWidth),
+	MethodDef(LinkProgram),
 	MethodDef(ListBase),
 	MethodDef(LoadIdentity),
 	MethodDef(LoadMatrixd),
@@ -1045,6 +1253,7 @@ static struct PyMethodDef BGL_methods[] = {
 	MethodDef(Scissor),
 	MethodDef(SelectBuffer),
 	MethodDef(ShadeModel),
+	MethodDef(ShaderSource),
 	MethodDef(StencilFunc),
 	MethodDef(StencilMask),
 	MethodDef(StencilOp),
@@ -1098,6 +1307,33 @@ static struct PyMethodDef BGL_methods[] = {
 	MethodDef(TexParameteriv),
 	MethodDef(Translated),
 	MethodDef(Translatef),
+	MethodDef(Uniform1f),
+	MethodDef(Uniform2f),
+	MethodDef(Uniform3f),
+	MethodDef(Uniform4f),
+	MethodDef(Uniform1fv),
+	MethodDef(Uniform2fv),
+	MethodDef(Uniform3fv),
+	MethodDef(Uniform4fv),
+	MethodDef(Uniform1i),
+	MethodDef(Uniform2i),
+	MethodDef(Uniform3i),
+	MethodDef(Uniform4i),
+	MethodDef(Uniform1iv),
+	MethodDef(Uniform2iv),
+	MethodDef(Uniform3iv),
+	MethodDef(Uniform4iv),
+	MethodDef(UniformMatrix2fv),
+	MethodDef(UniformMatrix3fv),
+	MethodDef(UniformMatrix4fv),
+	MethodDef(UniformMatrix2x3fv),
+	MethodDef(UniformMatrix3x2fv),
+	MethodDef(UniformMatrix2x4fv),
+	MethodDef(UniformMatrix4x2fv),
+	MethodDef(UniformMatrix3x4fv),
+	MethodDef(UniformMatrix4x3fv),
+	MethodDef(UseProgram),
+	MethodDef(ValidateProgram),
 	MethodDef(Vertex2d),
 	MethodDef(Vertex2dv),
 	MethodDef(Vertex2f),
@@ -1149,17 +1385,20 @@ static struct PyModuleDef BGL_module_def = {
 PyObject *BPyInit_bgl(void)
 {
 	PyObject *submodule, *dict, *item;
-	submodule= PyModule_Create(&BGL_module_def);
-	dict= PyModule_GetDict(submodule);
-	
-	if( PyType_Ready( &BGL_bufferType) < 0)
-		return NULL; /* should never happen */
+	submodule = PyModule_Create(&BGL_module_def);
+	dict = PyModule_GetDict(submodule);
 
-#define EXPP_ADDCONST(x) PyDict_SetItemString(dict, #x, item=PyLong_FromLong((int)x)); Py_DECREF(item)
+	if (PyType_Ready(&BGL_bufferType) < 0)
+		return NULL;  /* should never happen */
+
+	PyModule_AddObject(submodule, "Buffer", (PyObject *)&BGL_bufferType);
+	Py_INCREF((PyObject *)&BGL_bufferType);
+
+#define EXPP_ADDCONST(x) PyDict_SetItemString(dict, #x, item = PyLong_FromLong((int)x)); Py_DECREF(item)
 
 /* So, for example:
  * EXPP_ADDCONST(GL_CURRENT_BIT) becomes
- * PyDict_SetItemString(dict, "GL_CURRENT_BIT", item=PyLong_FromLong(GL_CURRENT_BIT)); Py_DECREF(item) */
+ * PyDict_SetItemString(dict, "GL_CURRENT_BIT", item = PyLong_FromLong(GL_CURRENT_BIT)); Py_DECREF(item) */
 
 	EXPP_ADDCONST(GL_CURRENT_BIT);
 	EXPP_ADDCONST(GL_POINT_BIT);
@@ -1641,7 +1880,38 @@ PyObject *BPyInit_bgl(void)
 	EXPP_ADDCONST(GL_TEXTURE_RESIDENT);
 	EXPP_ADDCONST(GL_TEXTURE_BINDING_1D);
 	EXPP_ADDCONST(GL_TEXTURE_BINDING_2D);
-      
+
+	EXPP_ADDCONST(GL_VERTEX_SHADER);
+	EXPP_ADDCONST(GL_FRAGMENT_SHADER);
+	EXPP_ADDCONST(GL_COMPILE_STATUS);
+	EXPP_ADDCONST(GL_ACTIVE_TEXTURE);
+
+	EXPP_ADDCONST(GL_TEXTURE0);
+	EXPP_ADDCONST(GL_TEXTURE1);
+	EXPP_ADDCONST(GL_TEXTURE2);
+	EXPP_ADDCONST(GL_TEXTURE3);
+	EXPP_ADDCONST(GL_TEXTURE4);
+	EXPP_ADDCONST(GL_TEXTURE5);
+	EXPP_ADDCONST(GL_TEXTURE6);
+	EXPP_ADDCONST(GL_TEXTURE7);
+	EXPP_ADDCONST(GL_TEXTURE8);
+
+	EXPP_ADDCONST(GL_DEPTH_COMPONENT32);
+	EXPP_ADDCONST(GL_TEXTURE_COMPARE_MODE);
+
 	return submodule;
+}
+
+static PyObject *Method_ShaderSource(PyObject *UNUSED(self), PyObject *args)
+{
+	unsigned int shader;
+	char *source;
+
+	if (!PyArg_ParseTuple(args, "Is", &shader, &source))
+		return NULL;
+
+	glShaderSource(shader, 1, (const char **)&source, NULL);
+
+	return Py_INCREF(Py_None), Py_None;
 }
 

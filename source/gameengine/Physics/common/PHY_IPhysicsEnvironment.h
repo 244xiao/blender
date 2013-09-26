@@ -1,6 +1,4 @@
 /*
- * $Id: PHY_IPhysicsEnvironment.h 35500 2011-03-12 20:34:17Z erwin $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,17 +29,20 @@
  *  \ingroup phys
  */
 
-#ifndef _IPHYSICSENVIRONMENT
-#define _IPHYSICSENVIRONMENT
+#ifndef __PHY_IPHYSICSENVIRONMENT_H__
+#define __PHY_IPHYSICSENVIRONMENT_H__
 
-#include <vector>
 #include "PHY_DynamicTypes.h"
+#include "MT_Vector2.h"
+#include "MT_Vector3.h"
+#include "MT_Vector4.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
 #endif
 
 class PHY_IVehicle;
+class PHY_ICharacter;
 class RAS_MeshObject;
 class PHY_IPhysicsController;
 
@@ -50,20 +51,20 @@ class PHY_IPhysicsController;
  */
 struct PHY_RayCastResult
 {
-	PHY_IPhysicsController* m_controller;	
-	PHY__Vector3			m_hitPoint;
-	PHY__Vector3			m_hitNormal;
+	PHY_IPhysicsController* m_controller;
+	MT_Vector3			m_hitPoint;
+	MT_Vector3			m_hitNormal;
 	const RAS_MeshObject*	m_meshObject;	// !=NULL for mesh object (only for Bullet controllers) 
 	int						m_polygon;		// index of the polygon hit by the ray,
 											// only if m_meshObject != NULL
 	int                     m_hitUVOK;		// !=0 if UV coordinate in m_hitUV is valid
-	PHY__Vector2			m_hitUV;		// UV coordinates of hit point
+	MT_Vector2			m_hitUV;		// UV coordinates of hit point
 };
 
 /**
  * This class replaces the ignoreController parameter of rayTest function. 
  * It allows more sophisticated filtering on the physics controller before computing the ray intersection to save CPU. 
- * It is only used to its full extend by the Ccd physics environement (Bullet).
+ * It is only used to its full extend by the Ccd physics environment (Bullet).
  */
 class PHY_IRayCastFilterCallback
 {
@@ -89,28 +90,28 @@ public:
 		m_faceUV(faceUV)
 	{
 	}
-	
+
+
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:PHY_IRayCastFilterCallback"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PHY_IRayCastFilterCallback")
 #endif
 };
 
 /**
-*	Physics Environment takes care of stepping the simulation and is a container for physics entities (rigidbodies,constraints, materials etc.)
-*	A derived class may be able to 'construct' entities by loading and/or converting
-*/
+ * Physics Environment takes care of stepping the simulation and is a container for physics entities
+ * (rigidbodies,constraints, materials etc.)
+ * A derived class may be able to 'construct' entities by loading and/or converting
+ */
 class PHY_IPhysicsEnvironment
 {
 	public:
-		virtual		~PHY_IPhysicsEnvironment();
+		virtual		~PHY_IPhysicsEnvironment(){};
 		virtual	void		beginFrame() = 0;
 		virtual void		endFrame() = 0;
 		/// Perform an integration step of duration 'timeStep'.
 		virtual	bool		proceedDeltaTime(double curTime,float timeStep,float interval)=0;
 		///draw debug lines (make sure to call this during the render phase, otherwise lines are not drawn properly)
-		virtual void		debugDrawWorld(){}
+		virtual void		debugDrawWorld() {}
 		virtual	void		setFixedTimeStep(bool useFixedTimeStep,float fixedTimeStep)=0;
 		//returns 0.f if no fixed timestep is used
 		virtual	float		getFixedTimeStep()=0;
@@ -120,7 +121,7 @@ class PHY_IPhysicsEnvironment
 		///setNumIterations set the number of iterations for iterative solvers
 		virtual void		setNumIterations(int numIter) {}
 		///setNumTimeSubSteps set the number of divisions of the timestep. Tradeoff quality versus performance.
-		virtual void		setNumTimeSubSteps(int numTimeSubSteps){}
+		virtual void		setNumTimeSubSteps(int numTimeSubSteps) {}
 		///setDeactivationTime sets the minimum time that an objects has to stay within the velocity tresholds until it gets fully deactivated
 		virtual void		setDeactivationTime(float dTime) {}
 		///setDeactivationLinearTreshold sets the linear velocity treshold, see setDeactivationTime
@@ -131,7 +132,7 @@ class PHY_IPhysicsEnvironment
 		virtual void		setContactBreakingTreshold(float contactBreakingTreshold) {}
 		///continuous collision detection mode, very experimental for Bullet
 		virtual void		setCcdMode(int ccdMode) {}
-		///successive overrelaxation constant, in case PSOR is used, values in between 1 and 2 guarantee converging behaviour
+		///successive overrelaxation constant, in case PSOR is used, values in between 1 and 2 guarantee converging behavior
 		virtual void		setSolverSorConstant(float sor) {}
 		///setSolverType, internal setting, chooses solvertype, PSOR, Dantzig, impulse based, penalty based
 		virtual void		setSolverType(int solverType) {}
@@ -145,6 +146,7 @@ class PHY_IPhysicsEnvironment
 		virtual void		setUseEpa(bool epa) {}
 
 		virtual	void		setGravity(float x,float y,float z)=0;
+		virtual	void		getGravity(MT_Vector3& grav) = 0;
 
 		virtual int			createConstraint(class PHY_IPhysicsController* ctrl,class PHY_IPhysicsController* ctrl2,PHY_ConstraintType type,
 			float pivotX,float pivotY,float pivotZ,
@@ -153,18 +155,21 @@ class PHY_IPhysicsEnvironment
 			float axis2X=0,float axis2Y=0,float axis2Z=0,int flag=0
 		)=0;
 		virtual void		removeConstraint(int	constraintid)=0;
-		virtual float		getAppliedImpulse(int	constraintid){ return 0.f;}
+		virtual float		getAppliedImpulse(int	constraintid) { return 0.0f; }
 
 
 		//complex constraint for vehicles
 		virtual PHY_IVehicle*	getVehicleConstraint(int constraintId) =0;
+
+		// Character physics wrapper
+		virtual PHY_ICharacter*	getCharacterController(class KX_GameObject* ob) =0;
 
 		virtual PHY_IPhysicsController* rayTest(PHY_IRayCastFilterCallback &filterCallback, float fromX,float fromY,float fromZ, float toX,float toY,float toZ)=0;
 
 		//culling based on physical broad phase
 		// the plane number must be set as follow: near, far, left, right, top, botton
 		// the near plane must be the first one and must always be present, it is used to get the direction of the view
-		virtual bool cullingTest(PHY_CullingCallback callback, void *userData, PHY__Vector4* planeNormals, int planeNumber, int occlusionRes) = 0;
+		virtual bool cullingTest(PHY_CullingCallback callback, void *userData, MT_Vector4* planeNormals, int planeNumber, int occlusionRes, const int *viewport, double modelview[16], double projection[16]) = 0;
 
 		//Methods for gamelogic collision/physics callbacks
 		//todo:
@@ -174,20 +179,18 @@ class PHY_IPhysicsEnvironment
 		virtual bool requestCollisionCallback(PHY_IPhysicsController* ctrl)=0;
 		virtual bool removeCollisionCallback(PHY_IPhysicsController* ctrl)=0;
 		//These two methods are *solely* used to create controllers for sensor! Don't use for anything else
-		virtual PHY_IPhysicsController*	CreateSphereController(float radius,const PHY__Vector3& position) =0;
+		virtual PHY_IPhysicsController*	CreateSphereController(float radius,const MT_Vector3& position) =0;
 		virtual PHY_IPhysicsController* CreateConeController(float coneradius,float coneheight)=0;
 		
 		virtual void	setConstraintParam(int constraintId,int param,float value,float value1) = 0;
 		virtual float	getConstraintParam(int constraintId,int param) = 0;
 		
 		virtual void	exportFile(const char* filename) {};
-		
+
+
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:PHY_IPhysicsEnvironment"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:PHY_IPhysicsEnvironment")
 #endif
 };
 
-#endif //_IPHYSICSENVIRONMENT
-
+#endif  /* __PHY_IPHYSICSENVIRONMENT_H__ */

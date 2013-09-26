@@ -1,8 +1,4 @@
 /*
- * BKE_fluidsim.h 
- *	
- * $Id: ED_fluidsim.h 35016 2011-02-21 07:25:24Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -33,25 +29,20 @@
  *  \ingroup editors
  */
 
-#ifndef ED_FLUIDSIM_H
-#define ED_FLUIDSIM_H
+#ifndef __ED_FLUIDSIM_H__
+#define __ED_FLUIDSIM_H__
 
 struct Object;
 struct FluidsimSettings;
 
 
 /* allocates and initializes fluidsim data */
-struct FluidsimSettings* fluidsimSettingsNew(struct Object *srcob);
+struct FluidsimSettings *fluidsimSettingsNew(struct Object *srcob);
 
 /* frees internal data itself */
-void fluidsimSettingsFree(struct FluidsimSettings* sb);
+void fluidsimSettingsFree(struct FluidsimSettings *sb);
 
 /* duplicate internal data */
-struct FluidsimSettings* fluidsimSettingsCopy(struct FluidsimSettings* sb);
+struct FluidsimSettings *fluidsimSettingsCopy(struct FluidsimSettings *sb);
 
-/* memory estimate */
-void fluidsimEstimateMemory(struct Object *ob, struct FluidsimSettings *fs, char *value);
-
-#endif /* ED_FLUIDSIM_H */
-
-
+#endif /* __ED_FLUIDSIM_H__ */

@@ -1,5 +1,4 @@
 /*
- * $Id: KX_PolygonMaterial.cpp 35390 2011-03-07 19:14:17Z dfelinto $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -61,14 +60,14 @@ KX_PolygonMaterial::KX_PolygonMaterial()
 		: PyObjectPlus(),
 		  RAS_IPolyMaterial(),
 
-	m_tface(NULL),
-	m_mcol(NULL),
 	m_material(NULL),
 #ifdef WITH_PYTHON
 	m_pymaterial(NULL),
 #endif
 	m_pass(0)
 {
+	memset(&m_tface, 0, sizeof(m_tface));
+	memset(&m_mcol, 0, sizeof(m_mcol));
 }
 
 void KX_PolygonMaterial::Initialize(
@@ -78,10 +77,10 @@ void KX_PolygonMaterial::Initialize(
 		int tile,
 		int tilexrep,
 		int tileyrep,
-		int mode,
-		int transp,
+		int alphablend,
 		bool alpha,
 		bool zsort,
+		bool light,
 		int lightlayer,
 		struct MTFace* tface,
 		unsigned int* mcol)
@@ -93,12 +92,26 @@ void KX_PolygonMaterial::Initialize(
 							tile,
 							tilexrep,
 							tileyrep,
-							mode,
-							transp,
+							alphablend,
 							alpha,
-							zsort);
-	m_tface = tface;
-	m_mcol = mcol;
+							zsort,
+							light,
+							(texname && texname != ""?true:false), /* if we have a texture we have image */
+							ma?&ma->game:NULL);
+
+	if (tface) {
+		m_tface = *tface;
+	}
+	else {
+		memset(&m_tface, 0, sizeof(m_tface));
+	}
+	if (mcol) {
+		m_mcol = *mcol;
+	}
+	else {
+		memset(&m_mcol, 0, sizeof(m_mcol));
+	}
+
 	m_material = ma;
 #ifdef WITH_PYTHON
 	m_pymaterial = 0;
@@ -118,7 +131,7 @@ KX_PolygonMaterial::~KX_PolygonMaterial()
 
 Image *KX_PolygonMaterial::GetBlenderImage() const
 {
-	return (m_tface) ? m_tface->tpage : NULL;
+	return m_tface.tpage;
 }
 
 bool KX_PolygonMaterial::Activate(RAS_IRasterizer* rasty, TCachingInfo& cachingInfo) const 
@@ -130,10 +143,10 @@ bool KX_PolygonMaterial::Activate(RAS_IRasterizer* rasty, TCachingInfo& cachingI
 	{
 		PyObject *pyRasty = PyCapsule_New((void*)rasty, KX_POLYGONMATERIAL_CAPSULE_ID, NULL);	/* new reference */
 		PyObject *pyCachingInfo = PyCapsule_New((void*) &cachingInfo, KX_POLYGONMATERIAL_CAPSULE_ID, NULL); /* new reference */
-		PyObject *ret = PyObject_CallMethod(m_pymaterial, (char *)"activate", (char *)"(NNO)", pyRasty, pyCachingInfo, (PyObject*) this->m_proxy);
+		PyObject *ret = PyObject_CallMethod(m_pymaterial, (char *)"activate", (char *)"(NNO)", pyRasty, pyCachingInfo, (PyObject *) this->m_proxy);
 		if (ret)
 		{
-			bool value = PyLong_AsSsize_t(ret);
+			bool value = PyLong_AsLong(ret);
 			Py_DECREF(ret);
 			dopass = value;
 		}
@@ -141,7 +154,7 @@ bool KX_PolygonMaterial::Activate(RAS_IRasterizer* rasty, TCachingInfo& cachingI
 		{
 			PyErr_Print();
 			PyErr_Clear();
-			PySys_SetObject( (char *)"last_traceback", NULL);
+			PySys_SetObject("last_traceback", NULL);
 		}
 	}
 	else
@@ -168,26 +181,26 @@ void KX_PolygonMaterial::DefaultActivate(RAS_IRasterizer* rasty, TCachingInfo& c
 	if (GetCachingInfo() != cachingInfo)
 	{
 		if (!cachingInfo)
-			GPU_set_tpage(NULL, 0);
+			GPU_set_tpage(NULL, 0, 0);
 
 		cachingInfo = GetCachingInfo();
 
 		if ((m_drawingmode & RAS_IRasterizer::KX_TEX)&& (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED))
 		{
-			Image *ima = (Image*)m_tface->tpage;
+			Image *ima = m_tface.tpage;
 			GPU_update_image_time(ima, rasty->GetTime());
-			GPU_set_tpage(m_tface, 1);
+			GPU_set_tpage(&m_tface, 1, m_alphablend);
 		}
 		else
-			GPU_set_tpage(NULL, 0);
+			GPU_set_tpage(NULL, 0, 0);
 		
-		if(m_drawingmode & RAS_IRasterizer::KX_TWOSIDE)
-			rasty->SetCullFace(false);
-		else
+		if (m_drawingmode & RAS_IRasterizer::KX_BACKCULL)
 			rasty->SetCullFace(true);
+		else
+			rasty->SetCullFace(false);
 
 		if ((m_drawingmode & RAS_IRasterizer::KX_LINES) ||
-		    (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME))
+		        (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME))
 			rasty->SetLines(true);
 		else
 			rasty->SetLines(false);
@@ -239,7 +252,7 @@ PyAttributeDef KX_PolygonMaterial::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RW("tile", INT_MIN, INT_MAX, true, KX_PolygonMaterial, m_tile),
 	KX_PYATTRIBUTE_INT_RW("tilexrep", INT_MIN, INT_MAX, true, KX_PolygonMaterial, m_tilexrep),
 	KX_PYATTRIBUTE_INT_RW("tileyrep", INT_MIN, INT_MAX, true, KX_PolygonMaterial, m_tileyrep),
-	KX_PYATTRIBUTE_INT_RW("drawingmode", INT_MIN, INT_MAX, true, KX_PolygonMaterial, m_drawingmode),	
+	KX_PYATTRIBUTE_INT_RW("drawingmode", INT_MIN, INT_MAX, true, KX_PolygonMaterial, m_drawingmode),
 	//KX_PYATTRIBUTE_INT_RW("lightlayer", INT_MIN, INT_MAX, true, KX_PolygonMaterial, m_lightlayer),
 
 	KX_PYATTRIBUTE_BOOL_RW("transparent", KX_PolygonMaterial, m_alpha),
@@ -249,12 +262,10 @@ PyAttributeDef KX_PolygonMaterial::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_RW("specularity", 0.0f, 1000.0f, KX_PolygonMaterial, m_specularity),
 	
 	KX_PYATTRIBUTE_RW_FUNCTION("diffuse", KX_PolygonMaterial, pyattr_get_diffuse, pyattr_set_diffuse),
-	KX_PYATTRIBUTE_RW_FUNCTION("specular",KX_PolygonMaterial, pyattr_get_specular, pyattr_set_specular),	
+	KX_PYATTRIBUTE_RW_FUNCTION("specular",KX_PolygonMaterial, pyattr_get_specular, pyattr_set_specular),
 	
 	KX_PYATTRIBUTE_RO_FUNCTION("tface",	KX_PolygonMaterial, pyattr_get_tface), /* How the heck is this even useful??? - Campbell */
 	KX_PYATTRIBUTE_RO_FUNCTION("gl_texture", KX_PolygonMaterial, pyattr_get_gl_texture), /* could be called 'bindcode' */
-	
-	/* triangle used to be an attribute, removed for 2.49, nobody should be using it */
 	{ NULL }	//Sentinel
 };
 
@@ -318,7 +329,7 @@ KX_PYMETHODDEF_DOC(KX_PolygonMaterial, setTexture, "setTexture(tface)")
 	if (PyArg_ParseTuple(args, "O!:setTexture", &PyCapsule_Type, &pytface))
 	{
 		MTFace *tface = (MTFace*) PyCapsule_GetPointer(pytface, KX_POLYGONMATERIAL_CAPSULE_ID);
-		GPU_set_tpage(tface, 1);
+		GPU_set_tpage(tface, 1, m_alphablend);
 		Py_RETURN_NONE;
 	}
 	
@@ -342,45 +353,45 @@ KX_PYMETHODDEF_DOC(KX_PolygonMaterial, activate, "activate(rasty, cachingInfo)")
 	return NULL;
 }
 
-PyObject* KX_PolygonMaterial::pyattr_get_texture(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_PolygonMaterial::pyattr_get_texture(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
-	return PyUnicode_FromString(self->m_texturename.ReadPtr());
+	KX_PolygonMaterial* self = static_cast<KX_PolygonMaterial*>(self_v);
+	return PyUnicode_From_STR_String(self->m_texturename);
 }
 
-PyObject* KX_PolygonMaterial::pyattr_get_material(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_PolygonMaterial::pyattr_get_material(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
-	return PyUnicode_FromString(self->m_materialname.ReadPtr());
+	KX_PolygonMaterial* self = static_cast<KX_PolygonMaterial*>(self_v);
+	return PyUnicode_From_STR_String(self->m_materialname);
 }
 
 /* this does not seem useful */
-PyObject* KX_PolygonMaterial::pyattr_get_tface(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_PolygonMaterial::pyattr_get_tface(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
-	return PyCapsule_New(self->m_tface, KX_POLYGONMATERIAL_CAPSULE_ID, NULL);
+	KX_PolygonMaterial* self = static_cast<KX_PolygonMaterial*>(self_v);
+	return PyCapsule_New(&self->m_tface, KX_POLYGONMATERIAL_CAPSULE_ID, NULL);
 }
 
-PyObject* KX_PolygonMaterial::pyattr_get_gl_texture(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_PolygonMaterial::pyattr_get_gl_texture(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
+	KX_PolygonMaterial* self = static_cast<KX_PolygonMaterial*>(self_v);
 	int bindcode= 0;
-	if (self->m_tface && self->m_tface->tpage)
-		bindcode= self->m_tface->tpage->bindcode;
+	if (self->m_tface.tpage)
+		bindcode= self->m_tface.tpage->bindcode;
 	
-	return PyLong_FromSsize_t(bindcode);
+	return PyLong_FromLong(bindcode);
 }
 
 
-PyObject* KX_PolygonMaterial::pyattr_get_diffuse(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_PolygonMaterial::pyattr_get_diffuse(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
+	KX_PolygonMaterial* self = static_cast<KX_PolygonMaterial*>(self_v);
 	return PyObjectFrom(self->m_diffuse);
 }
 
 int KX_PolygonMaterial::pyattr_set_diffuse(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
+	KX_PolygonMaterial* self = static_cast<KX_PolygonMaterial*>(self_v);
 	MT_Vector3 vec;
 	
 	if (!PyVecTo(value, vec))
@@ -390,15 +401,15 @@ int KX_PolygonMaterial::pyattr_set_diffuse(void *self_v, const KX_PYATTRIBUTE_DE
 	return PY_SET_ATTR_SUCCESS;
 }
 
-PyObject* KX_PolygonMaterial::pyattr_get_specular(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+PyObject *KX_PolygonMaterial::pyattr_get_specular(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
+	KX_PolygonMaterial* self = static_cast<KX_PolygonMaterial*>(self_v);
 	return PyObjectFrom(self->m_specular);
 }
 
 int KX_PolygonMaterial::pyattr_set_specular(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
-	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
+	KX_PolygonMaterial* self = static_cast<KX_PolygonMaterial*>(self_v);
 	MT_Vector3 vec;
 	
 	if (!PyVecTo(value, vec))

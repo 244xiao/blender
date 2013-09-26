@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_EventManager.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __KX_EVENTMANAGER
-#define __KX_EVENTMANAGER
+#ifndef __SCA_EVENTMANAGER_H__
+#define __SCA_EVENTMANAGER_H__
 
 #include <vector>
 #include <set>
@@ -86,9 +84,7 @@ protected:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SCA_EventManager"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_EventManager")
 #endif
 };
 

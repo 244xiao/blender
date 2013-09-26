@@ -1,6 +1,4 @@
 /*
- * $Id: MaterialExporter.h 35020 2011-02-21 08:38:53Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -36,21 +34,27 @@
 #include "COLLADASWLibraryMaterials.h"
 #include "COLLADASWStreamWriter.h"
 
-#include "BKE_material.h"
-
-#include "DNA_material_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
+extern "C" {
+	#include "BKE_material.h"
+	#include "DNA_material_types.h"
+	#include "DNA_object_types.h"
+	#include "DNA_scene_types.h"
+}
 
 #include "GeometryExporter.h"
 #include "collada_internal.h"
+#include "ExportSettings.h"
 
 class MaterialsExporter: COLLADASW::LibraryMaterials
 {
 public:
-	MaterialsExporter(COLLADASW::StreamWriter *sw);
+	MaterialsExporter(COLLADASW::StreamWriter *sw, const ExportSettings *export_settings);
 	void exportMaterials(Scene *sce);
 	void operator()(Material *ma, Object *ob);
+
+private:
+	bool hasMaterials(Scene *sce);
+	const ExportSettings *export_settings;
 };
 
 // used in forEachMaterialInScene
@@ -65,7 +69,7 @@ public:
 	void operator ()(Object *ob)
 	{
 		int a;
-		for(a = 0; a < ob->totcol; a++) {
+		for (a = 0; a < ob->totcol; a++) {
 
 			Material *ma = give_current_material(ob, a+1);
 
@@ -84,13 +88,13 @@ public:
 struct MaterialFunctor {
 	// calls f for each unique material linked to each object in sce
 	// f should have
-	// void operator()(Material* ma)
+	// void operator()(Material *ma)
 	template<class Functor>
-	void forEachMaterialInScene(Scene *sce, Functor &f)
+	void forEachMaterialInExportSet(Scene *sce, Functor &f, LinkNode *export_set)
 	{
 		ForEachMaterialFunctor<Functor> matfunc(&f);
 		GeometryFunctor gf;
-		gf.forEachMeshObjectInScene<ForEachMaterialFunctor<Functor> >(sce, matfunc);
+		gf.forEachMeshObjectInExportSet<ForEachMaterialFunctor<Functor> >(sce, matfunc, export_set);
 	}
 };
 

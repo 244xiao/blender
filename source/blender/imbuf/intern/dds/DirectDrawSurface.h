@@ -1,6 +1,4 @@
 /*
- * $Id: DirectDrawSurface.h 35239 2011-02-27 20:23:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributors: Amorilia (amorilia@gamebox.net)
+ * Contributors: Amorilia (amorilia@users.sourceforge.net)
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -57,8 +55,8 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
 
-#ifndef _DDS_DIRECTDRAWSURFACE_H
-#define _DDS_DIRECTDRAWSURFACE_H
+#ifndef __DIRECTDRAWSURFACE_H__
+#define __DIRECTDRAWSURFACE_H__
 
 #include <Common.h>
 #include <Stream.h>
@@ -126,11 +124,25 @@ struct DDSHeader
 	void setLinearSize(uint size);
 	void setPitch(uint pitch);
 	void setFourCC(uint8 c0, uint8 c1, uint8 c2, uint8 c3);
+	void setFormatCode(uint code);
+	void setSwizzleCode(uint8 c0, uint8 c1, uint8 c2, uint8 c3);
 	void setPixelFormat(uint bitcount, uint rmask, uint gmask, uint bmask, uint amask);
 	void setDX10Format(uint format);
 	void setNormalFlag(bool b);
+	void setSrgbFlag(bool b);
+	void setHasAlphaFlag(bool b);
+	void setUserVersion(int version);
+	
+	/*void swapBytes();*/
 	
 	bool hasDX10Header() const;
+	uint signature() const;
+	uint toolVersion() const;
+	uint userVersion() const;
+	bool isNormalMap() const;
+	bool isSrgb() const;
+	bool hasAlpha() const;
+	uint d3d9Format() const;
 };
 
 /// DirectDraw Surface. (DDS)
@@ -142,8 +154,11 @@ public:
 	
 	bool isValid() const;
 	bool isSupported() const;
+
+	bool hasAlpha() const;
 	
 	uint mipmapCount() const;
+	uint fourCC() const;
 	uint width() const;
 	uint height() const;
 	uint depth() const;
@@ -153,11 +168,12 @@ public:
 	bool isTextureCube() const;
 
 	void setNormalFlag(bool b);
-
-	bool hasAlpha() const; /* false for DXT1, true for all other DXTs */
+	void setHasAlphaFlag(bool b);
+	void setUserVersion(int version);
 	
-	void mipmap(Image * img, uint f, uint m);
-	//	void mipmap(FloatImage * img, uint f, uint m);
+	void mipmap(Image *img, uint f, uint m);
+	void *readData(uint &size);
+	//	void mipmap(FloatImage *img, uint f, uint m);
 	
 	void printInfo() const;
 
@@ -184,4 +200,4 @@ void mem_read(Stream & mem, DDSCaps & caps);
 void mem_read(Stream & mem, DDSHeader & header);
 void mem_read(Stream & mem, DDSHeader10 & header);
 
-#endif // _DDS_DIRECTDRAWSURFACE_H
+#endif  /* __DIRECTDRAWSURFACE_H__ */

@@ -1,6 +1,4 @@
 /*
- * $Id: bpy_app.c 36125 2011-04-12 17:58:54Z elubie $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -24,17 +22,27 @@
 
 /** \file blender/python/intern/bpy_app.c
  *  \ingroup pythonintern
+ *
+ * This file defines a 'PyStructSequence' accessed via 'bpy.app', mostly
+ * exposing static applications variables such as version and buildinfo
+ * however some writable variables have been added such as 'debug' and 'tempdir'
  */
 
 
 #include <Python.h>
 
 #include "bpy_app.h"
+
+#include "bpy_app_ffmpeg.h"
+#include "bpy_app_build_options.h"
+
+#include "bpy_app_translations.h"
+
+#include "bpy_app_handlers.h"
 #include "bpy_driver.h"
 
-#include "BLI_path_util.h"
 #include "BLI_utildefines.h"
-
+#include "BLI_path_util.h"
 
 #include "BKE_blender.h"
 #include "BKE_global.h"
@@ -56,7 +64,7 @@ extern char build_system[];
 
 static PyTypeObject BlenderAppType;
 
-static PyStructSequence_Field app_info_fields[]= {
+static PyStructSequence_Field app_info_fields[] = {
 	{(char *)"version", (char *)"The Blender version as a tuple of 3 numbers. eg. (2, 50, 11)"},
 	{(char *)"version_string", (char *)"The Blender version formatted as a string"},
 	{(char *)"version_char", (char *)"The Blender version character (for minor releases)"},
@@ -74,74 +82,84 @@ static PyStructSequence_Field app_info_fields[]= {
 	{(char *)"build_cxxflags", (char *)"C++ compiler flags"},
 	{(char *)"build_linkflags", (char *)"Binary linking flags"},
 	{(char *)"build_system", (char *)"Build system used"},
-	{NULL}
+
+	/* submodules */
+	{(char *)"ffmpeg", (char *)"FFmpeg library information backend"},
+	{(char *)"build_options", (char *)"A set containing most important enabled optional build features"},
+	{(char *)"handlers", (char *)"Application handler callbacks"},
+	{(char *)"translations", (char *)"Application and addons internationalization API"},
+	{NULL},
 };
 
-static PyStructSequence_Desc app_info_desc= {
+static PyStructSequence_Desc app_info_desc = {
 	(char *)"bpy.app",     /* name */
 	(char *)"This module contains application values that remain unchanged during runtime.",    /* doc */
 	app_info_fields,    /* fields */
-	(sizeof(app_info_fields)/sizeof(PyStructSequence_Field)) - 1
+	(sizeof(app_info_fields) / sizeof(PyStructSequence_Field)) - 1
 };
-
-#define DO_EXPAND(VAL)  VAL ## 1
-#define EXPAND(VAL)     DO_EXPAND(VAL)
 
 static PyObject *make_app_info(void)
 {
-	extern char bprogname[]; /* argv[0] from creator.c */
-
 	PyObject *app_info;
-	int pos= 0;
+	int pos = 0;
 
-	app_info= PyStructSequence_New(&BlenderAppType);
+	app_info = PyStructSequence_New(&BlenderAppType);
 	if (app_info == NULL) {
 		return NULL;
 	}
-
+#if 0
 #define SetIntItem(flag) \
 	PyStructSequence_SET_ITEM(app_info, pos++, PyLong_FromLong(flag))
+#endif
 #define SetStrItem(str) \
 	PyStructSequence_SET_ITEM(app_info, pos++, PyUnicode_FromString(str))
+#define SetBytesItem(str) \
+	PyStructSequence_SET_ITEM(app_info, pos++, PyBytes_FromString(str))
 #define SetObjItem(obj) \
 	PyStructSequence_SET_ITEM(app_info, pos++, obj)
 
-	SetObjItem(Py_BuildValue("(iii)", BLENDER_VERSION/100, BLENDER_VERSION%100, BLENDER_SUBVERSION));
-	SetObjItem(PyUnicode_FromFormat("%d.%02d (sub %d)", BLENDER_VERSION/100, BLENDER_VERSION%100, BLENDER_SUBVERSION));
-#if defined(BLENDER_VERSION_CHAR) && EXPAND(BLENDER_VERSION_CHAR) != 1
+	SetObjItem(Py_BuildValue("(iii)",
+	                         BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION));
+	SetObjItem(PyUnicode_FromFormat("%d.%02d (sub %d)",
+	                                BLENDER_VERSION / 100, BLENDER_VERSION % 100, BLENDER_SUBVERSION));
+
 	SetStrItem(STRINGIFY(BLENDER_VERSION_CHAR));
-#else
-	SetStrItem("");
-#endif
 	SetStrItem(STRINGIFY(BLENDER_VERSION_CYCLE));
-	SetStrItem(bprogname);
+	SetStrItem(BLI_program_path());
 	SetObjItem(PyBool_FromLong(G.background));
 
-	/* build info */
+	/* build info, use bytes since we can't assume _any_ encoding:
+	 * see patch [#30154] for issue */
 #ifdef BUILD_DATE
-	SetStrItem(build_date);
-	SetStrItem(build_time);
-	SetStrItem(build_rev);
-	SetStrItem(build_platform);
-	SetStrItem(build_type);
-	SetStrItem(build_cflags);
-	SetStrItem(build_cxxflags);
-	SetStrItem(build_linkflags);
-	SetStrItem(build_system);
+	SetBytesItem(build_date);
+	SetBytesItem(build_time);
+	SetBytesItem(build_rev);
+	SetBytesItem(build_platform);
+	SetBytesItem(build_type);
+	SetBytesItem(build_cflags);
+	SetBytesItem(build_cxxflags);
+	SetBytesItem(build_linkflags);
+	SetBytesItem(build_system);
 #else
-	SetStrItem("Unknown");
-	SetStrItem("Unknown");
-	SetStrItem("Unknown");
-	SetStrItem("Unknown");
-	SetStrItem("Unknown");
-	SetStrItem("Unknown");
-	SetStrItem("Unknown");
-	SetStrItem("Unknown");
-	SetStrItem("Unknown");
+	SetBytesItem("Unknown");
+	SetBytesItem("Unknown");
+	SetBytesItem("Unknown");
+	SetBytesItem("Unknown");
+	SetBytesItem("Unknown");
+	SetBytesItem("Unknown");
+	SetBytesItem("Unknown");
+	SetBytesItem("Unknown");
+	SetBytesItem("Unknown");
 #endif
+
+	SetObjItem(BPY_app_ffmpeg_struct());
+	SetObjItem(BPY_app_build_options_struct());
+	SetObjItem(BPY_app_handlers_struct());
+	SetObjItem(BPY_app_translations_struct());
 
 #undef SetIntItem
 #undef SetStrItem
+#undef SetBytesItem
 #undef SetObjItem
 
 	if (PyErr_Occurred()) {
@@ -153,69 +171,107 @@ static PyObject *make_app_info(void)
 
 /* a few getsets because it makes sense for them to be in bpy.app even though
  * they are not static */
-static PyObject *bpy_app_debug_get(PyObject *UNUSED(self), void *UNUSED(closure))
+
+PyDoc_STRVAR(bpy_app_debug_doc,
+"Boolean, for debug info (started with --debug / --debug_* matching this attribute name)"
+);
+static PyObject *bpy_app_debug_get(PyObject *UNUSED(self), void *closure)
 {
-	return PyBool_FromLong(G.f & G_DEBUG);
+	const int flag = GET_INT_FROM_POINTER(closure);
+	return PyBool_FromLong(G.debug & flag);
 }
 
-static int bpy_app_debug_set(PyObject *UNUSED(self), PyObject *value, void *UNUSED(closure))
+static int bpy_app_debug_set(PyObject *UNUSED(self), PyObject *value, void *closure)
 {
-	int param= PyObject_IsTrue(value);
+	const int flag = GET_INT_FROM_POINTER(closure);
+	const int param = PyObject_IsTrue(value);
 
-	if(param < 0) {
+	if (param == -1) {
 		PyErr_SetString(PyExc_TypeError, "bpy.app.debug can only be True/False");
 		return -1;
 	}
 	
-	if(param)	G.f |=  G_DEBUG;
-	else		G.f &= ~G_DEBUG;
+	if (param)  G.debug |=  flag;
+	else        G.debug &= ~flag;
 	
 	return 0;
 }
 
+PyDoc_STRVAR(bpy_app_debug_value_doc,
+"Int, number which can be set to non-zero values for testing purposes"
+);
 static PyObject *bpy_app_debug_value_get(PyObject *UNUSED(self), void *UNUSED(closure))
 {
-	return PyLong_FromSsize_t(G.rt);
+	return PyLong_FromLong(G.debug_value);
 }
 
 static int bpy_app_debug_value_set(PyObject *UNUSED(self), PyObject *value, void *UNUSED(closure))
 {
-	int param= PyLong_AsSsize_t(value);
+	int param = PyLong_AsLong(value);
 
 	if (param == -1 && PyErr_Occurred()) {
 		PyErr_SetString(PyExc_TypeError, "bpy.app.debug_value can only be set to a whole number");
 		return -1;
 	}
 	
-	G.rt= param;
+	G.debug_value = param;
 
 	return 0;
 }
 
-static PyObject *bpy_app_tempdir_get(PyObject *UNUSED(self), void *UNUSED(closure))
+static PyObject *bpy_app_global_flag_get(PyObject *UNUSED(self), void *closure)
 {
-	extern char btempdir[];
-	return PyC_UnicodeFromByte(btempdir);
+	const int flag = GET_INT_FROM_POINTER(closure);
+	return PyBool_FromLong(G.f & flag);
 }
 
+PyDoc_STRVAR(bpy_app_tempdir_doc,
+"String, the temp directory used by blender (read-only)"
+);
+static PyObject *bpy_app_tempdir_get(PyObject *UNUSED(self), void *UNUSED(closure))
+{
+	return PyC_UnicodeFromByte(BLI_temporary_dir());
+}
+
+PyDoc_STRVAR(bpy_app_driver_dict_doc,
+"Dictionary for drivers namespace, editable in-place, reset on file load (read-only)"
+);
 static PyObject *bpy_app_driver_dict_get(PyObject *UNUSED(self), void *UNUSED(closure))
 {
-	if (bpy_pydriver_Dict == NULL)
+	if (bpy_pydriver_Dict == NULL) {
 		if (bpy_pydriver_create_dict() != 0) {
 			PyErr_SetString(PyExc_RuntimeError, "bpy.app.driver_namespace failed to create dictionary");
 			return NULL;
+		}
 	}
 
 	Py_INCREF(bpy_pydriver_Dict);
 	return bpy_pydriver_Dict;
 }
 
+static PyObject *bpy_app_autoexec_fail_message_get(PyObject *UNUSED(self), void *UNUSED(closure))
+{
+	return PyC_UnicodeFromByte(G.autoexec_fail);
+}
 
-static PyGetSetDef bpy_app_getsets[]= {
-	{(char *)"debug", bpy_app_debug_get, bpy_app_debug_set, (char *)"Boolean, set when blender is running in debug mode (started with -d)", NULL},
-	{(char *)"debug_value", bpy_app_debug_value_get, bpy_app_debug_value_set, (char *)"Int, number which can be set to non-zero values for testing purposes.", NULL},
-	{(char *)"tempdir", bpy_app_tempdir_get, NULL, (char *)"String, the temp directory used by blender (read-only)", NULL},
-	{(char *)"driver_namespace", bpy_app_driver_dict_get, NULL, (char *)"Dictionary for drivers namespace, editable in-place, reset on file load (read-only)", NULL},
+
+static PyGetSetDef bpy_app_getsets[] = {
+	{(char *)"debug",           bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG},
+	{(char *)"debug_ffmpeg",    bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_FFMPEG},
+	{(char *)"debug_freestyle", bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_FREESTYLE},
+	{(char *)"debug_python",    bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_PYTHON},
+	{(char *)"debug_events",    bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_EVENTS},
+	{(char *)"debug_handlers",  bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_HANDLERS},
+	{(char *)"debug_wm",        bpy_app_debug_get, bpy_app_debug_set, (char *)bpy_app_debug_doc, (void *)G_DEBUG_WM},
+
+	{(char *)"debug_value", bpy_app_debug_value_get, bpy_app_debug_value_set, (char *)bpy_app_debug_value_doc, NULL},
+	{(char *)"tempdir", bpy_app_tempdir_get, NULL, (char *)bpy_app_tempdir_doc, NULL},
+	{(char *)"driver_namespace", bpy_app_driver_dict_get, NULL, (char *)bpy_app_driver_dict_doc, NULL},
+
+	/* security */
+	{(char *)"autoexec_fail", bpy_app_global_flag_get, NULL, NULL, (void *)G_SCRIPT_AUTOEXEC_FAIL},
+	{(char *)"autoexec_fail_quiet", bpy_app_global_flag_get, NULL, NULL, (void *)G_SCRIPT_AUTOEXEC_FAIL_QUIET},
+	{(char *)"autoexec_fail_message", bpy_app_autoexec_fail_message_get, NULL, NULL, NULL},
 	{NULL, NULL, NULL, NULL, NULL}
 };
 
@@ -224,7 +280,7 @@ static void py_struct_seq_getset_init(void)
 	/* tricky dynamic members, not to py-spec! */
 	PyGetSetDef *getset;
 
-	for(getset= bpy_app_getsets; getset->name; getset++) {
+	for (getset = bpy_app_getsets; getset->name; getset++) {
 		PyDict_SetItemString(BlenderAppType.tp_dict, getset->name, PyDescr_NewGetSet(&BlenderAppType, getset));
 	}
 }
@@ -237,15 +293,15 @@ PyObject *BPY_app_struct(void)
 	
 	PyStructSequence_InitType(&BlenderAppType, &app_info_desc);
 
-	ret= make_app_info();
+	ret = make_app_info();
 
 	/* prevent user from creating new instances */
-	BlenderAppType.tp_init= NULL;
-	BlenderAppType.tp_new= NULL;
+	BlenderAppType.tp_init = NULL;
+	BlenderAppType.tp_new = NULL;
+	BlenderAppType.tp_hash = (hashfunc)_Py_HashPointer; /* without this we can't do set(sys.modules) [#29635] */
 
 	/* kindof a hack ontop of PyStructSequence */
 	py_struct_seq_getset_init();
 
 	return ret;
 }
-

@@ -1,6 +1,4 @@
 /*
- * $Id: BLI_noise.h 34966 2011-02-18 13:58:08Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,10 +24,10 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  * 
-*/
+ */
 
-#ifndef BLI_NOISE_H
-#define BLI_NOISE_H
+#ifndef __BLI_NOISE_H__
+#define __BLI_NOISE_H__
 
 /** \file BLI_noise.h
  *  \ingroup bli
@@ -56,7 +54,7 @@ float mg_HeteroTerrain(float x, float y, float z, float H, float lacunarity, flo
 float mg_HybridMultiFractal(float x, float y, float z, float H, float lacunarity, float octaves, float offset, float gain, int noisebasis);
 float mg_RidgedMultiFractal(float x, float y, float z, float H, float lacunarity, float octaves, float offset, float gain, int noisebasis);
 /* newnoise: voronoi */
-void voronoi(float x, float y, float z, float* da, float* pa, float me, int dtype);
+void voronoi(float x, float y, float z, float *da, float *pa, float me, int dtype);
 /* newnoise: cellNoise & cellNoiseV (for vector/point/color) */
 float cellNoise(float x, float y, float z);
 void cellNoiseV(float x, float y, float z, float *ca);

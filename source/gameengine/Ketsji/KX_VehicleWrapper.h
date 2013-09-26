@@ -3,11 +3,10 @@
  *  \ingroup ketsji
  */
 
-#ifndef KX_VEHICLE_WRAPPER
-#define KX_VEHICLE_WRAPPER
+#ifndef __KX_VEHICLEWRAPPER_H__
+#define __KX_VEHICLEWRAPPER_H__
 
 #include "Value.h"
-#include "PHY_DynamicTypes.h"
 class PHY_IVehicle;
 class PHY_IMotionState;
 
@@ -16,7 +15,7 @@ class PHY_IMotionState;
 ///Python interface to physics vehicles (primarily 4-wheel cars and 2wheel bikes)
 class	KX_VehicleWrapper : public PyObjectPlus
 {
-	Py_Header;
+	Py_Header
 
 	std::vector<PHY_IMotionState*> m_motionStates;
 
@@ -52,11 +51,11 @@ public:
 	KX_PYMETHOD_VARARGS(KX_VehicleWrapper,SetSuspensionCompression);
 	
 	KX_PYMETHOD_VARARGS(KX_VehicleWrapper,SetRollInfluence);
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
 private:
 	PHY_IVehicle*			 m_vehicle;
 	PHY_IPhysicsEnvironment* m_physenv;
 };
 
-#endif //KX_VEHICLE_WRAPPER
+#endif  /* __KX_VEHICLEWRAPPER_H__ */

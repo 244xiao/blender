@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_brush.h 34962 2011-02-18 13:05:18Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,104 +15,101 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
- *
  * ***** END GPL LICENSE BLOCK *****
- * General operations for brushes.
  */
 
-#ifndef BKE_BRUSH_H
-#define BKE_BRUSH_H
+#ifndef __BKE_BRUSH_H__
+#define __BKE_BRUSH_H__
 
 /** \file BKE_brush.h
  *  \ingroup bke
+ *
+ * General operations for brushes.
  */
 
 struct ID;
 struct Brush;
 struct ImBuf;
+struct ImagePool;
+struct Main;
+struct rctf;
 struct Scene;
 struct wmOperator;
 // enum CurveMappingPreset;
 
-/* datablock functions */
-struct Brush *add_brush(const char *name);
-struct Brush *copy_brush(struct Brush *brush);
-void make_local_brush(struct Brush *brush);
-void free_brush(struct Brush *brush);
 
-void brush_reset_sculpt(struct Brush *brush);
+/* globals for brush execution */
+void BKE_brush_system_init(void);
+void BKE_brush_system_exit(void);
+
+/* datablock functions */
+struct Brush *BKE_brush_add(struct Main *bmain, const char *name);
+struct Brush *BKE_brush_copy(struct Brush *brush);
+void BKE_brush_make_local(struct Brush *brush);
+void BKE_brush_free(struct Brush *brush);
+
+void BKE_brush_sculpt_reset(struct Brush *brush);
 
 /* image icon function */
 struct ImBuf *get_brush_icon(struct Brush *brush);
 
 /* brush library operations used by different paint panels */
-int brush_delete(struct Brush **current_brush);
-int brush_texture_set_nr(struct Brush *brush, int nr);
-int brush_texture_delete(struct Brush *brush);
-int brush_clone_image_set_nr(struct Brush *brush, int nr);
-int brush_clone_image_delete(struct Brush *brush);
+int BKE_brush_texture_set_nr(struct Brush *brush, int nr);
+int BKE_brush_texture_delete(struct Brush *brush);
+int BKE_brush_clone_image_set_nr(struct Brush *brush, int nr);
+int BKE_brush_clone_image_delete(struct Brush *brush);
 
 /* jitter */
-void brush_jitter_pos(struct Brush *brush, float *pos, float *jitterpos);
+void BKE_brush_jitter_pos(const struct Scene *scene, struct Brush *brush,
+                          const float pos[2], float jitterpos[2]);
+void BKE_brush_randomize_texture_coordinates(struct UnifiedPaintSettings *ups, bool mask);
 
 /* brush curve */
-void brush_curve_preset(struct Brush *b, /*enum CurveMappingPreset*/int preset);
-float brush_curve_strength_clamp(struct Brush *br, float p, const float len);
-float brush_curve_strength(struct Brush *br, float p, const float len); /* used for sculpt */
+void BKE_brush_curve_preset(struct Brush *b, int preset);
+float BKE_brush_curve_strength_clamp(struct Brush *br, float p, const float len);
+float BKE_brush_curve_strength(struct Brush *br, float p, const float len); /* used for sculpt */
 
 /* sampling */
-void brush_sample_tex(struct Brush *brush, float *xy, float *rgba, const int thread);
-void brush_imbuf_new(struct Brush *brush, short flt, short texfalloff, int size,
-	struct ImBuf **imbuf);
-
-/* painting */
-struct BrushPainter;
-typedef struct BrushPainter BrushPainter;
-typedef int (*BrushFunc)(void *user, struct ImBuf *ibuf, float *lastpos, float *pos);
-
-BrushPainter *brush_painter_new(struct Brush *brush);
-void brush_painter_require_imbuf(BrushPainter *painter, short flt,
-	short texonly, int size);
-int brush_painter_paint(BrushPainter *painter, BrushFunc func, float *pos,
-	double time, float pressure, void *user);
-void brush_painter_break_stroke(BrushPainter *painter);
-void brush_painter_free(BrushPainter *painter);
+float BKE_brush_sample_tex_3D(const Scene *scene, struct Brush *br, const float point[3],
+                              float rgba[4], const int thread, struct ImagePool *pool);
+float BKE_brush_sample_masktex(const Scene *scene, struct Brush *br, const float point[3],
+                               const int thread, struct ImagePool *pool);
 
 /* texture */
-unsigned int *brush_gen_texture_cache(struct Brush *br, int half_side);
+unsigned int *BKE_brush_gen_texture_cache(struct Brush *br, int half_side);
 
 /* radial control */
-void brush_radial_control_invoke(struct wmOperator *op, struct Brush *br, float size_weight);
-int brush_radial_control_exec(struct wmOperator *op, struct Brush *br, float size_weight);
+struct ImBuf *BKE_brush_gen_radial_control_imbuf(struct Brush *br);
 
 /* unified strength and size */
 
-int  brush_size(struct Brush *brush);
-void brush_set_size(struct Brush *brush, int value);
+int  BKE_brush_size_get(const struct Scene *scene, struct Brush *brush);
+void BKE_brush_size_set(struct Scene *scene, struct Brush *brush, int value);
 
-int  brush_use_locked_size(struct Brush *brush);
-void brush_set_use_locked_size(struct Brush *brush, int value);
+float BKE_brush_unprojected_radius_get(const struct Scene *scene, struct Brush *brush);
+void  BKE_brush_unprojected_radius_set(struct Scene *scene, struct Brush *brush, float value);
 
-int  brush_use_alpha_pressure(struct Brush *brush);
-void brush_set_use_alpha_pressure(struct Brush *brush, int value);
+float BKE_brush_alpha_get(const struct Scene *scene, struct Brush *brush);
+void BKE_brush_alpha_set(Scene *scene, struct Brush *brush, float alpha);
+float BKE_brush_weight_get(const Scene *scene, struct Brush *brush);
+void BKE_brush_weight_set(const Scene *scene, struct Brush *brush, float value);
 
-int  brush_use_size_pressure(struct Brush *brush);
-void brush_set_use_size_pressure(struct Brush *brush, int value);
+int  BKE_brush_use_locked_size(const struct Scene *scene, struct Brush *brush);
+int  BKE_brush_use_alpha_pressure(const struct Scene *scene, struct Brush *brush);
+int  BKE_brush_use_size_pressure(const struct Scene *scene, struct Brush *brush);
 
-float brush_unprojected_radius(struct Brush *brush);
-void  brush_set_unprojected_radius(struct Brush *brush, float value);
+/* scale unprojected radius to reflect a change in the brush's 2D size */
+void BKE_brush_scale_unprojected_radius(float *unprojected_radius,
+                                        int new_brush_size,
+                                        int old_brush_size);
 
-float brush_alpha(struct Brush *brush);
-void  brush_set_alpha(struct Brush *brush, float value);
+/* scale brush size to reflect a change in the brush's unprojected radius */
+void BKE_brush_scale_size(int *BKE_brush_size_get,
+                          float new_unprojected_radius,
+                          float old_unprojected_radius);
 
 /* debugging only */
-void brush_debug_print_state(struct Brush *br);
+void BKE_brush_debug_print_state(struct Brush *br);
 
 #endif
 

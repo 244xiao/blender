@@ -1,35 +1,54 @@
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
 /** \file blender/blenkernel/intern/CCGSubSurf.h
  *  \ingroup bke
  */
-/* $Id: CCGSubSurf.h 35247 2011-02-27 20:40:57Z jesterking $ */
 
 typedef void* CCGMeshHDL;
 typedef void* CCGVertHDL;
 typedef void* CCGEdgeHDL;
 typedef void* CCGFaceHDL;
 
-typedef struct _CCGVert CCGVert;
-typedef struct _CCGEdge CCGEdge;
-typedef struct _CCGFace CCGFace;
+typedef struct CCGSubSurf CCGSubSurf;
+typedef struct CCGVert CCGVert;
+typedef struct CCGEdge CCGEdge;
+typedef struct CCGFace CCGFace;
 
-typedef struct _CCGMeshIFC CCGMeshIFC;
-struct _CCGMeshIFC {
+typedef struct CCGMeshIFC {
 	int			vertUserSize, edgeUserSize, faceUserSize;
-
+	int			numLayers;
 	int			vertDataSize;
-};
+	int			simpleSubdiv;
+} CCGMeshIFC;
 
 /***/
 
 typedef void* CCGAllocatorHDL;
 
-typedef struct _CCGAllocatorIFC CCGAllocatorIFC;
-struct _CCGAllocatorIFC {
+typedef struct CCGAllocatorIFC {
 	void*		(*alloc)			(CCGAllocatorHDL a, int numBytes);
 	void*		(*realloc)			(CCGAllocatorHDL a, void *ptr, int newSize, int oldSize);
 	void		(*free)				(CCGAllocatorHDL a, void *ptr);
 	void		(*release)			(CCGAllocatorHDL a);
-};
+} CCGAllocatorIFC;
 
 /***/
 
@@ -46,17 +65,13 @@ typedef enum {
 
 /***/
 
-typedef struct _CCGSubSurf CCGSubSurf;
-
 CCGSubSurf*	ccgSubSurf_new	(CCGMeshIFC *ifc, int subdivisionLevels, CCGAllocatorIFC *allocatorIFC, CCGAllocatorHDL allocator);
 void		ccgSubSurf_free	(CCGSubSurf *ss);
-
-CCGError	ccgSubSurf_sync	(CCGSubSurf *ss);
 
 CCGError	ccgSubSurf_initFullSync		(CCGSubSurf *ss);
 CCGError	ccgSubSurf_initPartialSync	(CCGSubSurf *ss);
 
-CCGError	ccgSubSurf_syncVert		(CCGSubSurf *ss, CCGVertHDL vHDL, void *vertData, int seam, CCGVert **v_r);
+CCGError	ccgSubSurf_syncVert		(CCGSubSurf *ss, CCGVertHDL vHDL, const void *vertData, int seam, CCGVert **v_r);
 CCGError	ccgSubSurf_syncEdge		(CCGSubSurf *ss, CCGEdgeHDL eHDL, CCGVertHDL e_vHDL0, CCGVertHDL e_vHDL1, float crease, CCGEdge **e_r);
 CCGError	ccgSubSurf_syncFace		(CCGSubSurf *ss, CCGFaceHDL fHDL, int numVerts, CCGVertHDL *vHDLs, CCGFace **f_r);
 
@@ -81,18 +96,22 @@ void		ccgSubSurf_getUseAgeCounts			(CCGSubSurf *ss, int *useAgeCounts_r, int *ve
 CCGError	ccgSubSurf_setUseAgeCounts			(CCGSubSurf *ss, int useAgeCounts, int vertUserOffset, int edgeUserOffset, int faceUserOffset);
 
 CCGError	ccgSubSurf_setCalcVertexNormals		(CCGSubSurf *ss, int useVertNormals, int normalDataOffset);
+void		ccgSubSurf_setAllocMask				(CCGSubSurf *ss, int allocMask, int maskOffset);
+
+void		ccgSubSurf_setNumLayers				(CCGSubSurf *ss, int numLayers);
 
 /***/
 
-int			ccgSubSurf_getNumVerts				(CCGSubSurf *ss);
-int			ccgSubSurf_getNumEdges				(CCGSubSurf *ss);
-int			ccgSubSurf_getNumFaces				(CCGSubSurf *ss);
+int			ccgSubSurf_getNumVerts				(const CCGSubSurf *ss);
+int			ccgSubSurf_getNumEdges				(const CCGSubSurf *ss);
+int			ccgSubSurf_getNumFaces				(const CCGSubSurf *ss);
 
-int			ccgSubSurf_getSubdivisionLevels		(CCGSubSurf *ss);
-int			ccgSubSurf_getEdgeSize				(CCGSubSurf *ss);
-int			ccgSubSurf_getEdgeLevelSize			(CCGSubSurf *ss, int level);
-int			ccgSubSurf_getGridSize				(CCGSubSurf *ss);
-int			ccgSubSurf_getGridLevelSize			(CCGSubSurf *ss, int level);
+int			ccgSubSurf_getSubdivisionLevels		(const CCGSubSurf *ss);
+int			ccgSubSurf_getEdgeSize				(const CCGSubSurf *ss);
+int			ccgSubSurf_getEdgeLevelSize			(const CCGSubSurf *ss, int level);
+int			ccgSubSurf_getGridSize				(const CCGSubSurf *ss);
+int			ccgSubSurf_getGridLevelSize			(const CCGSubSurf *ss, int level);
+int			ccgSubSurf_getSimpleSubdiv			(const CCGSubSurf *ss);
 
 CCGVert*	ccgSubSurf_getVert					(CCGSubSurf *ss, CCGVertHDL v);
 CCGVertHDL	ccgSubSurf_getVertVertHandle		(CCGVert *v);
@@ -121,10 +140,10 @@ void*		ccgSubSurf_getEdgeData				(CCGSubSurf *ss, CCGEdge *e, int x);
 void*		ccgSubSurf_getEdgeLevelData			(CCGSubSurf *ss, CCGEdge *e, int x, int level);
 
 CCGFace*	ccgSubSurf_getFace					(CCGSubSurf *ss, CCGFaceHDL f);
-CCGFaceHDL	ccgSubSurf_getFaceFaceHandle		(CCGSubSurf *ss, CCGFace *f);
+CCGFaceHDL	ccgSubSurf_getFaceFaceHandle		(CCGFace *f);
 int			ccgSubSurf_getFaceNumVerts			(CCGFace *f);
-CCGVert*	ccgSubSurf_getFaceVert				(CCGSubSurf *ss, CCGFace *f, int index);
-CCGEdge*	ccgSubSurf_getFaceEdge				(CCGSubSurf *ss, CCGFace *f, int index);
+CCGVert*	ccgSubSurf_getFaceVert				(CCGFace *f, int index);
+CCGEdge*	ccgSubSurf_getFaceEdge				(CCGFace *f, int index);
 int			ccgSubSurf_getFaceEdgeIndex			(CCGFace *f, CCGEdge *e);
 
 int			ccgSubSurf_getFaceAge				(CCGSubSurf *ss, CCGFace *f);
@@ -135,15 +154,15 @@ void*		ccgSubSurf_getFaceGridEdgeData		(CCGSubSurf *ss, CCGFace *f, int gridInde
 void*		ccgSubSurf_getFaceGridDataArray		(CCGSubSurf *ss, CCGFace *f, int gridIndex);
 void*		ccgSubSurf_getFaceGridData			(CCGSubSurf *ss, CCGFace *f, int gridIndex, int x, int y);
 
-int			ccgSubSurf_getNumFinalVerts		(CCGSubSurf *ss);
-int			ccgSubSurf_getNumFinalEdges		(CCGSubSurf *ss);
-int			ccgSubSurf_getNumFinalFaces		(CCGSubSurf *ss);
+int			ccgSubSurf_getNumFinalVerts		(const CCGSubSurf *ss);
+int			ccgSubSurf_getNumFinalEdges		(const CCGSubSurf *ss);
+int			ccgSubSurf_getNumFinalFaces		(const CCGSubSurf *ss);
 
 /***/
 
-typedef struct _CCGVertIterator CCGVertIterator;
-typedef struct _CCGEdgeIterator CCGEdgeIterator;
-typedef struct _CCGFaceIterator CCGFaceIterator;
+typedef struct CCGVertIterator CCGVertIterator;
+typedef struct CCGEdgeIterator CCGEdgeIterator;
+typedef struct CCGFaceIterator CCGFaceIterator;
 
 CCGVertIterator*	ccgSubSurf_getVertIterator	(CCGSubSurf *ss);
 CCGEdgeIterator*	ccgSubSurf_getEdgeIterator	(CCGSubSurf *ss);

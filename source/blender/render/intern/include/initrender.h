@@ -1,8 +1,4 @@
 /*
- * initrender_ext.h
- *
- * $Id: initrender.h 35233 2011-02-27 19:31:27Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -34,8 +30,8 @@
  */
 
 
-#ifndef INITRENDER_H
-#define INITRENDER_H 
+#ifndef __INITRENDER_H__
+#define __INITRENDER_H__ 
 
 struct Object;
 
@@ -44,11 +40,10 @@ struct Object;
 void free_sample_tables(Render *re);
 void make_sample_tables(Render *re);
 
-void render_scene_set_window(Render *re, struct Object *camera, int blursample);
+void RE_parts_init(Render *re, int do_crop);
+void RE_parts_free(Render *re);
+void RE_parts_clamp(Render *re);
 
-void initparts(Render *re);
-void freeparts(Render *re);
 
-
-#endif /* INITRENDER_H */
+#endif /* __INITRENDER_H__ */
 

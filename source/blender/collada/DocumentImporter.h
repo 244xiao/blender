@@ -1,6 +1,4 @@
 /*
- * $Id: DocumentImporter.h 35841 2011-03-28 09:31:44Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -38,14 +36,19 @@
 #include "COLLADAFWController.h"
 #include "COLLADAFWMorphController.h"
 #include "COLLADAFWSkinController.h"
+#include "COLLADAFWEffectCommon.h"
+
 
 #include "BKE_object.h"
+#include "BKE_constraint.h"
 
 #include "TransformReader.h"
 #include "AnimationImporter.h"
 #include "ArmatureImporter.h"
+#include "ControllerExporter.h"
 #include "MeshImporter.h"
-#include "ExtraTags.h"
+#include "ImportSettings.h"
+
 
 
 struct Main;
@@ -61,7 +64,7 @@ public:
 		Controller,		//!< Second pass to collect controller data
 	};
 	/** Constructor */
-	DocumentImporter(bContext *C, const char *filename);
+	DocumentImporter(bContext *C, const ImportSettings *import_settings);
 
 	/** Destructor */
 	~DocumentImporter();
@@ -73,15 +76,18 @@ public:
 	Object* create_camera_object(COLLADAFW::InstanceCamera*, Scene*);
 	Object* create_lamp_object(COLLADAFW::InstanceLight*, Scene*);
 	Object* create_instance_node(Object*, COLLADAFW::Node*, COLLADAFW::Node*, Scene*, bool);
-	void write_node(COLLADAFW::Node*, COLLADAFW::Node*, Scene*, Object*, bool);
+	void create_constraints(ExtraTags *et, Object *ob);
+	std::vector<Object *> *write_node(COLLADAFW::Node*, COLLADAFW::Node*, Scene*, Object*, bool);
 	MTex* create_texture(COLLADAFW::EffectCommon*, COLLADAFW::Texture&, Material*, int, TexIndexTextureArrayMap&);
 	void write_profile_COMMON(COLLADAFW::EffectCommon*, Material*);
+	
 	void translate_anim_recursive(COLLADAFW::Node*, COLLADAFW::Node*, Object*);
 
-	/** This method will be called if an error in the loading process occurred and the loader cannot
-	continue to load. The writer should undo all operations that have been performed.
-	@param errorMessage A message containing informations about the error that occurred.
-	*/
+	/**
+	 * This method will be called if an error in the loading process occurred and the loader cannot
+	 * continue to load. The writer should undo all operations that have been performed.
+	 * \param errorMessage A message containing informations about the error that occurred.
+	 */
 	void cancel(const COLLADAFW::String& errorMessage);
 
 	/** This is the method called. The writer hast to prepare to receive data.*/
@@ -127,11 +133,15 @@ public:
 	/** Get an extisting ExtraTags for uid */
 	ExtraTags* getExtraTags(const COLLADAFW::UniqueId &uid);
 
+	bool is_armature(COLLADAFW::Node * node);
+
+
+
 private:
+	const ImportSettings *import_settings;
 
 	/** Current import stage we're in. */
 	ImportStage mImportStage;
-	std::string mFilename;
 
 	bContext *mContext;
 
@@ -151,12 +161,13 @@ private:
 	std::map<COLLADAFW::UniqueId, Camera*> uid_camera_map;
 	std::map<COLLADAFW::UniqueId, Lamp*> uid_lamp_map;
 	std::map<Material*, TexIndexTextureArrayMap> material_texture_mapping_map;
-	std::map<COLLADAFW::UniqueId, Object*> object_map;
+	std::multimap<COLLADAFW::UniqueId, Object*> object_map;
 	std::map<COLLADAFW::UniqueId, COLLADAFW::Node*> node_map;
 	std::vector<const COLLADAFW::VisualScene*> vscenes;
 	std::vector<Object*> libnode_ob;
-
+	
 	std::map<COLLADAFW::UniqueId, COLLADAFW::Node*> root_map; // find root joint by child joint uid, for bone tree evaluation during resampling
+	std::map<COLLADAFW::UniqueId, const COLLADAFW::Object*> FW_object_map;
 
 };
 

@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_bmfont.h 34962 2011-02-18 13:05:18Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_BMFONT_H
-#define BKE_BMFONT_H
+#ifndef __BKE_BMFONT_H__
+#define __BKE_BMFONT_H__
 
 /** \file BKE_bmfont.h
  *  \ingroup bke
@@ -43,22 +41,22 @@ struct bmGlyph;
 struct ImBuf;
 struct bmFont;
 
-void printfGlyph(struct bmGlyph * glyph);
-void calcAlpha(struct ImBuf * ibuf);
-void readBitmapFontVersion0(struct ImBuf * ibuf,
-								   unsigned char * rect,
-								   int step);
+void printfGlyph(struct bmGlyph *glyph);
+void calcAlpha(struct ImBuf *ibuf);
+void readBitmapFontVersion0(struct ImBuf *ibuf,
+                            unsigned char *rect,
+                            int step);
 void detectBitmapFont(struct ImBuf *ibuf);
 int locateGlyph(struct bmFont *bmfont, unsigned short unicode);
-void matrixGlyph(struct ImBuf * ibuf, unsigned short unicode,
-				 float *centerx, float *centery,
-				 float *sizex,   float *sizey,
-				 float *transx,  float *transy,
-				 float *movex,   float *movey, float *advance); 
+void matrixGlyph(struct ImBuf *ibuf, unsigned short unicode,
+                 float *centerx, float *centery,
+                 float *sizex,   float *sizey,
+                 float *transx,  float *transy,
+                 float *movex,   float *movey, float *advance);
 
 #ifdef __cplusplus
 }
 #endif
-	
+
 #endif
 

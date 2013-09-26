@@ -1,6 +1,4 @@
 /*
- * $Id: KX_SG_BoneParentNodeRelationship.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_SG_BONEPARENTRELATION_H__
-#define __KX_SG_BONEPARENTRELATION_H__
+#ifndef __KX_SG_BONEPARENTNODERELATIONSHIP_H__
+#define __KX_SG_BONEPARENTNODERELATIONSHIP_H__
  
 #include "SG_Spatial.h"
 #include "SG_ParentRelation.h"
@@ -59,7 +57,7 @@ public :
 	static 
 		KX_BoneParentRelation *
 	New(Bone* bone
-	);		
+	);
 
 	/**
 	 *  Updates the childs world coordinates relative to the parent's
@@ -91,9 +89,7 @@ private :
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_BoneParentRelation"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_BoneParentRelation")
 #endif
 };
 

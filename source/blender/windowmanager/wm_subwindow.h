@@ -1,6 +1,4 @@
 /*
- * $Id: wm_subwindow.h 35179 2011-02-25 14:04:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,13 +29,11 @@
  */
 
 
-#ifndef WM_SUBWINDOW_H
-#define WM_SUBWINDOW_H
+#ifndef __WM_SUBWINDOW_H__
+#define __WM_SUBWINDOW_H__
 
 
 /* *************** internal api ************** */
-#define WM_MAXSUBWIN	256
-
 void	wm_subwindows_free(wmWindow *win);
 
 int		wm_subwindow_open(wmWindow *win, rcti *winrct);
@@ -48,9 +44,9 @@ void	wm_subwindow_position(wmWindow *win, int swinid, rcti *winrct);
 
 void	wm_subwindow_getsize(wmWindow *win, int swinid, int *x, int *y);
 void	wm_subwindow_getorigin(wmWindow *win, int swinid, int *x, int *y);
-void	wm_subwindow_getmatrix(wmWindow *win, int swinid, float mat[][4]);
+void	wm_subwindow_getmatrix(wmWindow *win, int swinid, float mat[4][4]);
 
 unsigned int index_to_framebuffer(int index);
 
-#endif /* WM_SUBWINDOW_H */
+#endif /* __WM_SUBWINDOW_H__ */
 

@@ -1,6 +1,4 @@
 /*
- * $Id: render_intern.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  */
 
 
-#ifndef RENDER_INTERN_H
-#define RENDER_INTERN_H
+#ifndef __RENDER_INTERN_H__
+#define __RENDER_INTERN_H__
 
 struct wmOperatorType;
 struct RenderResult;
@@ -56,6 +54,25 @@ void MATERIAL_OT_paste(struct wmOperatorType *ot);
 void SCENE_OT_render_layer_add(struct wmOperatorType *ot);
 void SCENE_OT_render_layer_remove(struct wmOperatorType *ot);
 
+#ifdef WITH_FREESTYLE
+void SCENE_OT_freestyle_module_add(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_module_remove(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_module_move(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_lineset_add(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_lineset_copy(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_lineset_paste(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_lineset_remove(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_lineset_move(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_linestyle_new(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_color_modifier_add(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_alpha_modifier_add(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_thickness_modifier_add(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_geometry_modifier_add(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_modifier_remove(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_modifier_move(struct wmOperatorType *ot);
+void SCENE_OT_freestyle_modifier_copy(struct wmOperatorType *ot);
+#endif
+
 
 void TEXTURE_OT_slot_copy(struct wmOperatorType *ot);
 void TEXTURE_OT_slot_paste(struct wmOperatorType *ot);
@@ -65,16 +82,21 @@ void TEXTURE_OT_envmap_clear(struct wmOperatorType *ot);
 void TEXTURE_OT_envmap_clear_all(struct wmOperatorType *ot);
 
 /* render_internal.c */
-void RENDER_OT_view_show(struct wmOperatorType *ot);
 void RENDER_OT_render(struct wmOperatorType *ot);
-void RENDER_OT_view_cancel(struct wmOperatorType *ot);
+void render_view3d_update(struct RenderEngine *engine, const struct bContext *C);
+void render_view3d_draw(struct RenderEngine *engine, const struct bContext *C);
 
-/*render_opengl.c uses these */
+/* render_opengl.c uses this */
 void image_buffer_rect_update(struct Scene *scene, struct RenderResult *rr, struct ImBuf *ibuf, volatile struct rcti *renrect);
-void screen_set_image_output(struct bContext *C, int mx, int my);
+
+/* render_view.c */
+void render_view_open(struct bContext *C, int mx, int my);
+
+void RENDER_OT_view_show(struct wmOperatorType *ot);
+void RENDER_OT_view_cancel(struct wmOperatorType *ot);
 
 /* render_opengl.c */
 void RENDER_OT_opengl(struct wmOperatorType *ot);
 
-#endif /* RENDER_INTERN_H */
+#endif /* __RENDER_INTERN_H__ */
 

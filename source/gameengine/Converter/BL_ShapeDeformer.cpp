@@ -1,6 +1,4 @@
 /*
- * $Id: BL_ShapeDeformer.cpp 35167 2011-02-25 13:30:41Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,36 +29,36 @@
  *  \ingroup bgeconv
  */
 
-
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable : 4786)
-#endif //WIN32
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)
+#endif
 
 #include "MEM_guardedalloc.h"
 #include "BL_ShapeDeformer.h"
-#include "GEN_Map.h"
+#include "CTR_Map.h"
 #include "STR_HashedString.h"
 #include "RAS_IPolygonMaterial.h"
 #include "RAS_MeshObject.h"
 
-//#include "BL_ArmatureController.h"
+#include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_action_types.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_ipo_types.h"
-#include "DNA_curve_types.h"
 #include "BKE_armature.h"
 #include "BKE_action.h"
+#include "BKE_global.h"
+#include "BKE_main.h"
 #include "BKE_key.h"
 #include "BKE_ipo.h"
+#include "BKE_library.h"
 #include "MT_Point3.h"
 
 extern "C"{
 	#include "BKE_lattice.h"
+	#include "BKE_animsys.h"
 }
- 
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -68,9 +66,40 @@ extern "C"{
 #define __NLA_DEFNORMALS
 //#undef __NLA_DEFNORMALS
 
+BL_ShapeDeformer::BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
+                                   Object *bmeshobj,
+                                   RAS_MeshObject *mesh)
+    :
+      BL_SkinDeformer(gameobj,bmeshobj, mesh),
+      m_useShapeDrivers(false),
+      m_lastShapeUpdate(-1)
+{
+	m_key = BKE_key_copy(m_bmesh->key);
+};
+
+/* this second constructor is needed for making a mesh deformable on the fly. */
+BL_ShapeDeformer::BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
+				Object *bmeshobj_old,
+				Object *bmeshobj_new,
+				RAS_MeshObject *mesh,
+				bool release_object,
+				bool recalc_normal,
+				BL_ArmatureObject* arma)
+				:
+					BL_SkinDeformer(gameobj, bmeshobj_old, bmeshobj_new, mesh, release_object, recalc_normal, arma),
+					m_useShapeDrivers(false),
+					m_lastShapeUpdate(-1)
+{
+	m_key = BKE_key_copy(m_bmesh->key);
+};
 
 BL_ShapeDeformer::~BL_ShapeDeformer()
 {
+	if (m_key)
+	{
+		BKE_libblock_free(&G.main->key, m_key);
+		m_key = NULL;
+	}
 };
 
 RAS_Deformer *BL_ShapeDeformer::GetReplica()
@@ -86,49 +115,29 @@ void BL_ShapeDeformer::ProcessReplica()
 {
 	BL_SkinDeformer::ProcessReplica();
 	m_lastShapeUpdate = -1;
+
+	m_key = BKE_key_copy(m_key);
 }
 
 bool BL_ShapeDeformer::LoadShapeDrivers(Object* arma)
 {
-	IpoCurve *icu;
+	// This used to check if we had drivers from this armature,
+	// now we just assume we want to use shape drivers
+	// and let the animsys handle things.
+	m_useShapeDrivers = true;
 
-	m_shapeDrivers.clear();
-	// check if this mesh has armature driven shape keys
-	if (m_bmesh->key && m_bmesh->key->ipo) {
-		for(icu= (IpoCurve*)m_bmesh->key->ipo->curve.first; icu; icu= (IpoCurve*)icu->next) {
-			if(icu->driver && 
-				(icu->flag & IPO_MUTE) == 0 &&
-				icu->driver->type == IPO_DRIVER_TYPE_NORMAL &&
-				icu->driver->ob == arma &&
-				icu->driver->blocktype == ID_AR) {
-				// this shape key ipo curve has a driver on the parent armature
-				// record this curve in the shape deformer so that the corresponding
-				m_shapeDrivers.push_back(icu);
-			}
-		}
-	}
-	return !m_shapeDrivers.empty();
+	return true;
 }
 
 bool BL_ShapeDeformer::ExecuteShapeDrivers(void)
 {
-	if (!m_shapeDrivers.empty() && PoseUpdated()) {
-		vector<IpoCurve*>::iterator it;
-//		void *poin;
-//		int type;
-
+	if (m_useShapeDrivers && PoseUpdated()) {
 		// the shape drivers use the bone matrix as input. Must 
 		// update the matrix now
 		m_armobj->ApplyPose();
 
-		for (it=m_shapeDrivers.begin(); it!=m_shapeDrivers.end(); it++) {
-			// no need to set a specific time: this curve has a driver
-			// XXX IpoCurve *icu = *it;
-			//calc_icu(icu, 1.0f);
-			//poin = get_ipo_poin((ID*)m_bmesh->key, icu, &type);
-			//if (poin) 
-			//	write_ipo_poin(poin, type, icu->curval);
-		}
+		// We don't need an actual time, just use 0
+		BKE_animsys_evaluate_animdata(NULL, &GetKey()->id, GetKey()->adt, 0.f, ADT_RECALC_DRIVERS);
 
 		ForceUpdate();
 		m_armobj->RestorePose();
@@ -154,12 +163,12 @@ bool BL_ShapeDeformer::Update(void)
 		m_pMeshObject->CheckWeightCache(blendobj);
 
 		/* we will blend the key directly in m_transverts array: it is used by armature as the start position */
-		/* m_bmesh->key can be NULL in case of Modifier deformer */
-		if (m_bmesh->key) {
+		/* m_key can be NULL in case of Modifier deformer */
+		if (m_key) {
 			/* store verts locally */
 			VerifyStorage();
 
-			do_rel_key(0, m_bmesh->totvert, m_bmesh->totvert, (char *)(float *)m_transverts, m_bmesh->key, NULL, 0); /* last arg is ignored */
+			BKE_key_evaluate_relative(0, m_bmesh->totvert, m_bmesh->totvert, (char *)(float *)m_transverts, m_key, NULL, 0); /* last arg is ignored */
 			m_bDynamic = true;
 		}
 
@@ -188,5 +197,11 @@ bool BL_ShapeDeformer::Update(void)
 #endif
 		bSkinUpdate = true;
 	}
+
 	return bSkinUpdate;
+}
+
+Key *BL_ShapeDeformer::GetKey()
+{
+	return m_key;
 }

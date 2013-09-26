@@ -1,7 +1,6 @@
 /*
  * Apply a constraint to a position or rotation value
  *
- * $Id: KX_ConstraintActuator.cpp 35171 2011-02-25 13:35:59Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -117,7 +116,7 @@ KX_ConstraintActuator::~KX_ConstraintActuator()
 	// there's nothing to be done here, really....
 } /* end of destructor */
 
-bool KX_ConstraintActuator::RayHit(KX_ClientObjectInfo* client, KX_RayCast* result, void * const data)
+bool KX_ConstraintActuator::RayHit(KX_ClientObjectInfo *client, KX_RayCast *result, void * const data)
 {
 
 	m_hitObject = client->m_gameobject;
@@ -148,10 +147,10 @@ bool KX_ConstraintActuator::RayHit(KX_ClientObjectInfo* client, KX_RayCast* resu
 	return true;
 }
 
-/* this function is used to pre-filter the object before casting the ray on them.
-   This is useful for "X-Ray" option when we want to see "through" unwanted object.
+/* This function is used to pre-filter the object before casting the ray on them.
+ * This is useful for "X-Ray" option when we want to see "through" unwanted object.
  */
-bool KX_ConstraintActuator::NeedRayCast(KX_ClientObjectInfo* client)
+bool KX_ConstraintActuator::NeedRayCast(KX_ClientObjectInfo *client)
 {
 	if (client->m_type > KX_ClientObjectInfo::ACTOR)
 	{
@@ -167,7 +166,7 @@ bool KX_ConstraintActuator::NeedRayCast(KX_ClientObjectInfo* client)
 bool KX_ConstraintActuator::Update(double curtime, bool frame)
 {
 
-	bool result = false;	
+	bool result = false;
 	bool bNegativeEvent = IsNegativeEvent();
 	RemoveAllEvents();
 
@@ -176,7 +175,7 @@ bool KX_ConstraintActuator::Update(double curtime, bool frame)
 		/* low-pass filtered time response, if the damp time is unequal to 0.     */
 
 		/* Having to retrieve location/rotation and setting it afterwards may not */
-		/* be efficient enough... Somthing to look at later.                      */
+		/* be efficient enough... Something to look at later.                     */
 		KX_GameObject  *obj = (KX_GameObject*) GetParent();
 		MT_Point3    position = obj->NodeGetWorldPosition();
 		MT_Point3    newposition;
@@ -463,7 +462,7 @@ bool KX_ConstraintActuator::Update(double curtime, bool frame)
 				// we expect a hit object
 				if (!m_hitObject)
 					result = false;
-				if (result)	
+				if (result)
 				{
 					MT_Vector3 newnormal = callback.m_hitNormal;
 					// compute new position & orientation
@@ -601,7 +600,7 @@ PyAttributeDef KX_ConstraintActuator::Attributes[] = {
 	KX_PYATTRIBUTE_FLOAT_ARRAY_RW_CHECK("direction",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_refDirection,3,pyattr_check_direction),
 	KX_PYATTRIBUTE_INT_RW("option",0,0xFFFF,false,KX_ConstraintActuator,m_option),
 	KX_PYATTRIBUTE_INT_RW("time",0,1000,true,KX_ConstraintActuator,m_activeTime),
-	KX_PYATTRIBUTE_STRING_RW("propName",0,32,true,KX_ConstraintActuator,m_property),
+	KX_PYATTRIBUTE_STRING_RW("propName",0,MAX_PROP_NAME,true,KX_ConstraintActuator,m_property),
 	KX_PYATTRIBUTE_FLOAT_RW("min",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_minimumBound),
 	KX_PYATTRIBUTE_FLOAT_RW("distance",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_minimumBound),
 	KX_PYATTRIBUTE_FLOAT_RW("max",-FLT_MAX,FLT_MAX,KX_ConstraintActuator,m_maximumBound),
@@ -620,7 +619,7 @@ int KX_ConstraintActuator::pyattr_check_direction(void *self, const struct KX_PY
 		return 1;
 	}
 	act->m_refDirVector = dir/len;
-	return 0;	
+	return 0;
 }
 
 #endif

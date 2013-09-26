@@ -1,7 +1,6 @@
 /*
  * Property sensor
  *
- * $Id: SCA_PropertySensor.cpp 35169 2011-02-25 13:32:11Z jesterking $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -58,8 +57,7 @@ SCA_PropertySensor::SCA_PropertySensor(SCA_EventManager* eventmgr,
 	  m_checktype(checktype),
 	  m_checkpropval(propval),
 	  m_checkpropmaxval(propmaxval),
-	  m_checkpropname(propname),
-	  m_range_expr(NULL)
+	  m_checkpropname(propname)
 {
 	//CParser pars;
 	//pars.SetContext(this->AddRef());
@@ -72,10 +70,6 @@ SCA_PropertySensor::SCA_PropertySensor(SCA_EventManager* eventmgr,
 	}
 	orgprop->Release();
 
-	if (m_checktype==KX_PROPSENSOR_INTERVAL)
-	{
-		PrecalculateRangeExpression();
-	}
 	Init();
 }
 
@@ -86,45 +80,12 @@ void SCA_PropertySensor::Init()
 	m_reset = true;
 }
 
-void SCA_PropertySensor::PrecalculateRangeExpression()
-{
-		CParser pars;
-		//The context is needed to retrieve the property at runtime but it creates
-		//loop of references
-		pars.SetContext(this->AddRef());
-		STR_String checkstr = "(" + m_checkpropval + " <= " 
-							+ m_checkpropname + ") && ( " 
-							+ m_checkpropname + " <= " 
-							+ m_checkpropmaxval + ")";
-
-		m_range_expr = pars.ProcessText(checkstr);
-}
-
-// Forced deletion of precalculated range expression to break reference loop
-// Use this function when you know that you won't use the sensor anymore
-void SCA_PropertySensor::Delete()
-{
-	if (m_range_expr)
-	{
-		m_range_expr->Release();
-		m_range_expr = NULL;
-	}
-	Release();
-}
-
 CValue* SCA_PropertySensor::GetReplica()
 {
 	SCA_PropertySensor* replica = new SCA_PropertySensor(*this);
 	// m_range_expr must be recalculated on replica!
 	replica->ProcessReplica();
 	replica->Init();
-
-	replica->m_range_expr = NULL;
-	if (replica->m_checktype==KX_PROPSENSOR_INTERVAL)
-	{
-		replica->PrecalculateRangeExpression();
-	}
-	
 	
 	return replica;
 }
@@ -144,15 +105,6 @@ bool SCA_PropertySensor::IsPositiveTrigger()
 
 SCA_PropertySensor::~SCA_PropertySensor()
 {
-	//if (m_rightexpr)
-	//	m_rightexpr->Release();
-
-	if (m_range_expr)
-	{
-		m_range_expr->Release();
-		m_range_expr=NULL;
-	}
-
 }
 
 
@@ -174,7 +126,6 @@ bool SCA_PropertySensor::Evaluate()
 
 bool	SCA_PropertySensor::CheckPropertyCondition()
 {
-
 	m_recentresult=false;
 	bool result=false;
 	bool reverse = false;
@@ -199,15 +150,13 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 				/* Patch: floating point values cant use strings usefully since you can have "0.0" == "0.0000"
 				 * this could be made into a generic Value class function for comparing values with a string.
 				 */
-				if(result==false && dynamic_cast<CFloatValue *>(orgprop) != NULL) {
+				if (result==false && dynamic_cast<CFloatValue *>(orgprop) != NULL) {
 					float f;
-					
-					if(EOF == sscanf(m_checkpropval.ReadPtr(), "%f", &f))
-					{
-						//error
+					if (sscanf(m_checkpropval.ReadPtr(), "%f", &f) == 1) {
+						result = (f == ((CFloatValue *)orgprop)->GetFloat());
 					} 
 					else {
-						result = (f == ((CFloatValue *)orgprop)->GetFloat());
+						/* error */
 					}
 				}
 				/* end patch */
@@ -222,7 +171,7 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 
 	case KX_PROPSENSOR_EXPRESSION:
 		{
-			/*
+#if 0
 			if (m_rightexpr)
 			{
 				CValue* resultval = m_rightexpr->Calculate();
@@ -237,39 +186,27 @@ bool	SCA_PropertySensor::CheckPropertyCondition()
 					result = resultval->GetNumber() != 0;
 				}
 			}
-			*/
+#endif
 			break;
 		}
 	case KX_PROPSENSOR_INTERVAL:
 		{
-			//CValue* orgprop = GetParent()->FindIdentifier(m_checkpropname);
-			//if (orgprop)
-			//{
-				if (m_range_expr)
-				{
-					CValue* vallie = m_range_expr->Calculate();
-					if (vallie)
-					{
-						const STR_String& errtext = vallie->GetText();
-						if (&errtext == &CBoolValue::sTrueString)
-						{
-							result = true;
-						} else
-						{
-							if (vallie->IsError())
-							{
-								//printf (errtext.ReadPtr());
-							} 
-						}
-						
-						vallie->Release();
-					}
+			CValue* orgprop = GetParent()->FindIdentifier(m_checkpropname);
+			if (!orgprop->IsError())
+			{
+				const float min = m_checkpropval.ToFloat();
+				const float max = m_checkpropmaxval.ToFloat();
+				float val;
+
+				if (dynamic_cast<CStringValue *>(orgprop) == NULL) {
+					val = orgprop->GetNumber();
+				}
+				else {
+					val = orgprop->GetText().ToFloat();
 				}
 
-				
-			//}
-			
-		//cout << " \nSens:Prop:interval!"; /* need implementation here!!! */
+				result = (min <= val) && (val <= max);
+			}
 
 		break;
 		}
@@ -319,33 +256,11 @@ CValue* SCA_PropertySensor::FindIdentifier(const STR_String& identifiername)
 
 int SCA_PropertySensor::validValueForProperty(void *self, const PyAttributeDef*)
 {
-	/*  If someone actually do type checking please make sure the 'max' and 'min'
-		are checked as well (currently they are calling the PrecalculateRangeExpression
-		function directly	*/
+	/* If someone actually do type checking please make sure the 'max' and 'min'
+	 * are checked as well (currently they are calling the PrecalculateRangeExpression
+	 * function directly */
 
 	/*  There is no type checking at this moment, unfortunately...           */
-	return 0;
-}
-
-int SCA_PropertySensor::validValueForIntervalProperty(void *self, const PyAttributeDef*)
-{
-	SCA_PropertySensor*	sensor = reinterpret_cast<SCA_PropertySensor*>(self);
-
-	if (sensor->m_checktype==KX_PROPSENSOR_INTERVAL)
-	{
-		sensor->PrecalculateRangeExpression();
-	}
-	return 0;
-}
-
-int SCA_PropertySensor::modeChange(void *self, const PyAttributeDef* attrdef)
-{
-	SCA_PropertySensor*	sensor = reinterpret_cast<SCA_PropertySensor*>(self);
-
-	if (sensor->m_checktype==KX_PROPSENSOR_INTERVAL)
-	{
-		sensor->PrecalculateRangeExpression();
-	}
 	return 0;
 }
 
@@ -377,11 +292,11 @@ PyMethodDef SCA_PropertySensor::Methods[] = {
 };
 
 PyAttributeDef SCA_PropertySensor::Attributes[] = {
-	KX_PYATTRIBUTE_INT_RW_CHECK("mode",KX_PROPSENSOR_NODEF,KX_PROPSENSOR_MAX-1,false,SCA_PropertySensor,m_checktype,modeChange),
-	KX_PYATTRIBUTE_STRING_RW_CHECK("propName",0,100,false,SCA_PropertySensor,m_checkpropname,CheckProperty),
+	KX_PYATTRIBUTE_INT_RW("mode",KX_PROPSENSOR_NODEF,KX_PROPSENSOR_MAX-1,false,SCA_PropertySensor,m_checktype),
+	KX_PYATTRIBUTE_STRING_RW_CHECK("propName",0,MAX_PROP_NAME,false,SCA_PropertySensor,m_checkpropname,CheckProperty),
 	KX_PYATTRIBUTE_STRING_RW_CHECK("value",0,100,false,SCA_PropertySensor,m_checkpropval,validValueForProperty),
-	KX_PYATTRIBUTE_STRING_RW_CHECK("min",0,100,false,SCA_PropertySensor,m_checkpropval,validValueForIntervalProperty),
-	KX_PYATTRIBUTE_STRING_RW_CHECK("max",0,100,false,SCA_PropertySensor,m_checkpropmaxval,validValueForIntervalProperty),
+	KX_PYATTRIBUTE_STRING_RW_CHECK("min",0,100,false,SCA_PropertySensor,m_checkpropval,validValueForProperty),
+	KX_PYATTRIBUTE_STRING_RW_CHECK("max",0,100,false,SCA_PropertySensor,m_checkpropmaxval,validValueForProperty),
 	{ NULL }	//Sentinel
 };
 

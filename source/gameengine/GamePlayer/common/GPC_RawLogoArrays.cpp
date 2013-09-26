@@ -1,5 +1,4 @@
 /*
- * $Id: GPC_RawLogoArrays.cpp 35170 2011-02-25 13:35:11Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -39,7 +38,8 @@ void GetRawBlenderLogo(unsigned char **data, int *width, int *height)
 {
 	// create an array that will automatically be deleted when)
 	// we're outta this scope
-	static unsigned char logo_blender_raw[]= {  0,   0,   0,   0,   0, 
+	static unsigned char logo_blender_raw[] = {
+		  0,   0,   0,   0,   0,
 		  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
 		  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
 		  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 
@@ -1030,7 +1030,7 @@ void GetRawBlenderLogo(unsigned char **data, int *width, int *height)
 	*data = new unsigned char[14720];
 	// and copy it. Now we are certain that the calling function
 	// can control the memory location
-	for(int i = 0; i < 14720 /* tmp array size */; i++)
+	for (int i = 0; i < 14720 /* tmp array size */; i++)
 	{
 		(*data)[i] = logo_blender_raw[i];
 	}
@@ -1042,7 +1042,8 @@ void GetRawBlender3DLogo(unsigned char **data, int *width, int *height)
 {
 	// create an array that will automatically be deleted when)
 	// we're outta this scope
-	static unsigned char logo_blender3d_raw[]= {255, 255, 255,   0, 255, 255, 255,   0, 255, 255, 255,   0, 255, 255, 
+	static unsigned char logo_blender3d_raw[] = {
+		255, 255, 255,   0, 255, 255, 255,   0, 255, 255, 255,   0, 255, 255,
 		255,   0, 255, 255, 255,   0, 255, 255, 255,   0, 255, 255, 255,   0, 255, 
 		255, 255,   0, 255, 255, 255,   0, 255, 255, 255,   0, 255, 255, 255,   0, 
 		255, 255, 255,   0, 255, 255, 255,   0, 255, 255, 255,   0, 255, 255, 255, 
@@ -1450,7 +1451,7 @@ void GetRawBlender3DLogo(unsigned char **data, int *width, int *height)
 	*data = new unsigned char[5984];
 	// and copy it. Now we are certain that the calling function
 	// can control the memory location
-	for(int i = 0; i < 5984 /* tmp array size */; i++)
+	for (int i = 0; i < 5984 /* tmp array size */; i++)
 	{
 		(*data)[i] = logo_blender3d_raw[i];
 	}

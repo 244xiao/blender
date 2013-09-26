@@ -1,6 +1,4 @@
 /*
- * $Id: KX_TimeLogger.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,17 +29,17 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_TIME_LOGGER_H
-#define __KX_TIME_LOGGER_H
+#ifndef __KX_TIMELOGGER_H__
+#define __KX_TIMELOGGER_H__
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable:4786) // suppress stl-MSVC debug info warning
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)  /* suppress stl-MSVC debug info warning */
 #endif
 
 #include <deque>
 
 #ifdef WITH_CXX_GUARDEDALLOC
-#include "MEM_guardedalloc.h"
+#  include "MEM_guardedalloc.h"
 #endif
 
 /**
@@ -51,7 +49,7 @@ class KX_TimeLogger {
 public:
 	/**
 	 * Constructor.
-	 * @param maxNumMesasurements Maximum number of measurements stored (>1).
+	 * \param maxNumMesasurements Maximum number of measurements stored (>1).
 	 */
 	KX_TimeLogger(unsigned int maxNumMeasurements = 10);
 
@@ -72,25 +70,25 @@ public:
 
 	/**
 	 * Starts logging in current measurement.
-	 * @param now	The current time.
+	 * \param now	The current time.
 	 */
 	virtual void StartLog(double now);
 
 	/**
 	 * End logging in current measurement.
-	 * @param now	The current time.
+	 * \param now	The current time.
 	 */
 	virtual void EndLog(double now);
 
 	/**
 	 * Logs time in next measurement.
-	 * @param now	The current time.
+	 * \param now	The current time.
 	 */
 	virtual void NextMeasurement(double now);
 
 	/**
 	 * Returns average of all but the current measurement.
-	 * @return The average of all but the current measurement.
+	 * \return The average of all but the current measurement.
 	 */
 	virtual double GetAverage(void) const;
 
@@ -109,11 +107,8 @@ protected:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_TimeLogger"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_TimeLogger")
 #endif
 };
 
-#endif // __KX_TIME_LOGGER_H
-
+#endif  /* __KX_TIMELOGGER_H__ */

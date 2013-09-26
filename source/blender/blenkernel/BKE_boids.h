@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_boids.h 34962 2011-02-18 13:05:18Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -27,8 +25,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef BKE_BOIDS_H
-#define BKE_BOIDS_H
+#ifndef __BKE_BOIDS_H__
+#define __BKE_BOIDS_H__
 
 /** \file BKE_boids.h
  *  \ingroup bke
@@ -37,6 +35,8 @@
  */
 
 #include "DNA_boid_types.h"
+
+struct RNG;
 
 typedef struct BoidBrainData {
 	struct ParticleSimulationData *sim;
@@ -49,6 +49,8 @@ typedef struct BoidBrainData {
 	float goal_co[3];
 	float goal_nor[3];
 	float goal_priority;
+
+	struct RNG *rng;
 } BoidBrainData;
 
 void boids_precalc_rules(struct ParticleSettings *part, float cfra);

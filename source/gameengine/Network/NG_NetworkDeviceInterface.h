@@ -1,6 +1,4 @@
 /*
- * $Id: NG_NetworkDeviceInterface.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -33,8 +31,8 @@
  * To be derived by loopback and network libraries
  */
 
-#ifndef NG_NETWORKDEVICEINTERFACE_H
-#define NG_NETWORKDEVICEINTERFACE_H
+#ifndef __NG_NETWORKDEVICEINTERFACE_H__
+#define __NG_NETWORKDEVICEINTERFACE_H__
 
 #include "NG_NetworkMessage.h"
 #include <vector>
@@ -45,43 +43,40 @@ private:
 	// candidates for shared/common implementation class
 	bool m_online;
 public:
-	NG_NetworkDeviceInterface() {};
-	virtual ~NG_NetworkDeviceInterface() {};
+	NG_NetworkDeviceInterface() {}
+	virtual ~NG_NetworkDeviceInterface() {}
 
 	virtual void NextFrame()=0;
 
 	/**
-	  * Mark network connection online
-	  */
+	 * Mark network connection online
+	 */
 	void Online(void) { m_online = true; }
 	/**
-	  * Mark network connection offline
-	  */
+	 * Mark network connection offline
+	 */
 	void Offline(void) { m_online = false; }
 	/**
-	  * Is the network connection established ?
-	  */
+	 * Is the network connection established ?
+	 */
 	bool IsOnline(void) { return m_online; }
 
 	virtual bool Connect(char *address, unsigned int port, char *password,
-		     unsigned int localport, unsigned int timeout)=0;
+	                     unsigned int localport, unsigned int timeout)=0;
 	virtual bool Disconnect(void)=0;
 
 	virtual void SendNetworkMessage(NG_NetworkMessage* msg)=0;
 	/**
-	  * read NG_NetworkMessage from library buffer, may be
-	  * irrelevant for loopbackdevices
-	  */
+	 * read NG_NetworkMessage from library buffer, may be
+	 * irrelevant for loopbackdevices
+	 */
 	
 	virtual std::vector<NG_NetworkMessage*> RetrieveNetworkMessages()=0;
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:NG_NetworkDeviceInterface"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:NG_NetworkDeviceInterface")
 #endif
 };
 
-#endif //NG_NETWORKDEVICEINTERFACE_H
-
+#endif  /* __NG_NETWORKDEVICEINTERFACE_H__ */

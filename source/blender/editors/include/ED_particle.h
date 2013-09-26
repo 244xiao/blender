@@ -1,6 +1,4 @@
-/* 
- * $Id: ED_particle.h 35016 2011-02-21 07:25:24Z jesterking $
- *
+/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup editors
  */
 
-#ifndef ED_PARTICLE_H
-#define ED_PARTICLE_H
+#ifndef __ED_PARTICLE_H__
+#define __ED_PARTICLE_H__
 
 struct bContext;
 struct Object;
@@ -52,7 +50,7 @@ int PE_start_edit(struct PTCacheEdit *edit);
 struct PTCacheEdit *PE_get_current(struct Scene *scene, struct Object *ob);
 struct PTCacheEdit *PE_create_current(struct Scene *scene, struct Object *ob);
 void PE_current_changed(struct Scene *scene, struct Object *ob);
-int PE_minmax(struct Scene *scene, float *min, float *max);
+int PE_minmax(struct Scene *scene, float min[3], float max[3]);
 struct ParticleEditSettings *PE_settings(struct Scene *scene);
 
 /* update calls */
@@ -60,10 +58,10 @@ void PE_hide_keys_time(struct Scene *scene, struct PTCacheEdit *edit, float cfra
 void PE_update_object(struct Scene *scene, struct Object *ob, int useflag);
 
 /* selection tools */
-int PE_mouse_particles(struct bContext *C, short *mval, int extend);
-int PE_border_select(struct bContext *C, struct rcti *rect, int select, int extend);
-int PE_circle_select(struct bContext *C, int selecting, short *mval, float rad);
-int PE_lasso_select(struct bContext *C, short mcords[][2], short moves, short extend, short select);
+int PE_mouse_particles(struct bContext *C, const int mval[2], bool extend, bool deselect, bool toggle);
+int PE_border_select(struct bContext *C, struct rcti *rect, bool select, bool extend);
+int PE_circle_select(struct bContext *C, int selecting, const int mval[2], float rad);
+int PE_lasso_select(struct bContext *C, const int mcords[][2], const short moves, bool extend, bool select);
 void PE_deselect_all_visible(struct PTCacheEdit *edit);
 
 /* undo */
@@ -71,8 +69,9 @@ void PE_undo_push(struct Scene *scene, const char *str);
 void PE_undo_step(struct Scene *scene, int step);
 void PE_undo(struct Scene *scene);
 void PE_redo(struct Scene *scene);
-void PE_undo_menu(struct Scene *scene, struct Object *ob);
 int PE_undo_valid(struct Scene *scene);
+void PE_undo_number(struct Scene *scene, int nr);
+const char *PE_undo_get_name(struct Scene *scene, int nr, int *active);
 
-#endif /* ED_PARTICLE_H */
+#endif /* __ED_PARTICLE_H__ */
 

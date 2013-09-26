@@ -1,6 +1,4 @@
 /*
- * $Id: CameraExporter.h 35020 2011-02-21 08:38:53Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -33,15 +31,21 @@
 #include "COLLADASWStreamWriter.h"
 #include "COLLADASWLibraryCameras.h"
 
+extern "C" {
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+}
+
+#include "ExportSettings.h"
 
 class CamerasExporter: COLLADASW::LibraryCameras
 {
 public:
-	CamerasExporter(COLLADASW::StreamWriter *sw);
+	CamerasExporter(COLLADASW::StreamWriter *sw, const ExportSettings *export_settings);
 	void exportCameras(Scene *sce);
 	void operator()(Object *ob, Scene *sce);
+private:
+	const ExportSettings *export_settings;
 };
 
 #endif

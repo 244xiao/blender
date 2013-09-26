@@ -1,31 +1,35 @@
-/* $Id: ImageViewport.h 35082 2011-02-22 19:30:37Z jesterking $
------------------------------------------------------------------------------
-This source file is part of VideoTexture library
-
-Copyright (c) 2007 The Zdeno Ash Miklas
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU Lesser General Public License as published by the Free Software
-Foundation; either version 2 of the License, or (at your option) any later
-version.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
-
-You should have received a copy of the GNU Lesser General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place - Suite 330, Boston, MA 02111-1307, USA, or go to
-http://www.gnu.org/copyleft/lesser.txt.
------------------------------------------------------------------------------
-*/
+/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * Copyright (c) 2007 The Zdeno Ash Miklas
+ *
+ * This source file is part of VideoTexture library
+ *
+ * Contributor(s):
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
 
 /** \file ImageViewport.h
  *  \ingroup bgevideotex
  */
- 
-#if !defined IMAGEVIEWPORT_H
-#define IMAGEVIEWPORT_H
+
+#ifndef __IMAGEVIEWPORT_H__
+#define __IMAGEVIEWPORT_H__
 
 
 #include "Common.h"
@@ -51,17 +55,17 @@ public:
 	/// is alpha channel used
 	bool getAlpha (void) { return m_alpha; }
 	/// set whole buffer use
-    void setAlpha (bool alpha) { m_alpha = alpha; }
+	void setAlpha (bool alpha) { m_alpha = alpha; }
 
 	/// get capture size in viewport
 	short * getCaptureSize (void) { return m_capSize; }
 	/// set capture size in viewport
-	void setCaptureSize (short * size = NULL);
+	void setCaptureSize (short size[2] = NULL);
 
 	/// get position in viewport
 	GLint * getPosition (void) { return m_position; }
 	/// set position in viewport
-	void setPosition (GLint * pos = NULL);
+	void setPosition (GLint pos[2] = NULL);
 
 protected:
 	/// frame buffer rectangle
@@ -71,8 +75,8 @@ protected:
 	short m_capSize[2];
 	/// use whole viewport
 	bool m_whole;
-    /// use alpha channel
-    bool m_alpha;
+	/// use alpha channel
+	bool m_alpha;
 
 	/// position of capture rectangle in viewport
 	GLint m_position[2];
@@ -91,12 +95,12 @@ protected:
 	GLint * getViewportSize (void) { return m_viewport + 2; }
 };
 
-PyObject * ImageViewport_getCaptureSize (PyImage * self, void * closure);
-int ImageViewport_setCaptureSize (PyImage * self, PyObject * value, void * closure);
-PyObject * ImageViewport_getWhole (PyImage * self, void * closure);
-int ImageViewport_setWhole (PyImage * self, PyObject * value, void * closure);
-PyObject * ImageViewport_getAlpha (PyImage * self, void * closure);
-int ImageViewport_setAlpha (PyImage * self, PyObject * value, void * closure);
+PyObject *ImageViewport_getCaptureSize(PyImage *self, void *closure);
+int ImageViewport_setCaptureSize(PyImage *self, PyObject *value, void *closure);
+PyObject *ImageViewport_getWhole(PyImage *self, void *closure);
+int ImageViewport_setWhole(PyImage *self, PyObject *value, void *closure);
+PyObject *ImageViewport_getAlpha(PyImage *self, void *closure);
+int ImageViewport_setAlpha(PyImage *self, PyObject *value, void *closure);
 
 #endif
 

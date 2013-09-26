@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_lamp_types.h 34941 2011-02-17 20:48:12Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,23 +24,26 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_LAMP_TYPES_H
-#define DNA_LAMP_TYPES_H
 
 /** \file DNA_lamp_types.h
  *  \ingroup DNA
  */
 
+#ifndef __DNA_LAMP_TYPES_H__
+#define __DNA_LAMP_TYPES_H__
+
+#include "DNA_defs.h"
 #include "DNA_ID.h"
 
 #ifndef MAX_MTEX
 #define MAX_MTEX	18
 #endif
 
-struct MTex;
-struct CurveMapping;
 struct AnimData;
+struct bNodeTree;
+struct CurveMapping;
 struct Ipo;
+struct MTex;
 
 typedef struct Lamp {
 	ID id;
@@ -65,7 +66,7 @@ typedef struct Lamp {
 	short pad2;
 	
 	float clipsta, clipend, shadspotsize;
-	float bias, soft, compressthresh, pad5[3];
+	float bias, soft, compressthresh, bleedbias, pad5[2];
 	short bufsize, samp, buffers, filtertype;
 	char bufflag, buftype;
 	
@@ -75,7 +76,7 @@ typedef struct Lamp {
 	float area_size, area_sizey, area_sizez;
 	float adapt_thresh;
 	short ray_samp_method;
-	short pad1;
+	short shadowmap_type;
 	
 	/* texact is for buttons */
 	short texact, shadhalostep;
@@ -95,16 +96,20 @@ typedef struct Lamp {
 	float atm_distance_factor;
 	float skyblendfac;
 	float sky_exposure;
+	float shadow_frustum_size;		/* BGE Only */
 	short sky_colorspace;
-	char pad4[6];
+	char pad4[2];
 
-	struct Ipo *ipo;				// XXX depreceated... old animation system
+	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
 	struct MTex *mtex[18];			/* MAX_MTEX */
-	short pr_texture;
-	char pad6[6];
+	short pr_texture, use_nodes;
+	char pad6[4];
 
 	/* preview */
 	struct PreviewImage *preview;
+
+	/* nodes */
+	struct bNodeTree *nodetree;
 } Lamp;
 
 /* **************** LAMP ********************* */
@@ -192,7 +197,7 @@ typedef struct Lamp {
 
 
 /* ray_samp_type */
-#define LA_SAMP_ROUND	1
+// #define LA_SAMP_ROUND	1  // UNUSED
 #define LA_SAMP_UMBRA	2
 #define LA_SAMP_DITHER	4
 #define LA_SAMP_JITTER	8
@@ -201,6 +206,9 @@ typedef struct Lamp {
 #define LAMAP_COL		1
 #define LAMAP_SHAD		2
 
+/* shadowmap_type */
+#define LA_SHADMAP_SIMPLE	0
+#define LA_SHADMAP_VARIANCE	1
 
-#endif /* DNA_LAMP_TYPES_H */
+#endif /* __DNA_LAMP_TYPES_H__ */
 

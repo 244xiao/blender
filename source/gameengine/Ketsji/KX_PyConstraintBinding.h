@@ -1,6 +1,4 @@
 /*
- * $Id: KX_PyConstraintBinding.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,18 +29,16 @@
  *  \ingroup ketsji
  */
 
-#ifndef PHY_PYTHON_CONSTRAINTBINDING
-#define PHY_PYTHON_CONSTRAINTBINDING
+#ifndef __KX_PYCONSTRAINTBINDING_H__
+#define __KX_PYCONSTRAINTBINDING_H__
 
 #ifdef WITH_PYTHON
 
 #include <Python.h>
 
 PyObject*				initPythonConstraintBinding();
-void	PHY_RemovePythonConstraintBinding();
 void	PHY_SetActiveEnvironment(class	PHY_IPhysicsEnvironment* env);
 PHY_IPhysicsEnvironment*	PHY_GetActiveEnvironment();
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
-#endif //PHY_PYTHON_CONSTRAINTBINDING
-
+#endif  /* __KX_PYCONSTRAINTBINDING_H__ */

@@ -108,7 +108,7 @@ void CParser::TermChar(char c)
 {
 	// generates an error if the next char isn't the specified char c,
 	// otherwise, skip the char
-	if(ch == c)
+	if (ch == c)
 	{
 		NextCh();
 	}
@@ -166,7 +166,7 @@ void CParser::GrabRealString(int start)
 	const_as_string = STR_String();
 	for (i=start;i<chcount;i++) {
 		tmpch= text[i];
-		if ((tmpch =='\\') && (text[i+1] == 'n')){
+		if ((tmpch =='\\') && (text[i+1] == 'n')) {
 			tmpch = '\n';
 			i++;
 		}
@@ -187,94 +187,94 @@ void CParser::NextSym()
 	//   sets the global variable cellcoord to the kind of operator
 	
 	errmsg = NULL;
-	while(ch == ' ' || ch == 0x9)
+	while (ch == ' ' || ch == 0x9)
 		NextCh();
 
-	switch(ch)
-	{
-    case '(':
-		sym = lbracksym; NextCh();
-		break;
-    case ')':
-		sym = rbracksym; NextCh();
-		break;
-    case ',':
-		sym = commasym; NextCh();
-		break;
-	case '%' :
-		sym = opsym; opkind = OPmodulus; NextCh();
-		break;
-    case '+' :
-		sym = opsym; opkind = OPplus; NextCh();
-		break;
-    case '-' :
-		sym = opsym; opkind = OPminus; NextCh();
-		break;
-    case '*' :
-		sym = opsym; opkind = OPtimes; NextCh();
-		break;
-    case '/' :
-		sym = opsym; opkind = OPdivide; NextCh();
-		break;
-	case '&' :
-		sym = opsym; opkind = OPand; NextCh(); TermChar('&');
-		break;
-	case '|' :
-		sym = opsym; opkind = OPor; NextCh(); TermChar('|');
-		break;
-	case '=' :
-		sym = opsym; opkind = OPequal; NextCh(); TermChar('=');
-		break;
-	case '!' :
-		sym = opsym;
-		NextCh();
-		if (ch == '=')
-		{
-			opkind = OPunequal;
+	switch (ch) {
+		case '(':
+			sym = lbracksym; NextCh();
+			break;
+		case ')':
+			sym = rbracksym; NextCh();
+			break;
+		case ',':
+			sym = commasym; NextCh();
+			break;
+		case '%' :
+			sym = opsym; opkind = OPmodulus; NextCh();
+			break;
+		case '+' :
+			sym = opsym; opkind = OPplus; NextCh();
+			break;
+		case '-' :
+			sym = opsym; opkind = OPminus; NextCh();
+			break;
+		case '*' :
+			sym = opsym; opkind = OPtimes; NextCh();
+			break;
+		case '/' :
+			sym = opsym; opkind = OPdivide; NextCh();
+			break;
+		case '&' :
+			sym = opsym; opkind = OPand; NextCh(); TermChar('&');
+			break;
+		case '|' :
+			sym = opsym; opkind = OPor; NextCh(); TermChar('|');
+			break;
+		case '=' :
+			sym = opsym; opkind = OPequal; NextCh(); TermChar('=');
+			break;
+		case '!' :
+			sym = opsym;
 			NextCh();
-		}
-		else
-		{
-			opkind = OPnot;
-		}
-		break;
-	case '>':
-		sym = opsym;
-		NextCh();
-		if (ch == '=')
-		{
-			opkind = OPgreaterequal;
+			if (ch == '=')
+			{
+				opkind = OPunequal;
+				NextCh();
+			}
+			else
+			{
+				opkind = OPnot;
+			}
+			break;
+		case '>':
+			sym = opsym;
 			NextCh();
-		}
-		else
+			if (ch == '=')
+			{
+				opkind = OPgreaterequal;
+				NextCh();
+			}
+			else
+			{
+				opkind = OPgreater;
+			}
+			break;
+		case '<':
+			sym = opsym;
+			NextCh();
+			if (ch == '=') {
+				opkind = OPlessequal;
+				NextCh();
+			} else {
+				opkind = OPless;
+			}
+			break;
+		case '\"' :
 		{
-			opkind = OPgreater;
-		}
-		break;
-	case '<':
-		sym = opsym;
-		NextCh();
-		if (ch == '=') {
-			opkind = OPlessequal;
+			int start;
+			sym = constsym;
+			constkind = stringtype;
 			NextCh();
-		} else {
-			opkind = OPless;
+			start = chcount;
+			while ((ch != '\"') && (ch != 0x0))
+				NextCh();
+			GrabRealString(start);
+			TermChar('\"');	// check for eol before '\"'
+			break;
 		}
-		break;
-    case '\"' : {
-		int start;
-		sym = constsym;
-		constkind = stringtype;
-		NextCh();
-		start = chcount;
-		while ((ch != '\"') && (ch != 0x0))
-			NextCh();
-		GrabRealString(start);
-		TermChar('\"');	// check for eol before '\"'
-		break;
-				}
-    case 0x0: sym = eolsym; break;
-    default: 
+		case 0x0: sym = eolsym; break;
+		default:
 		{
 			int start;
 			start = chcount;
@@ -301,7 +301,7 @@ void CParser::NextSym()
 				}
 				GrabString(start);
 			} else if (((ch >= 'a') && (ch <= 'z'))
-				|| ((ch >= 'A') && (ch <= 'Z')))
+			           || ((ch >= 'A') && (ch <= 'Z')))
 			{ // reserved word?
 				
 				start = chcount;
@@ -346,7 +346,8 @@ void CParser::NextSym()
 }
 
 #if 0
-int CParser::MakeInt() {
+int CParser::MakeInt()
+{
 	// returns the integer representation of the value in the global
 	// variable const_as_string
 	// pre: const_as_string contains only numercal chars
@@ -354,32 +355,36 @@ int CParser::MakeInt() {
 }
 #endif
 
-STR_String CParser::Symbol2Str(int s) {
+const char *CParser::Symbol2Str(int s)
+{
 	// returns a string representation of of symbol s,
 	// for use in Term when generating an error
-	switch(s) {
-    case errorsym: return "error";
-    case lbracksym: return "(";
-    case rbracksym: return ")";
-    case commasym: return ",";
-    case opsym: return "operator";
-    case constsym: return "constant";
-	case sumsym: return "SUM";
-	case ifsym: return "IF";
-	case whocodedsym: return "WHOMADE";
-    case eolsym: return "end of line";
-	case idsym: return "identifier";
-    default: return "unknown";  // should not happen
+	switch (s) {
+		case errorsym: return "error";
+		case lbracksym: return "(";
+		case rbracksym: return ")";
+		case commasym: return ",";
+		case opsym: return "operator";
+		case constsym: return "constant";
+		case sumsym: return "SUM";
+		case ifsym: return "IF";
+		case whocodedsym: return "WHOMADE";
+		case eolsym: return "end of line";
+		case idsym: return "identifier";
 	}
+	return "unknown";  // should not happen
 }
 
-void CParser::Term(int s) {
+void CParser::Term(int s)
+{
 	// generates an error if the next symbol isn't the specified symbol s
 	// otherwise, skip the symbol
-	if(s == sym) NextSym();
+	if (s == sym) {
+		NextSym();
+	}
 	else {
 		STR_String msg;
-		msg.Format("Warning: " + Symbol2Str(s) + " expected\ncontinuing without it");
+		msg.Format("Warning: %s expected\ncontinuing without it", Symbol2Str(s));
 
 //		AfxMessageBox(msg,MB_ICONERROR);
 
@@ -387,29 +392,31 @@ void CParser::Term(int s) {
 	}
 }
 
-int CParser::Priority(int optorkind) {
+int CParser::Priority(int optorkind)
+{
 	// returns the priority of an operator
 	// higher number means higher priority
-	switch(optorkind) {
-	case OPor: return 1;
-	case OPand: return 2;
-	case OPgreater:
-	case OPless:
-	case OPgreaterequal:
-	case OPlessequal:
-	case OPequal:
-	case OPunequal: return 3;
-    case OPplus:
-    case OPminus: return 4;
-	case OPmodulus:
-    case OPtimes:
-    case OPdivide: return 5;
+	switch (optorkind) {
+		case OPor: return 1;
+		case OPand: return 2;
+		case OPgreater:
+		case OPless:
+		case OPgreaterequal:
+		case OPlessequal:
+		case OPequal:
+		case OPunequal: return 3;
+		case OPplus:
+		case OPminus: return 4;
+		case OPmodulus:
+		case OPtimes:
+		case OPdivide: return 5;
 	}
 	MT_assert(false);
 	return 0;      // should not happen
 }
 
-CExpression *CParser::Ex(int i) {
+CExpression *CParser::Ex(int i)
+{
 	// parses an expression in the imput, starting at priority i, and
 	// returns an CExpression, containing the parsed input
 	CExpression *e1 = NULL, *e2 = NULL;
@@ -421,102 +428,104 @@ CExpression *CParser::Ex(int i) {
 			opkind2 = opkind;
 			NextSym();
 			e2 = Ex(i + 1);
-			switch(opkind2) {
-			case OPmodulus: e1 = new COperator2Expr(VALUE_MOD_OPERATOR,e1, e2); break;
-			case OPplus: e1 = new COperator2Expr(VALUE_ADD_OPERATOR,e1, e2); break;
-			case OPminus: e1 = new COperator2Expr(VALUE_SUB_OPERATOR,e1, e2); break;
-			case OPtimes:	e1 = new COperator2Expr(VALUE_MUL_OPERATOR,e1, e2); break;
-			case OPdivide: e1 = new COperator2Expr(VALUE_DIV_OPERATOR,e1, e2); break;
-			case OPand: e1 = new COperator2Expr(VALUE_AND_OPERATOR,e1, e2); break;
-			case OPor: e1 = new COperator2Expr(VALUE_OR_OPERATOR,e1, e2); break;
-			case OPequal: e1 = new COperator2Expr(VALUE_EQL_OPERATOR,e1, e2); break;
-			case OPunequal: e1 = new COperator2Expr(VALUE_NEQ_OPERATOR,e1, e2); break;
-			case OPgreater: e1 = new COperator2Expr(VALUE_GRE_OPERATOR,e1, e2); break;
-			case OPless: e1 = new COperator2Expr(VALUE_LES_OPERATOR,e1, e2); break;
-			case OPgreaterequal: e1 = new COperator2Expr(VALUE_GEQ_OPERATOR,e1, e2); break;
-			case OPlessequal: e1 = new COperator2Expr(VALUE_LEQ_OPERATOR,e1, e2); break;
-			default: MT_assert(false);	break; // should not happen
+			switch (opkind2) {
+				case OPmodulus: e1 = new COperator2Expr(VALUE_MOD_OPERATOR,e1, e2); break;
+				case OPplus: e1 = new COperator2Expr(VALUE_ADD_OPERATOR,e1, e2); break;
+				case OPminus: e1 = new COperator2Expr(VALUE_SUB_OPERATOR,e1, e2); break;
+				case OPtimes:	e1 = new COperator2Expr(VALUE_MUL_OPERATOR,e1, e2); break;
+				case OPdivide: e1 = new COperator2Expr(VALUE_DIV_OPERATOR,e1, e2); break;
+				case OPand: e1 = new COperator2Expr(VALUE_AND_OPERATOR,e1, e2); break;
+				case OPor: e1 = new COperator2Expr(VALUE_OR_OPERATOR,e1, e2); break;
+				case OPequal: e1 = new COperator2Expr(VALUE_EQL_OPERATOR,e1, e2); break;
+				case OPunequal: e1 = new COperator2Expr(VALUE_NEQ_OPERATOR,e1, e2); break;
+				case OPgreater: e1 = new COperator2Expr(VALUE_GRE_OPERATOR,e1, e2); break;
+				case OPless: e1 = new COperator2Expr(VALUE_LES_OPERATOR,e1, e2); break;
+				case OPgreaterequal: e1 = new COperator2Expr(VALUE_GEQ_OPERATOR,e1, e2); break;
+				case OPlessequal: e1 = new COperator2Expr(VALUE_LEQ_OPERATOR,e1, e2); break;
+				default: MT_assert(false);	break; // should not happen
 			}
 		}
 	} else if (i == NUM_PRIORITY) {
-		if ((sym == opsym) 
-			&& ( (opkind == OPminus) || (opkind == OPnot) || (opkind == OPplus) ) 
-			)
+		if ((sym == opsym)
+		    && ( (opkind == OPminus) || (opkind == OPnot) || (opkind == OPplus) )
+		    )
 		{
 			NextSym();
-			switch(opkind) {
-			/* +1 is also a valid number! */
-			case OPplus: e1 = new COperator1Expr(VALUE_POS_OPERATOR, Ex(NUM_PRIORITY)); break;
-			case OPminus: e1 = new COperator1Expr(VALUE_NEG_OPERATOR, Ex(NUM_PRIORITY)); break;
-			case OPnot: e1 = new COperator1Expr(VALUE_NOT_OPERATOR, Ex(NUM_PRIORITY)); break;
-			default: {
-						// should not happen
-						e1 = Error("operator +, - or ! expected");
-					 }
+			switch (opkind) {
+				/* +1 is also a valid number! */
+				case OPplus: e1 = new COperator1Expr(VALUE_POS_OPERATOR, Ex(NUM_PRIORITY)); break;
+				case OPminus: e1 = new COperator1Expr(VALUE_NEG_OPERATOR, Ex(NUM_PRIORITY)); break;
+				case OPnot: e1 = new COperator1Expr(VALUE_NOT_OPERATOR, Ex(NUM_PRIORITY)); break;
+				default:
+				{
+					// should not happen
+					e1 = Error("operator +, - or ! expected");
+				}
 			}
 		}
 		else {
-			switch(sym) {
-			case constsym: {
-				switch(constkind) {
-				case booltype:
-					e1 = new CConstExpr(new CBoolValue(boolvalue));
-					break;
-				case inttype:
-					{
-						cInt temp;
-						temp = strtoll(const_as_string, NULL, 10); /* atoi is for int only */
-						e1 = new CConstExpr(new CIntValue(temp));
-						break;
+			switch (sym) {
+				case constsym:
+				{
+					switch (constkind) {
+						case booltype:
+							e1 = new CConstExpr(new CBoolValue(boolvalue));
+							break;
+						case inttype:
+						{
+							cInt temp;
+							temp = strtoll(const_as_string, NULL, 10); /* atoi is for int only */
+							e1 = new CConstExpr(new CIntValue(temp));
+							break;
+						}
+						case floattype:
+						{
+							double temp;
+							temp = atof(const_as_string);
+							e1 = new CConstExpr(new CFloatValue(temp));
+							break;
+						}
+						case stringtype:
+							e1 = new CConstExpr(new CStringValue(const_as_string,""));
+							break;
+						default :
+							MT_assert(false);
+							break;
 					}
-				case floattype:
-					{
-						double temp;
-						temp = atof(const_as_string);
-						e1 = new CConstExpr(new CFloatValue(temp));
-						break;
-					}
-				case stringtype:
-					e1 = new CConstExpr(new CStringValue(const_as_string,""));
-					break;
-				default :
-					MT_assert(false);
-					break;
-				}
-				NextSym();
-				break;
-						   }
-			case lbracksym:
-				NextSym();
-				e1 = Ex(1);
-				Term(rbracksym);
-				break;
-			case ifsym:
-			{
-				CExpression *e3;
-				NextSym();
-				Term(lbracksym);
-				e1 = Ex(1);
-				Term(commasym);
-				e2 = Ex(1);
-				if (sym == commasym) {
 					NextSym();
-					e3 = Ex(1);
-				} else {
-					e3 = new CConstExpr(new CEmptyValue());
+					break;
 				}
-				Term(rbracksym);
-				e1 = new CIfExpr(e1, e2, e3);
-				break;
-			}
-			case idsym:
+				case lbracksym:
+					NextSym();
+					e1 = Ex(1);
+					Term(rbracksym);
+					break;
+				case ifsym:
+				{
+					CExpression *e3;
+					NextSym();
+					Term(lbracksym);
+					e1 = Ex(1);
+					Term(commasym);
+					e2 = Ex(1);
+					if (sym == commasym) {
+						NextSym();
+						e3 = Ex(1);
+					} else {
+						e3 = new CConstExpr(new CEmptyValue());
+					}
+					Term(rbracksym);
+					e1 = new CIfExpr(e1, e2, e3);
+					break;
+				}
+				case idsym:
 				{
 					e1 = new CIdentifierExpr(const_as_string,m_identifierContext);
 					NextSym();
 					
 					break;
 				}
-			case errorsym:
+				case errorsym:
 				{
 					MT_assert(!e1);
 					STR_String errtext="[no info]";
@@ -525,7 +534,7 @@ CExpression *CParser::Ex(int i) {
 						CValue* errmsgval = errmsg->Calculate();
 						errtext=errmsgval->GetText();
 						errmsgval->Release();
-					
+
 						//e1 = Error(errmsg->Calculate()->GetText());//new CConstExpr(errmsg->Calculate());
 						
 						if ( !(errmsg->Release()) )
@@ -533,25 +542,26 @@ CExpression *CParser::Ex(int i) {
 							errmsg=NULL;
 						} else {
 							// does this happen ?
-							MT_assert ("does this happen");
+							MT_assert("does this happen");
 						}
 					}
 					e1 = Error(errtext);
 
-					break;				
+					break;
 				}
-			default:
-				NextSym();
-				//return Error("Expression expected");
-				MT_assert(!e1);
-				e1 = Error("Expression expected");
+				default:
+					NextSym();
+					//return Error("Expression expected");
+					MT_assert(!e1);
+					e1 = Error("Expression expected");
 			}
 		}
 	}
 	return e1;
 }
 
-CExpression *CParser::Expr() {
+CExpression *CParser::Expr()
+{
 	// parses an expression in the imput, and
 	// returns an CExpression, containing the parsed input
 	return Ex(1);
@@ -567,18 +577,18 @@ CExpression* CParser::ProcessText
 	text = intext;
 	
 	
-	chcount = 0;	
+	chcount = 0;
 	if (text.Length() == 0) {
 		return NULL;
 	}
 	
 	ch = text[0];
-	/*if (ch != '=') {
-	expr = new CConstExpr(new CStringValue(text));
-	*dependant = deplist;
-	return expr;
-	} else 
-	*/
+	/* if (ch != '=') {
+	 * expr = new CConstExpr(new CStringValue(text));
+	 * *dependent = deplist;
+	 * return expr;
+	 * } else
+	 */
 	//	NextCh();
 	NextSym();
 	expr = Expr();

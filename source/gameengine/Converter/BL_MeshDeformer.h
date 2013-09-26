@@ -1,6 +1,4 @@
 /*
- * $Id: BL_MeshDeformer.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup bgeconv
  */
 
-#ifndef BL_MESHDEFORMER
-#define BL_MESHDEFORMER
+#ifndef __BL_MESHDEFORMER_H__
+#define __BL_MESHDEFORMER_H__
 
 #include "RAS_Deformer.h"
 #include "DNA_object_types.h"
@@ -40,9 +38,9 @@
 #include "MT_Point3.h"
 #include <stdlib.h>
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable:4786) // get rid of stupid stl-visual compiler debug warning
-#endif //WIN32
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)  /* get rid of stupid stl-visual compiler debug warning */
+#endif
 
 class BL_DeformableGameObject;
 
@@ -51,7 +49,7 @@ class BL_MeshDeformer : public RAS_Deformer
 public:
 	void VerifyStorage();
 	void RecalcNormals();
-	virtual void Relink(GEN_Map<class GEN_HashedPtr, void*>*map);
+	virtual void Relink(CTR_Map<class CTR_HashedPtr, void*>*map);
 	BL_MeshDeformer(BL_DeformableGameObject *gameobj,
 					struct Object* obj,
 					class RAS_MeshObject *meshobj ):
@@ -65,16 +63,16 @@ public:
 		m_lastDeformUpdate(-1)
 	{};
 	virtual ~BL_MeshDeformer();
-	virtual void SetSimulatedTime(double time){};
+	virtual void SetSimulatedTime(double time) {}
 	virtual bool Apply(class RAS_IPolyMaterial *mat);
-	virtual bool Update(void){ return false; };
-	virtual bool UpdateBuckets(void){ return false; };
-	virtual	RAS_Deformer*	GetReplica(){return NULL;};
+	virtual bool Update(void) { return false; }
+	virtual bool UpdateBuckets(void) { return false; }
+	virtual	RAS_Deformer*	GetReplica() {return NULL;}
 	virtual void ProcessReplica();
-	struct Mesh* GetMesh() { return m_bmesh; };
-	virtual class RAS_MeshObject* GetRasMesh() { return (RAS_MeshObject*)m_pMeshObject; };
+	struct Mesh* GetMesh() { return m_bmesh; }
+	virtual class RAS_MeshObject* GetRasMesh() { return m_pMeshObject; }
 	virtual float (* GetTransVerts(int *tot))[3]	{	*tot= m_tvtot; return m_transverts; }
-	//	virtual void InitDeform(double time){};
+	//	virtual void InitDeform(double time) {}
 
 protected:
 	class RAS_MeshObject*		m_pMeshObject;
@@ -88,13 +86,11 @@ protected:
 	// --
 	int							m_tvtot;
 	BL_DeformableGameObject*	m_gameobj;
-	double					 	m_lastDeformUpdate;
+	double						m_lastDeformUpdate;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:BL_MeshDeformer"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_MeshDeformer")
 #endif
 };
 

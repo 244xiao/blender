@@ -1,6 +1,4 @@
 /*
- * $Id: bpy_rna_anim.c 35971 2011-04-03 10:04:16Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -24,6 +22,8 @@
 
 /** \file blender/python/intern/bpy_rna_anim.c
  *  \ingroup pythonintern
+ *
+ * This file defines the animation related methods used in bpy_rna.c
  */
 
 #include <Python.h>
@@ -31,6 +31,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_utildefines.h"
 #include "BLI_string.h"
 
 #include "DNA_scene_types.h"
@@ -43,82 +44,100 @@
 #include "BKE_fcurve.h"
 
 #include "RNA_access.h"
+#include "RNA_enum_types.h"
+
+#include "WM_api.h"
+#include "WM_types.h"
 
 #include "bpy_rna.h"
 #include "bpy_util.h"
 #include "bpy_rna_anim.h"
 
-#define TRUE 1
-#define FALSE 0
-
 /* for keyframes and drivers */
-static int pyrna_struct_anim_args_parse(PointerRNA *ptr, const char *error_prefix, const char *path,
-	const char **path_full, int *index)
+static int pyrna_struct_anim_args_parse(
+        PointerRNA *ptr, const char *error_prefix, const char *path,
+        const char **path_full, int *index)
 {
-	const int is_idbase= RNA_struct_is_ID(ptr->type);
+	const int is_idbase = RNA_struct_is_ID(ptr->type);
 	PropertyRNA *prop;
 	PointerRNA r_ptr;
 
-	if (ptr->data==NULL) {
-		PyErr_Format(PyExc_TypeError, "%.200s this struct has no data, can't be animated", error_prefix);
+	if (ptr->data == NULL) {
+		PyErr_Format(PyExc_TypeError,
+		             "%.200s this struct has no data, can't be animated",
+		             error_prefix);
 		return -1;
 	}
 
 	/* full paths can only be given from ID base */
-	if(is_idbase) {
-		int r_index= -1;
-		if(RNA_path_resolve_full(ptr, path, &r_ptr, &prop, &r_index)==0) {
-			prop= NULL;
+	if (is_idbase) {
+		int r_index = -1;
+		if (RNA_path_resolve_property_full(ptr, path, &r_ptr, &prop, &r_index) == false) {
+			prop = NULL;
 		}
-		else if(r_index != -1) {
-			PyErr_Format(PyExc_ValueError, "%.200s path includes index, must be a separate argument", error_prefix, path);
+		else if (r_index != -1) {
+			PyErr_Format(PyExc_ValueError,
+			             "%.200s path includes index, must be a separate argument",
+			             error_prefix, path);
 			return -1;
 		}
-		else if(ptr->id.data != r_ptr.id.data) {
-			PyErr_Format(PyExc_ValueError, "%.200s path spans ID blocks", error_prefix, path);
+		else if (ptr->id.data != r_ptr.id.data) {
+			PyErr_Format(PyExc_ValueError,
+			             "%.200s path spans ID blocks",
+			             error_prefix, path);
 			return -1;
 		}
 	}
 	else {
-		prop= RNA_struct_find_property(ptr, path);
-		r_ptr= *ptr;
+		prop = RNA_struct_find_property(ptr, path);
+		r_ptr = *ptr;
 	}
 
-	if (prop==NULL) {
-		PyErr_Format(PyExc_TypeError, "%.200s property \"%s\" not found", error_prefix, path);
+	if (prop == NULL) {
+		PyErr_Format(PyExc_TypeError,
+		             "%.200s property \"%s\" not found",
+		             error_prefix, path);
 		return -1;
 	}
 
 	if (!RNA_property_animateable(&r_ptr, prop)) {
-		PyErr_Format(PyExc_TypeError, "%.200s property \"%s\" not animatable", error_prefix, path);
+		PyErr_Format(PyExc_TypeError,
+		             "%.200s property \"%s\" not animatable",
+		             error_prefix, path);
 		return -1;
 	}
 
-	if(RNA_property_array_check(&r_ptr, prop) == 0) {
-		if((*index) == -1) {
-			*index= 0;
+	if (RNA_property_array_check(prop) == 0) {
+		if ((*index) == -1) {
+			*index = 0;
 		}
 		else {
-			PyErr_Format(PyExc_TypeError, "%.200s index %d was given while property \"%s\" is not an array", error_prefix, *index, path);
+			PyErr_Format(PyExc_TypeError,
+			             "%.200s index %d was given while property \"%s\" is not an array",
+			             error_prefix, *index, path);
 			return -1;
 		}
 	}
 	else {
-		int array_len= RNA_property_array_length(&r_ptr, prop);
-		if((*index) < -1 || (*index) >= array_len) {
-			PyErr_Format(PyExc_TypeError, "%.200s index out of range \"%s\", given %d, array length is %d", error_prefix, path, *index, array_len);
+		int array_len = RNA_property_array_length(&r_ptr, prop);
+		if ((*index) < -1 || (*index) >= array_len) {
+			PyErr_Format(PyExc_TypeError,
+			             "%.200s index out of range \"%s\", given %d, array length is %d",
+			             error_prefix, path, *index, array_len);
 			return -1;
 		}
 	}
 
-	if(is_idbase) {
-		*path_full= BLI_strdup(path);
+	if (is_idbase) {
+		*path_full = BLI_strdup(path);
 	}
 	else {
-		*path_full= RNA_path_from_ID_to_property(&r_ptr, prop);
+		*path_full = RNA_path_from_ID_to_property(&r_ptr, prop);
 
-		if (*path_full==NULL) {
-			PyErr_Format(PyExc_TypeError, "%.200s could not make path to \"%s\"", error_prefix, path);
+		if (*path_full == NULL) {
+			PyErr_Format(PyExc_TypeError,
+			             "%.200s could not make path to \"%s\"",
+			             error_prefix, path);
 			return -1;
 		}
 	}
@@ -127,21 +146,30 @@ static int pyrna_struct_anim_args_parse(PointerRNA *ptr, const char *error_prefi
 }
 
 /* internal use for insert and delete */
-static int pyrna_struct_keyframe_parse(PointerRNA *ptr, PyObject *args, PyObject *kw, const char *parse_str, const char *error_prefix,
-	const char **path_full, int *index, float *cfra, const char **group_name) /* return values */
+static int pyrna_struct_keyframe_parse(
+        PointerRNA *ptr, PyObject *args, PyObject *kw, const char *parse_str, const char *error_prefix,
+        const char **path_full, int *index, float *cfra, const char **group_name, int *options)     /* return values */
 {
-	static const char *kwlist[]= {"data_path", "index", "frame", "group", NULL};
+	static const char *kwlist[] = {"data_path", "index", "frame", "group", "options", NULL};
+	PyObject *pyoptions = NULL;
 	const char *path;
 
-	/* note, parse_str MUST start with 's|ifs' */
-	if (!PyArg_ParseTupleAndKeywords(args, kw, parse_str, (char **)kwlist, &path, index, cfra, group_name))
+	/* note, parse_str MUST start with 's|ifsO!' */
+	if (!PyArg_ParseTupleAndKeywords(args, kw, parse_str, (char **)kwlist, &path, index, cfra, group_name,
+	                                 &PySet_Type, &pyoptions))
+	{
+		return -1;
+	}
+
+	if (pyrna_struct_anim_args_parse(ptr, error_prefix, path, path_full, index) == -1)
 		return -1;
 
-	if(pyrna_struct_anim_args_parse(ptr, error_prefix, path, path_full, index) < 0)
-		return -1;
+	if (*cfra == FLT_MAX)
+		*cfra = CTX_data_scene(BPy_GetContext())->r.cfra;
 
-	if(*cfra==FLT_MAX)
-		*cfra= CTX_data_scene(BPy_GetContext())->r.cfra;
+	/* flag may be null (no option currently for remove keyframes e.g.). */
+	if (pyoptions && options && (pyrna_set_to_enum_bitfield(keying_flag_items, pyoptions, options, error_prefix) == -1))
+		return -1;
 
 	return 0; /* success */
 }
@@ -153,26 +181,37 @@ char pyrna_struct_keyframe_insert_doc[] =
 "\n"
 "   :arg data_path: path to the property to key, analogous to the fcurve's data path.\n"
 "   :type data_path: string\n"
-"   :arg index: array index of the property to key. Defaults to -1 which will key all indices or a single channel if the property is not an array.\n"
+"   :arg index: array index of the property to key. Defaults to -1 which will key all indices or a single channel "
+               "if the property is not an array.\n"
 "   :type index: int\n"
 "   :arg frame: The frame on which the keyframe is inserted, defaulting to the current frame.\n"
 "   :type frame: float\n"
 "   :arg group: The name of the group the F-Curve should be added to if it doesn't exist yet.\n"
 "   :type group: str\n"
+"   :arg options: Some optional flags:\n"
+"                     'NEEDED': Only insert keyframes where they're needed in the relevant F-Curves.\n"
+"                     'VISUAL': Insert keyframes based on 'visual transforms'.\n"
+"                     'XYZ_TO_RGB': Color for newly added transformation F-Curves (Location, Rotation, Scale) "
+                                   "and also Color is based on the transform axis.\n"
+"   :type flag: set\n"
 "   :return: Success of keyframe insertion.\n"
 "   :rtype: boolean\n"
 ;
 PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyObject *kw)
 {
 	/* args, pyrna_struct_keyframe_parse handles these */
-	const char *path_full= NULL;
-	int index= -1;
-	float cfra= FLT_MAX;
-	const char *group_name= NULL;
+	const char *path_full = NULL;
+	int index = -1;
+	float cfra = FLT_MAX;
+	const char *group_name = NULL;
+	int options = 0;
 
-	PYRNA_STRUCT_CHECK_OBJ(self)
+	PYRNA_STRUCT_CHECK_OBJ(self);
 
-	if(pyrna_struct_keyframe_parse(&self->ptr, args, kw, "s|ifs:bpy_struct.keyframe_insert()", "bpy_struct.keyframe_insert()", &path_full, &index, &cfra, &group_name) == -1) {
+	if (pyrna_struct_keyframe_parse(&self->ptr, args, kw,
+	                                "s|ifsO!:bpy_struct.keyframe_insert()", "bpy_struct.keyframe_insert()",
+	                                &path_full, &index, &cfra, &group_name, &options) == -1)
+	{
 		return NULL;
 	}
 	else {
@@ -181,10 +220,10 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
 
 		BKE_reports_init(&reports, RPT_STORE);
 
-		result= insert_keyframe(&reports, (ID *)self->ptr.id.data, NULL, group_name, path_full, index, cfra, 0);
+		result = insert_keyframe(&reports, (ID *)self->ptr.id.data, NULL, group_name, path_full, index, cfra, options);
 		MEM_freeN((void *)path_full);
 
-		if(BPy_reports_to_error(&reports, PyExc_RuntimeError, TRUE) == -1)
+		if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1)
 			return NULL;
 
 		return PyBool_FromLong(result);
@@ -210,14 +249,18 @@ char pyrna_struct_keyframe_delete_doc[] =
 PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyObject *kw)
 {
 	/* args, pyrna_struct_keyframe_parse handles these */
-	const char *path_full= NULL;
-	int index= -1;
-	float cfra= FLT_MAX;
-	const char *group_name= NULL;
+	const char *path_full = NULL;
+	int index = -1;
+	float cfra = FLT_MAX;
+	const char *group_name = NULL;
 
-	PYRNA_STRUCT_CHECK_OBJ(self)
+	PYRNA_STRUCT_CHECK_OBJ(self);
 
-	if(pyrna_struct_keyframe_parse(&self->ptr, args, kw, "s|ifs:bpy_struct.keyframe_delete()", "bpy_struct.keyframe_insert()", &path_full, &index, &cfra, &group_name) == -1) {
+	if (pyrna_struct_keyframe_parse(&self->ptr, args, kw,
+	                                "s|ifsO!:bpy_struct.keyframe_delete()",
+	                                "bpy_struct.keyframe_insert()",
+	                                &path_full, &index, &cfra, &group_name, NULL) == -1)
+	{
 		return NULL;
 	}
 	else {
@@ -226,10 +269,10 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
 
 		BKE_reports_init(&reports, RPT_STORE);
 
-		result= delete_keyframe(&reports, (ID *)self->ptr.id.data, NULL, group_name, path_full, index, cfra, 0);
+		result = delete_keyframe(&reports, (ID *)self->ptr.id.data, NULL, group_name, path_full, index, cfra, 0);
 		MEM_freeN((void *)path_full);
 
-		if(BPy_reports_to_error(&reports, PyExc_RuntimeError, TRUE) == -1)
+		if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1)
 			return NULL;
 
 		return PyBool_FromLong(result);
@@ -247,56 +290,58 @@ char pyrna_struct_driver_add_doc[] =
 "   :arg index: array index of the property drive. Defaults to -1 for all indices or a single channel if the property is not an array.\n"
 "   :type index: int\n"
 "   :return: The driver(s) added.\n"
-"   :rtype: :class:`FCurve` or list if index is -1 with an array property.\n"
+"   :rtype: :class:`bpy.types.FCurve` or list if index is -1 with an array property.\n"
 ;
 PyObject *pyrna_struct_driver_add(BPy_StructRNA *self, PyObject *args)
 {
 	const char *path, *path_full;
-	int index= -1;
+	int index = -1;
 
-	PYRNA_STRUCT_CHECK_OBJ(self)
+	PYRNA_STRUCT_CHECK_OBJ(self);
 
 	if (!PyArg_ParseTuple(args, "s|i:driver_add", &path, &index))
 		return NULL;
 
-	if(pyrna_struct_anim_args_parse(&self->ptr, "bpy_struct.driver_add():", path, &path_full, &index) < 0) {
+	if (pyrna_struct_anim_args_parse(&self->ptr, "bpy_struct.driver_add():", path, &path_full, &index) == -1) {
 		return NULL;
 	}
 	else {
-		PyObject *ret= NULL;
+		PyObject *ret = NULL;
 		ReportList reports;
 		int result;
 
 		BKE_reports_init(&reports, RPT_STORE);
 
-		result= ANIM_add_driver(&reports, (ID *)self->ptr.id.data, path_full, index, 0, DRIVER_TYPE_PYTHON);
+		result = ANIM_add_driver(&reports, (ID *)self->ptr.id.data, path_full, index, 0, DRIVER_TYPE_PYTHON);
 
-		if(BPy_reports_to_error(&reports, PyExc_RuntimeError, TRUE) == -1)
+		if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1)
 			return NULL;
 
-		if(result) {
-			ID *id= self->ptr.id.data;
-			AnimData *adt= BKE_animdata_from_id(id);
+		if (result) {
+			ID *id = self->ptr.id.data;
+			AnimData *adt = BKE_animdata_from_id(id);
 			FCurve *fcu;
 
 			PointerRNA tptr;
 			PyObject *item;
 
-			if(index == -1) { /* all, use a list */
-				int i= 0;
-				ret= PyList_New(0);
-				while((fcu= list_find_fcurve(&adt->drivers, path_full, i++))) {
+			if (index == -1) { /* all, use a list */
+				int i = 0;
+				ret = PyList_New(0);
+				while ((fcu = list_find_fcurve(&adt->drivers, path_full, i++))) {
 					RNA_pointer_create(id, &RNA_FCurve, fcu, &tptr);
-					item= pyrna_struct_CreatePyObject(&tptr);
+					item = pyrna_struct_CreatePyObject(&tptr);
 					PyList_Append(ret, item);
 					Py_DECREF(item);
 				}
 			}
 			else {
-				fcu= list_find_fcurve(&adt->drivers, path_full, index);
+				fcu = list_find_fcurve(&adt->drivers, path_full, index);
 				RNA_pointer_create(id, &RNA_FCurve, fcu, &tptr);
-				ret= pyrna_struct_CreatePyObject(&tptr);
+				ret = pyrna_struct_CreatePyObject(&tptr);
 			}
+			
+			WM_event_add_notifier(BPy_GetContext(), NC_ANIMATION | ND_FCURVES_ORDER, NULL);
 		}
 		else {
 			/* XXX, should be handled by reports, */
@@ -326,14 +371,14 @@ char pyrna_struct_driver_remove_doc[] =
 PyObject *pyrna_struct_driver_remove(BPy_StructRNA *self, PyObject *args)
 {
 	const char *path, *path_full;
-	int index= -1;
+	int index = -1;
 
-	PYRNA_STRUCT_CHECK_OBJ(self)
+	PYRNA_STRUCT_CHECK_OBJ(self);
 
 	if (!PyArg_ParseTuple(args, "s|i:driver_remove", &path, &index))
 		return NULL;
 
-	if(pyrna_struct_anim_args_parse(&self->ptr, "bpy_struct.driver_remove():", path, &path_full, &index) < 0) {
+	if (pyrna_struct_anim_args_parse(&self->ptr, "bpy_struct.driver_remove():", path, &path_full, &index) == -1) {
 		return NULL;
 	}
 	else {
@@ -342,12 +387,14 @@ PyObject *pyrna_struct_driver_remove(BPy_StructRNA *self, PyObject *args)
 
 		BKE_reports_init(&reports, RPT_STORE);
 
-		result= ANIM_remove_driver(&reports, (ID *)self->ptr.id.data, path_full, index, 0);
+		result = ANIM_remove_driver(&reports, (ID *)self->ptr.id.data, path_full, index, 0);
 
 		MEM_freeN((void *)path_full);
 
-		if(BPy_reports_to_error(&reports, PyExc_RuntimeError, TRUE) == -1)
+		if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1)
 			return NULL;
+		
+		WM_event_add_notifier(BPy_GetContext(), NC_ANIMATION | ND_FCURVES_ORDER, NULL);
 
 		return PyBool_FromLong(result);
 	}

@@ -1,6 +1,4 @@
 /*
- * $Id: ED_gpencil.h 35016 2011-02-21 07:25:24Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -29,8 +27,8 @@
  *  \ingroup editors
  */
 
-#ifndef ED_GPENCIL_H
-#define ED_GPENCIL_H
+#ifndef __ED_GPENCIL_H__
+#define __ED_GPENCIL_H__
 
 struct ListBase;
 struct bContext;
@@ -56,8 +54,9 @@ struct wmKeyConfig;
  * Used as part of the 'stroke cache' used during drawing of new strokes
  */
 typedef struct tGPspoint {
-	short x, y;				/* x and y coordinates of cursor (in relative to area) */
-	float pressure;			/* pressure of tablet at this point */
+	int x, y;               /* x and y coordinates of cursor (in relative to area) */
+	float pressure;         /* pressure of tablet at this point */
+	float time;             /* Time relative to stroke start (used when converting to path) */
 } tGPspoint;
 
 
@@ -66,8 +65,8 @@ typedef struct tGPspoint {
 
 /* ----------- Grease Pencil Tools/Context ------------- */
 
-struct bGPdata **gpencil_data_get_pointers(struct bContext *C, struct PointerRNA *ptr);
-struct bGPdata *gpencil_data_get_active(struct bContext *C);
+struct bGPdata **gpencil_data_get_pointers(const struct bContext *C, struct PointerRNA *ptr);
+struct bGPdata *gpencil_data_get_active(const struct bContext *C);
 struct bGPdata *gpencil_data_get_active_v3d(struct Scene *scene); /* for offscreen rendering */
 
 /* ----------- Grease Pencil Operators ----------------- */
@@ -78,34 +77,39 @@ void ED_operatortypes_gpencil(void);
 /* ------------ Grease-Pencil Drawing API ------------------ */
 /* drawgpencil.c */
 
-void draw_gpencil_2dimage(struct bContext *C, struct ImBuf *ibuf);
-void draw_gpencil_view2d(struct bContext *C, short onlyv2d);
-void draw_gpencil_view3d(struct bContext *C, short only3d);
-void draw_gpencil_view3d_ext(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, short only3d);
+void draw_gpencil_2dimage(const struct bContext *C);
+void draw_gpencil_view2d(const struct bContext *C, short onlyv2d);
+void draw_gpencil_view3d(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, bool only3d);
 
+void gpencil_panel_standard_header(const struct bContext *C, struct Panel *pa);
 void gpencil_panel_standard(const struct bContext *C, struct Panel *pa);
 
 /* ----------- Grease-Pencil AnimEdit API ------------------ */
-short gplayer_frames_looper(struct bGPDlayer *gpl, struct Scene *scene, short (*gpf_cb)(struct bGPDframe *, struct Scene *));
-void gplayer_make_cfra_list(struct bGPDlayer *gpl, ListBase *elems, short onlysel);
+short ED_gplayer_frames_looper(struct bGPDlayer *gpl, struct Scene *scene,
+                               short (*gpf_cb)(struct bGPDframe *, struct Scene *));
+void ED_gplayer_make_cfra_list(struct bGPDlayer *gpl, ListBase *elems, short onlysel);
 
-void deselect_gpencil_layers(void *data, short select_mode);
+short ED_gplayer_frame_select_check(struct bGPDlayer *gpl);
+void  ED_gplayer_frame_select_set(struct bGPDlayer *gpl, short mode);
+void  ED_gplayer_frames_select_border(struct bGPDlayer *gpl, float min, float max, short select_mode);
+void  ED_gpencil_select_frames(struct bGPDlayer *gpl, short select_mode);
+void  ED_gpencil_select_frame(struct bGPDlayer *gpl, int selx, short select_mode);
 
-short is_gplayer_frame_selected(struct bGPDlayer *gpl);
-void set_gplayer_frame_selection(struct bGPDlayer *gpl, short mode);
-void select_gpencil_frames(struct bGPDlayer *gpl, short select_mode);
-void select_gpencil_frame(struct bGPDlayer *gpl, int selx, short select_mode);
-void borderselect_gplayer_frames(struct bGPDlayer *gpl, float min, float max, short select_mode);
+void  ED_gplayer_frames_delete(struct bGPDlayer *gpl);
+void  ED_gplayer_frames_duplicate(struct bGPDlayer *gpl);
 
-void delete_gpencil_layers(void);
-void delete_gplayer_frames(struct bGPDlayer *gpl);
-void duplicate_gplayer_frames(struct bGPDlayer *gpd);
+void  ED_gplayer_snap_frames(struct bGPDlayer *gpl, struct Scene *scene, short mode);
 
+#if 0
 void free_gpcopybuf(void);
 void copy_gpdata(void);
 void paste_gpdata(void);
 
-void snap_gplayer_frames(struct bGPDlayer *gpl, short mode);
 void mirror_gplayer_frames(struct bGPDlayer *gpl, short mode);
+#endif
 
-#endif /*  ED_GPENCIL_H */
+/* ------------ Grease-Pencil Undo System ------------------ */
+int ED_gpencil_session_active(void);
+int ED_undo_gpencil_step(struct bContext *C, int step, const char *name);
+
+#endif /*  __ED_GPENCIL_H__ */

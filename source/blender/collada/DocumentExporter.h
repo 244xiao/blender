@@ -1,6 +1,4 @@
 /*
- * $Id: DocumentExporter.h 35020 2011-02-21 08:38:53Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -29,13 +27,22 @@
 #ifndef __DOCUMENTEXPORTER_H__
 #define __DOCUMENTEXPORTER_H__
 
+#include "ExportSettings.h"
+
+extern "C" {
+#include "DNA_customdata_types.h"
+}
+
 struct Scene;
 
 class DocumentExporter
 {
  public:
-	void exportCurrentScene(Scene *sce, const char* filename);
-	void exportScenes(const char* filename);
+	DocumentExporter(const ExportSettings *export_settings);
+	void exportCurrentScene(Scene *sce);
+	void exportScenes(const char *filename);
+private:
+	const ExportSettings *export_settings;
 };
 
 #endif

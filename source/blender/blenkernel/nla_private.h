@@ -1,6 +1,4 @@
 /*
- * $Id: nla_private.h 35247 2011-02-27 20:40:57Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  */
 
 
-#ifndef NLA_PRIVATE
-#define NLA_PRIVATE
+#ifndef __NLA_PRIVATE_H__
+#define __NLA_PRIVATE_H__
 
 /* --------------- NLA Evaluation DataTypes ----------------------- */
 
@@ -41,26 +39,26 @@
 typedef struct NlaEvalStrip {
 	struct NlaEvalStrip *next, *prev;
 	
-	NlaTrack *track;			/* track that this strip belongs to */
-	NlaStrip *strip;			/* strip that's being used */
+	NlaTrack *track;            /* track that this strip belongs to */
+	NlaStrip *strip;            /* strip that's being used */
 	
-	short track_index;			/* the index of the track within the list */
-	short strip_mode;			/* which end of the strip are we looking at */
+	short track_index;          /* the index of the track within the list */
+	short strip_mode;           /* which end of the strip are we looking at */
 	
-	float strip_time;			/* time at which which strip is being evaluated */
+	float strip_time;           /* time at which which strip is being evaluated */
 } NlaEvalStrip;
 
 /* NlaEvalStrip->strip_mode */
-enum {
-		/* standard evaluation */
+enum eNlaEvalStrip_StripMode {
+	/* standard evaluation */
 	NES_TIME_BEFORE = -1,
 	NES_TIME_WITHIN,
 	NES_TIME_AFTER,
 	
-		/* transition-strip evaluations */
+	/* transition-strip evaluations */
 	NES_TIME_TRANSITION_START,
 	NES_TIME_TRANSITION_END,
-} eNlaEvalStrip_StripMode;
+};
 
 
 /* temp channel for accumulating data from NLA (avoids needing to clear all values first) */
@@ -68,11 +66,11 @@ enum {
 typedef struct NlaEvalChannel {
 	struct NlaEvalChannel *next, *prev;
 	
-	PointerRNA ptr;			/* pointer to struct containing property to use */
-	PropertyRNA *prop;		/* RNA-property type to use (should be in the struct given) */
-	int index;				/* array index (where applicable) */
+	PointerRNA ptr;         /* pointer to struct containing property to use */
+	PropertyRNA *prop;      /* RNA-property type to use (should be in the struct given) */
+	int index;              /* array index (where applicable) */
 	
-	float value;			/* value of this channel */
+	float value;            /* value of this channel */
 } NlaEvalChannel;
 
 /* --------------- NLA Functions (not to be used as a proper API) ----------------------- */
@@ -87,4 +85,4 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBase *list, ListBase *strips, short 
 void nlastrip_evaluate(PointerRNA *ptr, ListBase *channels, ListBase *modifiers, NlaEvalStrip *nes);
 void nladata_flush_channels(ListBase *channels);
 
-#endif // NLA_PRIVATE
+#endif  /* __NLA_PRIVATE_H__ */

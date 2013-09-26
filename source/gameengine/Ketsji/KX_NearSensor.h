@@ -1,6 +1,4 @@
 /*
- * $Id: KX_NearSensor.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  *  \brief Sense if other objects are near
  */
 
-#ifndef KX_NEARSENSOR_H
-#define KX_NEARSENSOR_H
+#ifndef __KX_NEARSENSOR_H__
+#define __KX_NEARSENSOR_H__
 
 #include "KX_TouchSensor.h"
 #include "KX_ClientObjectInfo.h"
@@ -43,7 +41,7 @@ struct PHY_CollData;
 
 class KX_NearSensor : public KX_TouchSensor
 {
-	Py_Header;
+	Py_Header
 protected:
 	float	m_Margin;
 	float  m_ResetMargin;
@@ -51,13 +49,13 @@ protected:
 	KX_ClientObjectInfo*	m_client_info;
 public:
 	KX_NearSensor(class SCA_EventManager* eventmgr,
-			class KX_GameObject* gameobj,
-			float margin,
-			float resetmargin,
-			bool bFindMaterial,
-			const STR_String& touchedpropname,
-			 PHY_IPhysicsController*	ctrl);
-/*
+	              class KX_GameObject* gameobj,
+	              float margin,
+	              float resetmargin,
+	              bool bFindMaterial,
+	              const STR_String& touchedpropname,
+	              PHY_IPhysicsController*	ctrl);
+#if 0
 public:
 	KX_NearSensor(class SCA_EventManager* eventmgr,
 			class KX_GameObject* gameobj,
@@ -66,7 +64,7 @@ public:
 			bool bFindMaterial,
 			const STR_String& touchedpropname,
 			class KX_Scene* scene);
-*/
+#endif
 	virtual ~KX_NearSensor(); 
 	virtual void SynchronizeTransform();
 	virtual CValue* GetReplica();
@@ -76,9 +74,9 @@ public:
 
 	virtual void ReParent(SCA_IObject* parent);
 	virtual bool	NewHandleCollision(void* obj1,void* obj2,
-						 const PHY_CollData * coll_data); 
+	                                   const PHY_CollData * coll_data);
 	virtual bool	BroadPhaseFilterCollision(void*obj1,void*obj2);
-	virtual bool	BroadPhaseSensorFilterCollision(void*obj1,void*obj2) { return false; };
+	virtual bool	BroadPhaseSensorFilterCollision(void* obj1,void* obj2) { return false; }
 	virtual sensortype GetSensorType() { return ST_NEAR; }
 
 #ifdef WITH_PYTHON
@@ -102,9 +100,8 @@ public:
 		return 0;
 	}
 
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 
 };
 
-#endif //KX_NEARSENSOR_H
-
+#endif  /* __KX_NEARSENSOR_H__ */

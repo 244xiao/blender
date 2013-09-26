@@ -1,6 +1,4 @@
 /*
- * $Id: dds_api.cpp 35239 2011-02-27 20:23:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributors: Amorilia (amorilia@gamebox.net)
+ * Contributors: Amorilia (amorilia@users.sourceforge.net)
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -31,8 +29,13 @@
 #include <dds_api.h>
 #include <Stream.h>
 #include <DirectDrawSurface.h>
+#include <FlipDXT.h>
 #include <stdio.h> // printf
 #include <fstream>
+
+#if defined (WIN32) && !defined(FREE_WINDOWS)
+#include "utfconv.h"
+#endif
 
 extern "C" {
 
@@ -41,8 +44,10 @@ extern "C" {
 #include "IMB_imbuf.h"
 #include "IMB_allocimbuf.h"
 
+#include "IMB_colormanagement.h"
+#include "IMB_colormanagement_intern.h"
 
-int imb_save_dds(struct ImBuf * ibuf, const char *name, int flags)
+int imb_save_dds(struct ImBuf *ibuf, const char *name, int flags)
 {
 	return(0); /* todo: finish this function */
 
@@ -51,7 +56,15 @@ int imb_save_dds(struct ImBuf * ibuf, const char *name, int flags)
 	if (ibuf->rect == 0) return (0);
 
 	/* open file for writing */
-	std::ofstream fildes(name);
+	std::ofstream fildes;
+
+#if defined (WIN32) && !defined(FREE_WINDOWS)
+	wchar_t *wname = alloc_utf16_from_8(name, 0);
+	fildes.open(wname);
+	free(wname);
+#else
+	fildes.open(name);
+#endif
 
 	/* write header */
 	fildes << "DDS ";
@@ -70,9 +83,9 @@ int imb_is_a_dds(unsigned char *mem) // note: use at most first 32 bytes
 	return(1);
 }
 
-struct ImBuf *imb_load_dds(unsigned char *mem, size_t size, int flags)
+struct ImBuf *imb_load_dds(unsigned char *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE])
 {
-	struct ImBuf * ibuf = 0;
+	struct ImBuf *ibuf = NULL;
 	DirectDrawSurface dds(mem, size); /* reads header */
 	unsigned char bits_per_pixel;
 	unsigned int *rect;
@@ -83,13 +96,19 @@ struct ImBuf *imb_load_dds(unsigned char *mem, size_t size, int flags)
 	Color32 pixel;
 	Color32 *pixels = 0;
 
-	if(!imb_is_a_dds(mem))
+	/* OCIO_TODO: never was able to save DDS, so can't test loading
+	 *            but profile used to be set to sRGB and can't see rect_float here, so
+	 *            default byte space should work fine
+	 */
+	colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
+
+	if (!imb_is_a_dds(mem))
 		return (0);
 
 	/* check if DDS is valid and supported */
 	if (!dds.isValid()) {
 		/* no need to print error here, just testing if it is a DDS */
-		if(flags & IB_test)
+		if (flags & IB_test)
 			return (0);
 
 		printf("DDS: not valid; header follows\n");
@@ -106,23 +125,32 @@ struct ImBuf *imb_load_dds(unsigned char *mem, size_t size, int flags)
 	}
 
 	/* convert DDS into ImBuf */
-	// TODO use the image RGB or RGBA tag to determine the bits per pixel
-	if (dds.hasAlpha()) bits_per_pixel = 32;
-	else bits_per_pixel = 24;
-	ibuf = IMB_allocImBuf(dds.width(), dds.height(), bits_per_pixel, 0);
+	dds.mipmap(&img, 0, 0); /* load first face, first mipmap */
+	pixels = img.pixels();
+	numpixels = dds.width() * dds.height();
+	bits_per_pixel = 24;
+	if (img.format() == Image::Format_ARGB) {
+		/* check that there is effectively an alpha channel */
+		for (unsigned int i = 0; i < numpixels; i++) {
+			pixel = pixels[i];
+			if (pixel.a != 255) {
+				bits_per_pixel = 32;
+				break;
+			}
+		}
+	}
+	ibuf = IMB_allocImBuf(dds.width(), dds.height(), bits_per_pixel, 0); 
 	if (ibuf == 0) return(0); /* memory allocation failed */
 
 	ibuf->ftype = DDS;
-	ibuf->profile = IB_PROFILE_SRGB;
+	ibuf->dds_data.fourcc = dds.fourCC();
+	ibuf->dds_data.nummipmaps = dds.mipmapCount();
 
 	if ((flags & IB_test) == 0) {
 		if (!imb_addrectImBuf(ibuf)) return(ibuf);
 		if (ibuf->rect == 0) return(ibuf);
 
 		rect = ibuf->rect;
-		dds.mipmap(&img, 0, 0); /* load first face, first mipmap */
-		pixels = img.pixels();
-		numpixels = dds.width() * dds.height();
 		cp[3] = 0xff; /* default alpha if alpha channel is not present */
 
 		for (unsigned int i = 0; i < numpixels; i++) {
@@ -130,10 +158,23 @@ struct ImBuf *imb_load_dds(unsigned char *mem, size_t size, int flags)
 			cp[0] = pixel.r; /* set R component of col */
 			cp[1] = pixel.g; /* set G component of col */
 			cp[2] = pixel.b; /* set B component of col */
-			if (bits_per_pixel == 32)
+			if (dds.hasAlpha())
 				cp[3] = pixel.a; /* set A component of col */
 			rect[i] = col;
 		}
+
+		if (ibuf->dds_data.fourcc != FOURCC_DDS) {
+			ibuf->dds_data.data = (unsigned char *)dds.readData(ibuf->dds_data.size);
+
+			/* flip compressed texture */
+			FlipDXTCImage(dds.width(), dds.height(), dds.mipmapCount(), dds.fourCC(), ibuf->dds_data.data);
+		}
+		else {
+			ibuf->dds_data.data = NULL;
+			ibuf->dds_data.size = 0;
+		}
+
+		/* flip uncompressed texture */
 		IMB_flipy(ibuf);
 	}
 

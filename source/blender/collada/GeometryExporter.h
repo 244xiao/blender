@@ -1,6 +1,4 @@
 /*
- * $Id: GeometryExporter.h 35020 2011-02-21 08:38:53Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -41,6 +39,14 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_key_types.h"
+
+#include "ExportSettings.h"
+#include "collada_utils.h"
+
+#include "BKE_key.h"
+
+extern Object *bc_get_highest_selected_ancestor_or_self(Object *ob);
 
 // TODO: optimize UV sets by making indexed list with duplicates removed
 class GeometryExporter : COLLADASW::LibraryGeometries
@@ -58,19 +64,24 @@ class GeometryExporter : COLLADASW::LibraryGeometries
 	Scene *mScene;
 
 public:
-	GeometryExporter(COLLADASW::StreamWriter *sw);
+	GeometryExporter(COLLADASW::StreamWriter *sw, const ExportSettings *export_settings);
 
 	void exportGeom(Scene *sce);
 
 	void operator()(Object *ob);
 
+	void createLooseEdgeList(Object *ob,
+						     Mesh   *me,
+						     std::string& geom_id);
+
 	// powerful because it handles both cases when there is material and when there's not
-	void createPolylist(int material_index,
+	void createPolylist(short material_index,
 						bool has_uvs,
 						bool has_color,
 						Object *ob,
+						Mesh   *me,
 						std::string& geom_id,
-						std::vector<Face>& norind);
+						std::vector<BCPolygonNormalsIndices>& norind);
 	
 	// creates <source> for positions
 	void createVertsSource(std::string geom_id, Mesh *me);
@@ -81,39 +92,41 @@ public:
 
 	//creates <source> for texcoords
 	void createTexcoordsSource(std::string geom_id, Mesh *me);
+	void createTesselatedTexcoordsSource(std::string geom_id, Mesh *me);
 
 	//creates <source> for normals
 	void createNormalsSource(std::string geom_id, Mesh *me, std::vector<Normal>& nor);
 
-	void create_normals(std::vector<Normal> &nor, std::vector<Face> &ind, Mesh *me);
+	void create_normals(std::vector<Normal> &nor, std::vector<BCPolygonNormalsIndices> &ind, Mesh *me);
 	
 	std::string getIdBySemantics(std::string geom_id, COLLADASW::InputSemantic::Semantics type, std::string other_suffix = "");
 	
 	COLLADASW::URI getUrlBySemantics(std::string geom_id, COLLADASW::InputSemantic::Semantics type, std::string other_suffix = "");
 
 	COLLADASW::URI makeUrl(std::string id);
+
+	void export_key_mesh(Object *ob, Mesh *me, KeyBlock *kb);
 	
-	/* int getTriCount(MFace *faces, int totface);*/
 private:
 	std::set<std::string> exportedGeometry;
+	
+	const ExportSettings *export_settings;
+
+	Mesh * get_mesh(Scene *sce, Object *ob, int apply_modifiers);
 };
 
 struct GeometryFunctor {
 	// f should have
-	// void operator()(Object* ob)
+	// void operator()(Object *ob)
 	template<class Functor>
-	void forEachMeshObjectInScene(Scene *sce, Functor &f)
+	void forEachMeshObjectInExportSet(Scene *sce, Functor &f, LinkNode *export_set)
 	{
-		
-		Base *base= (Base*) sce->base.first;
-		while(base) {
-			Object *ob = base->object;
-			
-			if (ob->type == OB_MESH && ob->data) {
+		LinkNode *node;
+		for (node=export_set; node; node = node->next) {
+			Object *ob = (Object *)node->link;
+			if (ob->type == OB_MESH) {
 				f(ob);
 			}
-			base= base->next;
-			
 		}
 	}
 };

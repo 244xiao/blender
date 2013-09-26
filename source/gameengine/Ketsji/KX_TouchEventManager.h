@@ -1,6 +1,4 @@
 /*
- * $Id: KX_TouchEventManager.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef __KX_TOUCHEVENTMANAGER
-#define __KX_TOUCHEVENTMANAGER
+#ifndef __KX_TOUCHEVENTMANAGER_H__
+#define __KX_TOUCHEVENTMANAGER_H__
 
 
 #include "SCA_EventManager.h"
@@ -83,11 +81,8 @@ public:
 
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_TouchEventManager"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_TouchEventManager")
 #endif
 };
 
-#endif //__KX_TOUCHEVENTMANAGER
-
+#endif  /* __KX_TOUCHEVENTMANAGER_H__ */

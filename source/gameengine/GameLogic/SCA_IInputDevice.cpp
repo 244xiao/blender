@@ -1,5 +1,4 @@
 /*
- * $Id: SCA_IInputDevice.cpp 35169 2011-02-25 13:32:11Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -46,7 +45,7 @@ SCA_IInputDevice::SCA_IInputDevice()
 
 SCA_IInputDevice::~SCA_IInputDevice()
 {
-}	
+}
 
 void SCA_IInputDevice::HookEscape()
 {
@@ -63,7 +62,7 @@ void SCA_IInputDevice::ClearStatusTable(int tableid)
 
 const SCA_InputEvent& SCA_IInputDevice::GetEventValue(SCA_IInputDevice::KX_EnumInputs inputcode)
 {
-  //	cerr << "SCA_IInputDevice::GetEventValue" << endl;
+//	cerr << "SCA_IInputDevice::GetEventValue" << endl;
 	return m_eventStatusTables[m_currentTable][inputcode];
 }
 
@@ -135,6 +134,6 @@ void SCA_IInputDevice::NextFrame()
 			break;
 		default:
 			; /* error */
-		}	
+		}
 	}
 }

@@ -1,6 +1,4 @@
 /*
- * $Id: ColorBlock.h 35239 2011-02-27 20:23:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -17,7 +15,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributors: Amorilia (amorilia@gamebox.net)
+ * Contributors: Amorilia (amorilia@users.sourceforge.net)
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -36,8 +34,8 @@
 
 // This code is in the public domain -- castanyo@yahoo.es
 
-#ifndef _DDS_COLORBLOCK_H
-#define _DDS_COLORBLOCK_H
+#ifndef __COLORBLOCK_H__
+#define __COLORBLOCK_H__
 
 #include <Color.h>
 #include <Image.h>
@@ -51,26 +49,15 @@ struct ColorBlock
 	ColorBlock(const Image * img, uint x, uint y);
 	
 	void init(const Image * img, uint x, uint y);
+	void init(uint w, uint h, const uint * data, uint x, uint y);
+	void init(uint w, uint h, const float * data, uint x, uint y);
 	
-	void swizzleDXT5n();
-	void splatX();
-	void splatY();
+	void swizzle(uint x, uint y, uint z, uint w); // 0=r, 1=g, 2=b, 3=a, 4=0xFF, 5=0
 	
-	bool isSingleColor() const;
-	bool isSingleColorNoAlpha() const;
-	uint countUniqueColors() const;
-	Color32 averageColor() const;
+	bool isSingleColor(Color32 mask = Color32(0xFF, 0xFF, 0xFF, 0x00)) const;
 	bool hasAlpha() const;
 	
-	void diameterRange(Color32 * start, Color32 * end) const;
-	void luminanceRange(Color32 * start, Color32 * end) const;
-	void boundsRange(Color32 * start, Color32 * end) const;
-	void boundsRangeAlpha(Color32 * start, Color32 * end) const;
 	
-	void sortColorsByAbsoluteValue();
-
-	float volume() const;
-
 	// Accessors
 	const Color32 * colors() const;
 
@@ -82,7 +69,7 @@ struct ColorBlock
 	
 private:
 	
-	Color32 m_color[4*4];
+	Color32 m_color[4 * 4];
 	
 };
 
@@ -117,4 +104,4 @@ inline Color32 & ColorBlock::color(uint x, uint y)
 	return m_color[y * 4 + x];
 }
 
-#endif // _DDS_COLORBLOCK_H
+#endif  /* __COLORBLOCK_H__ */

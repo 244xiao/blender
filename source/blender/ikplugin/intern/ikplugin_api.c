@@ -1,5 +1,4 @@
 /*
- * $Id: ikplugin_api.c 35240 2011-02-27 20:24:49Z jesterking $
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -46,13 +45,17 @@
 #include "DNA_armature_types.h"
 
 #include "ikplugin_api.h"
-#include "iksolver_plugin.h"
+
+#ifdef WITH_IK_SOLVER
+#  include "iksolver_plugin.h"
+#endif
 
 #ifdef WITH_IK_ITASC
-#include "itasc_plugin.h"
+#  include "itasc_plugin.h"
 #endif
 
 static IKPlugin ikplugin_tab[] = {
+#ifdef WITH_IK_SOLVER
 	/* Legacy IK solver */
 	{
 		iksolver_initialize_tree,
@@ -62,8 +65,10 @@ static IKPlugin ikplugin_tab[] = {
 		NULL,
 		NULL,
 		NULL,
-#ifdef WITH_IK_ITASC
 	},
+#endif
+
+#ifdef WITH_IK_ITASC
 	/* iTaSC IK solver */
 	{
 		itasc_initialize_tree,
@@ -73,17 +78,20 @@ static IKPlugin ikplugin_tab[] = {
 		itasc_clear_cache,
 		itasc_update_param,
 		itasc_test_constraint,
+	},
 #endif
-	}
+
+	{ NULL }
 };
 
 static IKPlugin *get_plugin(bPose *pose)
 {
-	if (!pose || pose->iksolver < 0 || pose->iksolver >= (sizeof(ikplugin_tab) / sizeof(IKPlugin)))
+	if (!pose || pose->iksolver < 0 || pose->iksolver >= ((sizeof(ikplugin_tab) / sizeof(IKPlugin)) - 1))
 		return NULL;
 
 	return &ikplugin_tab[pose->iksolver];
 }
+
 
 /*----------------------------------------*/
 /* Plugin API							  */

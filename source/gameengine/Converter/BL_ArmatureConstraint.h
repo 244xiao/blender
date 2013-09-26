@@ -1,6 +1,4 @@
 /*
- * $Id: BL_ArmatureConstraint.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,12 +29,12 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __BL_ARMATURECONSTRAINT
-#define __BL_ARMATURECONSTRAINT
+#ifndef __BL_ARMATURECONSTRAINT_H__
+#define __BL_ARMATURECONSTRAINT_H__
 
 #include "DNA_constraint_types.h"
-#include "GEN_HashedPtr.h"
-#include "GEN_Map.h"
+#include "CTR_HashedPtr.h"
+#include "CTR_Map.h"
 #include "PyObjectPlus.h"
 
 class SCA_IObject;
@@ -54,7 +52,7 @@ struct bPose;
  */
 class BL_ArmatureConstraint	: public PyObjectPlus
 {
-	Py_Header;
+	Py_Header
 
 private:
 	struct bConstraint* m_constraint;
@@ -80,7 +78,7 @@ public:
 
 	BL_ArmatureConstraint* GetReplica() const;
 	void ReParent(BL_ArmatureObject* armature);
-	void Relink(GEN_Map<GEN_HashedPtr, void*> *map);
+	void Relink(CTR_Map<CTR_HashedPtr, void*> *map);
 	bool UnlinkObject(SCA_IObject* clientobj);
 
 	void UpdateTarget();
@@ -106,18 +104,22 @@ public:
 			con->weight = weight;
 		}
 	}
+	void SetInfluence(float influence)
+	{
+		if (m_constraint)
+			m_constraint->enforce = influence;
+	}
 	void SetTarget(KX_GameObject* target);
 	void SetSubtarget(KX_GameObject* subtarget);
 
 #ifdef WITH_PYTHON
 
 	// Python access
-	virtual PyObject* py_repr(void);
+	virtual PyObject *py_repr(void);
 
-	static PyObject* py_attr_getattr(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject *py_attr_getattr(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static int py_attr_setattr(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-#endif // WITH_PYTHON
+#endif  /* WITH_PYTHON */
 };
 
-#endif //__BL_ARMATURECONSTRAINT
-
+#endif  /* __BL_ARMATURECONSTRAINT_H__ */

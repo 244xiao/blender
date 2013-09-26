@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_TimeEventManager.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup gamelogic
  */
 
-#ifndef __KX_TIMEEVENTMANAGER
-#define __KX_TIMEEVENTMANAGER
+#ifndef __SCA_TIMEEVENTMANAGER_H__
+#define __SCA_TIMEEVENTMANAGER_H__
 
 #include "SCA_EventManager.h"
 #include "Value.h"
@@ -57,11 +55,8 @@ public:
 	vector<CValue*>	GetTimeValues();
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:SCA_TimeEventManager"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:SCA_TimeEventManager")
 #endif
 };
 
-#endif //__KX_TIMEEVENTMANAGER
-
+#endif  /* __SCA_TIMEEVENTMANAGER_H__ */

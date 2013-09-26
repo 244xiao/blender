@@ -1,5 +1,4 @@
-/* $Id: quicktime_export.h 35235 2011-02-27 20:01:38Z jesterking $ 
- *
+/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -48,31 +47,32 @@ typedef struct QuicktimeCodecTypeDesc {
 	int codecType;
 	int rnatmpvalue;
 	char * codecName;
-} QuicktimeCodecTypeDesc ;
+} QuicktimeCodecTypeDesc;
 
 // quicktime movie output functions
+struct ImageFormatData;
 struct RenderData;
+struct ReportList;
 struct Scene;
 struct wmOperatorType;
-struct ReportList;
 
 int start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty, struct ReportList *reports);	//for movie handle (BKE writeavi.c now)
-int append_qt(struct RenderData *rd, int frame, int *pixels, int rectx, int recty, struct ReportList *reports);
+int append_qt(struct RenderData *rd, int start_frame, int frame, int *pixels, int rectx, int recty, struct ReportList *reports);
 void end_qt(void);
 void filepath_qt(char *string, struct RenderData *rd);
 
 /*RNA helper functions */
-void quicktime_verify_image_type(struct RenderData *rd); //used by RNA for defaults values init, if needed
+void quicktime_verify_image_type(struct RenderData *rd, struct ImageFormatData *imf); //used by RNA for defaults values init, if needed
 /*Video codec type*/
 int quicktime_get_num_videocodecs(void);
-QuicktimeCodecTypeDesc* quicktime_get_videocodecType_desc(int indexValue);
+QuicktimeCodecTypeDesc *quicktime_get_videocodecType_desc(int indexValue);
 int quicktime_rnatmpvalue_from_videocodectype(int codecType);
 int quicktime_videocodecType_from_rnatmpvalue(int rnatmpvalue);
 
 #ifdef USE_QTKIT
 /*Audio codec type*/
 int quicktime_get_num_audiocodecs(void);
-QuicktimeCodecTypeDesc* quicktime_get_audiocodecType_desc(int indexValue);
+QuicktimeCodecTypeDesc *quicktime_get_audiocodecType_desc(int indexValue);
 int quicktime_rnatmpvalue_from_audiocodectype(int codecType);
 int quicktime_audiocodecType_from_rnatmpvalue(int rnatmpvalue);
 #endif
@@ -87,8 +87,8 @@ void makeqtstring(struct RenderData *rd, char *string);		//for playanim.c
 
 
 
-#if (defined(USE_QTKIT) && defined(MAC_OS_X_VERSION_10_6) && __LP64__)
-//Include the quicktime codec types constants that are missing in QTKitDefines.h in 10.6 / 64bit
+#if (defined(USE_QTKIT) && MAC_OS_X_VERSION_MIN_REQUIRED >= 1050 && __LP64__)
+//Include the quicktime codec types constants that are missing in QTKitDefines.h
 enum {
 	kRawCodecType						= 'raw ',
 	kCinepakCodecType 					= 'cvid',
@@ -164,6 +164,6 @@ enum {
 };
 #endif
 
-#endif //(_WIN32) || (__APPLE__)
+#endif /* (_WIN32) || (__APPLE__) */
 
-#endif  // __QUICKTIME_IMP_H__
+#endif  /* __QUICKTIME_IMP_H__ */

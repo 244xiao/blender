@@ -1,6 +1,4 @@
 /*
- * $Id: file_panels.c 36031 2011-04-06 06:03:48Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,12 +28,13 @@
  *  \ingroup spfile
  */
 
+#include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
 
 #include "BKE_context.h"
 #include "BKE_screen.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
+#include "BLF_translation.h"
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -59,7 +58,7 @@
 static void file_panel_cb(bContext *C, void *arg_entry, void *UNUSED(arg_v))
 {
 	PointerRNA ptr;
-	char *entry= (char*)arg_entry;
+	char *entry = (char *)arg_entry;
 
 	WM_operator_properties_create(&ptr, "FILE_OT_select_bookmark");
 	RNA_string_set(&ptr, "dir", entry);
@@ -67,42 +66,40 @@ static void file_panel_cb(bContext *C, void *arg_entry, void *UNUSED(arg_v))
 	WM_operator_properties_free(&ptr);
 }
 
-static void file_panel_category(const bContext *C, Panel *pa, FSMenuCategory category, short *nr, int icon, int allow_delete, int reverse)
+static void file_panel_category(const bContext *C, Panel *pa, FSMenuCategory category, short *nr, int icon, int allow_delete)
 {
-	SpaceFile *sfile= CTX_wm_space_file(C);
+	SpaceFile *sfile = CTX_wm_space_file(C);
 	uiBlock *block;
 	uiBut *but;
 	uiLayout *box, *col;
-	struct FSMenu* fsmenu = fsmenu_get();
-	int i, i_iter, nentries = fsmenu_get_nentries(fsmenu, category);
+	struct FSMenu *fsmenu = fsmenu_get();
+	int i, nentries = fsmenu_get_nentries(fsmenu, category);
 
 	/* reset each time */
-	*nr= -1;
+	*nr = -1;
 
 	/* hide if no entries */
-	if(nentries == 0)
+	if (nentries == 0)
 		return;
 
 	/* layout */
 	uiLayoutSetAlignment(pa->layout, UI_LAYOUT_ALIGN_LEFT);
-	block= uiLayoutGetBlock(pa->layout);
-	box= uiLayoutBox(pa->layout);
-	col= uiLayoutColumn(box, 1);
+	block = uiLayoutGetBlock(pa->layout);
+	box = uiLayoutBox(pa->layout);
+	col = uiLayoutColumn(box, TRUE);
 
-	for (i_iter=0; i_iter< nentries;++i_iter) {
+	for (i = 0; i < nentries; ++i) {
 		char dir[FILE_MAX];
 		char temp[FILE_MAX];
-		uiLayout* layout = uiLayoutRow(col, 0);
+		uiLayout *layout = uiLayoutRow(col, FALSE);
 		char *entry;
-
-		i= reverse ? nentries-(i_iter+1) : i_iter;
 		
 		entry = fsmenu_get_entry(fsmenu, category, i);
 		
 		/* set this list item as active if we have a match */
-		if(sfile->params) {
-			if(BLI_path_cmp(sfile->params->dir, entry) == 0) {
-				*nr= i;
+		if (sfile->params) {
+			if (BLI_path_cmp(sfile->params->dir, entry) == 0) {
+				*nr = i;
 			}
 		}
 
@@ -112,16 +109,16 @@ static void file_panel_category(const bContext *C, Panel *pa, FSMenuCategory cat
 		BLI_getlastdir(temp, dir, FILE_MAX);
 		BLI_del_slash(dir);
 
-		if(dir[0] == 0)
+		if (dir[0] == 0)
 			BLI_strncpy(dir, entry, FILE_MAX);
 
 		/* create list item */
-		but= uiDefIconTextButS(block, LISTROW, 0, icon, dir, 0,0,UI_UNIT_X*10,UI_UNIT_Y, nr, 0, i, 0, 0, entry);
+		but = uiDefIconTextButS(block, LISTROW, 0, icon, dir, 0, 0, UI_UNIT_X * 10, UI_UNIT_Y, nr, 0, i, 0, 0, entry);
 		uiButSetFunc(but, file_panel_cb, entry, NULL);
-		uiButSetFlag(but, UI_ICON_LEFT|UI_TEXT_LEFT);
+		uiButSetFlag(but, UI_ICON_LEFT | UI_TEXT_LEFT);
 
 		/* create delete button */
-		if(allow_delete && fsmenu_can_save(fsmenu, category, i)) {
+		if (allow_delete && fsmenu_can_save(fsmenu, category, i)) {
 			uiBlockSetEmboss(block, UI_EMBOSSN);
 			uiItemIntO(layout, "", ICON_X, "FILE_OT_delete_bookmark", "index", i);
 			uiBlockSetEmboss(block, UI_EMBOSS);
@@ -131,33 +128,48 @@ static void file_panel_category(const bContext *C, Panel *pa, FSMenuCategory cat
 
 static void file_panel_system(const bContext *C, Panel *pa)
 {
-	SpaceFile *sfile= CTX_wm_space_file(C);
+	SpaceFile *sfile = CTX_wm_space_file(C);
 
-	if(sfile)
-		file_panel_category(C, pa, FS_CATEGORY_SYSTEM, &sfile->systemnr, ICON_DISK_DRIVE, 0, 0);
+	if (sfile)
+		file_panel_category(C, pa, FS_CATEGORY_SYSTEM, &sfile->systemnr, ICON_DISK_DRIVE, 0);
+}
+
+static void file_panel_system_bookmarks(const bContext *C, Panel *pa)
+{
+	SpaceFile *sfile = CTX_wm_space_file(C);
+
+	if (sfile && !(U.uiflag & USER_HIDE_SYSTEM_BOOKMARKS) ) {
+		file_panel_category(C, pa, FS_CATEGORY_SYSTEM_BOOKMARKS, &sfile->systemnr, ICON_BOOKMARKS, 0);
+	}
+
 }
 
 static void file_panel_bookmarks(const bContext *C, Panel *pa)
 {
-	SpaceFile *sfile= CTX_wm_space_file(C);
+	SpaceFile *sfile = CTX_wm_space_file(C);
 	uiLayout *row;
 
-	if(sfile) {
-		row= uiLayoutRow(pa->layout, 0);
-		uiItemO(row, "Add", ICON_ZOOMIN, "file.bookmark_add");
+	if (sfile) {
+		row = uiLayoutRow(pa->layout, FALSE);
+		uiItemO(row, IFACE_("Add"), ICON_ZOOMIN, "file.bookmark_add");
 		uiItemL(row, NULL, ICON_NONE);
 
-		file_panel_category(C, pa, FS_CATEGORY_BOOKMARKS, &sfile->bookmarknr, ICON_BOOKMARKS, 1, 0);
+		file_panel_category(C, pa, FS_CATEGORY_BOOKMARKS, &sfile->bookmarknr, ICON_BOOKMARKS, 1);
 	}
 }
 
 static void file_panel_recent(const bContext *C, Panel *pa)
 {
-	SpaceFile *sfile= CTX_wm_space_file(C);
+	SpaceFile *sfile = CTX_wm_space_file(C);
+	uiLayout *row;
 
-	if(sfile) {
-		if ( !(U.uiflag & USER_HIDE_RECENT) ) {
-			file_panel_category(C, pa, FS_CATEGORY_RECENT, &sfile->recentnr, ICON_FILE_FOLDER, 0, 1);
+	if (sfile) {
+		if (!(U.uiflag & USER_HIDE_RECENT) ) {
+			row = uiLayoutRow(pa->layout, FALSE);
+			uiItemO(row, IFACE_("Reset"), ICON_X, "file.reset_recent");
+			uiItemL(row, NULL, ICON_NONE);
+
+			file_panel_category(C, pa, FS_CATEGORY_RECENT, &sfile->recentnr, ICON_FILE_FOLDER, 0);
 		}
 	}
 }
@@ -165,32 +177,32 @@ static void file_panel_recent(const bContext *C, Panel *pa)
 
 static int file_panel_operator_poll(const bContext *C, PanelType *UNUSED(pt))
 {
-	SpaceFile *sfile= CTX_wm_space_file(C);
+	SpaceFile *sfile = CTX_wm_space_file(C);
 	return (sfile && sfile->op);
 }
 
 static void file_panel_operator_header(const bContext *C, Panel *pa)
 {
-	SpaceFile *sfile= CTX_wm_space_file(C);
-	wmOperator *op= sfile->op;
+	SpaceFile *sfile = CTX_wm_space_file(C);
+	wmOperator *op = sfile->op;
 
-	BLI_strncpy(pa->drawname, op->type->name, sizeof(pa->drawname));
+	BLI_strncpy(pa->drawname, RNA_struct_ui_name(op->type->srna), sizeof(pa->drawname));
 }
 
-static int file_panel_check_prop(PropertyRNA *prop)
+static bool file_panel_check_prop(PointerRNA *UNUSED(ptr), PropertyRNA *prop)
 {
-	const char *prop_id= RNA_property_identifier(prop);
-	return !(	strcmp(prop_id, "filepath") == 0 ||
-				strcmp(prop_id, "directory") == 0 ||
-				strcmp(prop_id, "filename") == 0
-	);
+	const char *prop_id = RNA_property_identifier(prop);
+	return !(STREQ(prop_id, "filepath") ||
+	         STREQ(prop_id, "directory") ||
+	         STREQ(prop_id, "filename")
+	         );
 }
 
 static void file_panel_operator(const bContext *C, Panel *pa)
 {
-	SpaceFile *sfile= CTX_wm_space_file(C);
-	wmOperator *op= sfile->op;
-	// int empty= 1, flag;
+	SpaceFile *sfile = CTX_wm_space_file(C);
+	wmOperator *op = sfile->op;
+	// int empty = 1, flag;
 	
 	uiBlockSetFunc(uiLayoutGetBlock(pa->layout), file_draw_check_cb, NULL, NULL);
 
@@ -203,30 +215,41 @@ void file_panels_register(ARegionType *art)
 {
 	PanelType *pt;
 
-	pt= MEM_callocN(sizeof(PanelType), "spacetype file system directories");
+	pt = MEM_callocN(sizeof(PanelType), "spacetype file system directories");
 	strcpy(pt->idname, "FILE_PT_system");
-	strcpy(pt->label, "System");
-	pt->draw= file_panel_system;
+	strcpy(pt->label, N_("System"));
+	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	pt->draw = file_panel_system;
 	BLI_addtail(&art->paneltypes, pt);
 
-	pt= MEM_callocN(sizeof(PanelType), "spacetype file bookmarks");
+	pt = MEM_callocN(sizeof(PanelType), "spacetype file system bookmarks");
+	strcpy(pt->idname, "FILE_PT_system_bookmarks");
+	strcpy(pt->label, N_("System Bookmarks"));
+	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	pt->draw = file_panel_system_bookmarks;
+	BLI_addtail(&art->paneltypes, pt);
+
+	pt = MEM_callocN(sizeof(PanelType), "spacetype file bookmarks");
 	strcpy(pt->idname, "FILE_PT_bookmarks");
-	strcpy(pt->label, "Bookmarks");
-	pt->draw= file_panel_bookmarks;
+	strcpy(pt->label, N_("Bookmarks"));
+	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	pt->draw = file_panel_bookmarks;
 	BLI_addtail(&art->paneltypes, pt);
 
-	pt= MEM_callocN(sizeof(PanelType), "spacetype file recent directories");
+	pt = MEM_callocN(sizeof(PanelType), "spacetype file recent directories");
 	strcpy(pt->idname, "FILE_PT_recent");
-	strcpy(pt->label, "Recent");
-	pt->draw= file_panel_recent;
+	strcpy(pt->label, N_("Recent"));
+	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	pt->draw = file_panel_recent;
 	BLI_addtail(&art->paneltypes, pt);
 
-	pt= MEM_callocN(sizeof(PanelType), "spacetype file operator properties");
+	pt = MEM_callocN(sizeof(PanelType), "spacetype file operator properties");
 	strcpy(pt->idname, "FILE_PT_operator");
-	strcpy(pt->label, "Operator");
-	pt->poll= file_panel_operator_poll;
-	pt->draw_header= file_panel_operator_header;
-	pt->draw= file_panel_operator;
+	strcpy(pt->label, N_("Operator"));
+	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	pt->poll = file_panel_operator_poll;
+	pt->draw_header = file_panel_operator_header;
+	pt->draw = file_panel_operator;
 	BLI_addtail(&art->paneltypes, pt);
 }
 

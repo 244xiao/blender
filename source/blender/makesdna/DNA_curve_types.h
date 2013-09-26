@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_curve_types.h 34941 2011-02-17 20:48:12Z jesterking $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,13 +24,15 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_CURVE_TYPES_H
-#define DNA_CURVE_TYPES_H
 
 /** \file DNA_curve_types.h
  *  \ingroup DNA
  */
 
+#ifndef __DNA_CURVE_TYPES_H__
+#define __DNA_CURVE_TYPES_H__
+
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 #include "DNA_ID.h"
@@ -74,7 +74,8 @@ typedef struct Path {
 typedef struct BevList {
 	struct BevList *next, *prev;
 	int nr, dupe_nr;
-	short poly, hole;
+	int poly, hole;
+	int charidx;
 } BevList;
 
 /* These two Lines with # tell makesdna this struct can be excluded. */
@@ -87,21 +88,23 @@ typedef struct BevPoint {
 	short split_tag, dupe_tag;
 } BevPoint;
 
-/* Keyframes on F-Curves (allows code reuse of Bezier eval code) and 
+/**
+ * Keyframes on F-Curves (allows code reuse of Bezier eval code) and
  * Points on Bezier Curves/Paths are generally BezTriples 
+ *
+ * \note alfa location in struct is abused by Key system
+ *
+ * \note vec in BezTriple looks like this:
+ * - vec[0][0] = x location of handle 1
+ * - vec[0][1] = y location of handle 1
+ * - vec[0][2] = z location of handle 1 (not used for FCurve Points(2d))
+ * - vec[1][0] = x location of control point
+ * - vec[1][1] = y location of control point
+ * - vec[1][2] = z location of control point
+ * - vec[2][0] = x location of handle 2
+ * - vec[2][1] = y location of handle 2
+ * - vec[2][2] = z location of handle 2 (not used for FCurve Points(2d))
  */
-/* note: alfa location in struct is abused by Key system */
-/* vec in BezTriple looks like this:
-	vec[0][0]=x location of handle 1
-	vec[0][1]=y location of handle 1
-	vec[0][2]=z location of handle 1 (not used for FCurve Points(2d))
-	vec[1][0]=x location of control point
-	vec[1][1]=y location of control point
-	vec[1][2]=z location of control point
-	vec[2][0]=x location of handle 2
-	vec[2][1]=y location of handle 2
-	vec[2][2]=z location of handle 2 (not used for FCurve Points(2d))
-*/
 typedef struct BezTriple {
 	float vec[3][3];
 	float alfa, weight, radius;	/* alfa: tilt in 3D View, weight: used for softbody goal weight, radius: for bevel tapering */
@@ -116,16 +119,20 @@ typedef struct BPoint {
 	float vec[4];
 	float alfa, weight;		/* alfa: tilt in 3D View, weight: used for softbody goal weight */
 	short f1, hide;			/* f1: selection status,  hide: is point hidden or not */
-	float radius, pad;		/* user-set radius per point for bevelling etc */
+	float radius, pad;		/* user-set radius per point for beveling etc */
 } BPoint;
 
+/**
+ * \note Nurb name is misleading, since it can be used for polygons too,
+ * also, it should be NURBS (Nurb isn't the singular of Nurbs).
+ */
 typedef struct Nurb {
 	struct Nurb *next, *prev;	/* multiple nurbs per curve object are allowed */
 	short type;
 	short mat_nr;		/* index into material list */
 	short hide, flag;
 	short pntsu, pntsv;		/* number of points in the U or V directions */
-	short resolu, resolv;	/* tesselation resolution in the U or V directions */
+	short resolu, resolv;	/* tessellation resolution in the U or V directions */
 	short orderu, orderv;
 	short flagu, flagv;
 	
@@ -176,7 +183,7 @@ typedef struct Curve {
 	EditNurb *editnurb;	/* edited data, not in file, use pointer so we can check for it */
 	
 	struct Object *bevobj, *taperobj, *textoncurve;
-	struct Ipo *ipo;	// XXX depreceated... old animation system
+	struct Ipo *ipo    DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
 	Path *path;
 	struct Key *key;
 	struct Material **mat;
@@ -188,13 +195,15 @@ typedef struct Curve {
 	float size[3];
 	float rot[3];
 
-	short texflag, pad1; /* keep a short because of give_obdata_texspace() */
+	short type;	/* creation-time type of curve datablock */
+
+	short texflag; /* keep a short because of BKE_object_obdata_texspace_get() */
 	short drawflag, twist_mode;
 	float twist_smooth, smallcaps_scale;
 
 	int pathlen;
-	short pad, totcol;
-	short flag, bevresol;
+	short bevresol, totcol;
+	int flag;
 	float width, ext1, ext2;
 	
 	/* default */
@@ -207,6 +216,10 @@ typedef struct Curve {
 	void *lastsel;
 	
 	/* font part */
+	/* WARNING: cu->len is...
+	 * - strlen(cu->str) object-mode (bytes).
+	 * - BLI_strlen_utf8(cu->str) in edit-mode.
+	 * This should be cleaned up and some point, see 'write_curves' - campbell */
 	short len, lines, pos, spacemode;
 	float spacing, linedist, shear, fsize, wordspace, ulpos, ulheight;
 	float xof, yof;
@@ -226,12 +239,14 @@ typedef struct Curve {
 	
 	float ctime;			/* current evaltime - for use by Objects parented to curves */
 	int totbox, actbox;
-	struct TextBox *tb;	
+	struct TextBox *tb;
 	
-	int selstart, selend;	
+	int selstart, selend;
 	
-	struct CharInfo *strinfo;	
+	struct CharInfo *strinfo;
 	struct CharInfo curinfo;
+
+	float bevfac1, bevfac2;
 } Curve;
 
 /* **************** CURVE ********************* */
@@ -254,10 +269,12 @@ typedef struct Curve {
 #define CU_STRETCH		128
 #define CU_OFFS_PATHDIST	256
 #define CU_FAST			512 /* Font: no filling inside editmode */
-#define CU_RETOPO               1024
+/* #define CU_RETOPO               1024 */ /* DEPRECATED */
 #define CU_DS_EXPAND	2048
 #define CU_PATH_RADIUS	4096 /* make use of the path radius if this is enabled (default for new curves) */
 #define CU_DEFORM_FILL	8192 /* fill 2d curve after deformation */
+#define CU_FILL_CAPS	16384 /* fill bevel caps */
+#define CU_MAP_TAPER	32768 /* map taper object to bevelled area */
 
 /* twist mode */
 #define CU_TWIST_Z_UP			0
@@ -310,26 +327,26 @@ typedef struct Curve {
 
 /* h1 h2 (beztriple) */
 typedef enum eBezTriple_Handle {
-	HD_FREE	= 0,
-	HD_AUTO,
-	HD_VECT,
-	HD_ALIGN,
-	HD_AUTO_ANIM	/* not real handle type, but is just used as dummy item for anim code */
+	HD_FREE = 0,
+	HD_AUTO = 1,
+	HD_VECT = 2,
+	HD_ALIGN = 3,
+	HD_AUTO_ANIM = 4 	/* auto-clamped handles for animation */
 } eBezTriple_Handle;
 
 /* interpolation modes (used only for BezTriple->ipo) */
 typedef enum eBezTriple_Interpolation {
 	BEZT_IPO_CONST = 0,	/* constant interpolation */
-	BEZT_IPO_LIN,		/* linear interpolation */
-	BEZT_IPO_BEZ		/* bezier interpolation */
+	BEZT_IPO_LIN = 1,	/* linear interpolation */
+	BEZT_IPO_BEZ = 2	/* bezier interpolation */
 } eBezTriple_Interpolation;
 
 /* types of keyframe (used only for BezTriple->hide when BezTriple is used in F-Curves) */
 typedef enum eBezTriple_KeyframeType {
 	BEZT_KEYTYPE_KEYFRAME = 0,	/* default - 'proper' Keyframe */
-	BEZT_KEYTYPE_EXTREME,		/* 'extreme' keyframe */
-	BEZT_KEYTYPE_BREAKDOWN,		/* 'breakdown' keyframe */
-	BEZT_KEYTYPE_JITTER,		/* 'jitter' keyframe (for adding 'filler' secondary motion) */
+	BEZT_KEYTYPE_EXTREME = 1,	/* 'extreme' keyframe */
+	BEZT_KEYTYPE_BREAKDOWN = 2,	/* 'breakdown' keyframe */
+	BEZT_KEYTYPE_JITTER = 3,	/* 'jitter' keyframe (for adding 'filler' secondary motion) */
 } eBezTriple_KeyframeType;
 
 /* checks if the given BezTriple is selected */

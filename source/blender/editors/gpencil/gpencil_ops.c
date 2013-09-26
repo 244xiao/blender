@@ -1,6 +1,4 @@
 /*
- * $Id: gpencil_ops.c 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -34,7 +32,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-#include "BLO_sys_types.h"
+#include "BLI_sys_types.h"
 
 #include "BLI_blenlib.h"
 
@@ -52,23 +50,31 @@
 
 void ED_keymap_gpencil(wmKeyConfig *keyconf)
 {
-	wmKeyMap *keymap= WM_keymap_find(keyconf, "Grease Pencil", 0, 0);
+	wmKeyMap *keymap = WM_keymap_find(keyconf, "Grease Pencil", 0, 0);
 	wmKeyMapItem *kmi;
 	
 	/* Draw */
-		/* draw */
-	WM_keymap_add_item(keymap, "GPENCIL_OT_draw", LEFTMOUSE, KM_PRESS, 0, DKEY);
-		/* draw - straight lines */
-	kmi=WM_keymap_add_item(keymap, "GPENCIL_OT_draw", LEFTMOUSE, KM_PRESS, KM_CTRL, DKEY);
-		RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_DRAW_STRAIGHT);
-		/* erase */
-	kmi=WM_keymap_add_item(keymap, "GPENCIL_OT_draw", RIGHTMOUSE, KM_PRESS, 0, DKEY);
-		RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_ERASER);
+
+	/* draw */
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", LEFTMOUSE, KM_PRESS, 0, DKEY);
+	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_DRAW);
+
+	/* draw - straight lines */
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", LEFTMOUSE, KM_PRESS, KM_CTRL, DKEY);
+	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_DRAW_STRAIGHT);
+
+	/* draw - poly lines */
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", RIGHTMOUSE, KM_PRESS, KM_CTRL, DKEY);
+	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_DRAW_POLY);
+
+	/* erase */
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", RIGHTMOUSE, KM_PRESS, 0, DKEY);
+	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_ERASER);
 }
 
 /* ****************************************** */
 
-void ED_operatortypes_gpencil (void)
+void ED_operatortypes_gpencil(void)
 {
 	/* Drawing ----------------------- */
 	

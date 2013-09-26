@@ -1,6 +1,4 @@
 /*
- * $Id: KX_IPOTransform.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  *  \brief An abstract object you can move around in a 3d world, and has some logic
  */
 
-#ifndef KX_IPOTRANSFORM_H
-#define KX_IPOTRANSFORM_H
+#ifndef __KX_IPOTRANSFORM_H__
+#define __KX_IPOTRANSFORM_H__
 
 #include "MT_Transform.h"
 
@@ -50,8 +48,8 @@ public:
 
 	MT_Transform         GetTransform() const {
 		return MT_Transform(m_position + m_deltaPosition,
-							MT_Matrix3x3(m_eulerAngles + m_deltaEulerAngles,
-										 m_scaling + m_deltaScaling));
+		                    MT_Matrix3x3(m_eulerAngles + m_deltaEulerAngles,
+		                                 m_scaling + m_deltaScaling));
 	}
 
 	MT_Point3&	         GetPosition()          { return m_position; 	}

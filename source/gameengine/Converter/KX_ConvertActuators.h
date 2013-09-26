@@ -1,6 +1,4 @@
 /*
- * $Id: KX_ConvertActuators.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,20 +29,18 @@
  *  \ingroup bgeconv
  */
 
-#ifndef __KX_CONVERTACTUATORS_H
-#define __KX_CONVERTACTUATORS_H
+#ifndef __KX_CONVERTACTUATORS_H__
+#define __KX_CONVERTACTUATORS_H__
 
-void BL_ConvertActuators(char* maggiename,
-	 struct Object* blenderobject,
-	 class KX_GameObject* gameobj,
-	 class SCA_LogicManager* logicmgr,
-	 class KX_Scene* scene,
-	 class KX_KetsjiEngine* ketsjiEngine,
-	 int activeLayerBitInfo,
-	 bool isInActiveLayer,
-	 class RAS_IRenderTools* rendertools, 
-	 class KX_BlenderSceneConverter* converter);
+void BL_ConvertActuators(const char* maggiename,
+                         struct Object* blenderobject,
+                         class KX_GameObject* gameobj,
+                         class SCA_LogicManager* logicmgr,
+                         class KX_Scene* scene,
+                         class KX_KetsjiEngine* ketsjiEngine,
+                         int activeLayerBitInfo,
+                         bool isInActiveLayer,
+                         class RAS_IRenderTools* rendertools,
+                         class KX_BlenderSceneConverter* converter);
 
-
-#endif //__KX_CONVERTACTUATORS_H
-
+#endif  /* __KX_CONVERTACTUATORS_H__ */

@@ -1,6 +1,4 @@
 /*
- * $Id: DNA_screen_types.h 35300 2011-03-02 14:09:54Z ton $ 
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -24,12 +22,13 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef DNA_SCREEN_TYPES_H
-#define DNA_SCREEN_TYPES_H
 
 /** \file DNA_screen_types.h
  *  \ingroup DNA
  */
+
+#ifndef __DNA_SCREEN_TYPES_H__
+#define __DNA_SCREEN_TYPES_H__
 
 #include "DNA_listBase.h"
 #include "DNA_view2d_types.h"
@@ -78,14 +77,13 @@ typedef struct bScreen {
 	
 	struct wmTimer *animtimer;			/* if set, screen has timer handler added in window */
 	void *context;						/* context callback */
-	
-	short handler[8];					/* similar to space handler */
 } bScreen;
 
 typedef struct ScrVert {
 	struct ScrVert *next, *prev, *newv;
 	vec2s vec;
-	int flag;
+	/* first one used internally, second one for tools */
+	short flag, editflag;
 } ScrVert;
 
 typedef struct ScrEdge {
@@ -104,7 +102,7 @@ typedef struct Panel {		/* the part from uiBlock that needs saved in file */
 
 	char panelname[64], tabname[64];	/* defined as UI_MAX_NAME_STR */
 	char drawname[64];					/* panelname is identifier for restoring location */
-	short ofsx, ofsy, sizex, sizey;
+	int ofsx, ofsy, sizex, sizey;
 	short labelofs, pad;
 	short flag, runtime_flag;
 	short control;
@@ -112,16 +110,30 @@ typedef struct Panel {		/* the part from uiBlock that needs saved in file */
 	int sortorder;			/* panels are aligned according to increasing sortorder */
 	struct Panel *paneltab;		/* this panel is tabbed in *paneltab */
 	void *activedata;			/* runtime for panel manipulation */
-
-	int list_scroll, list_size;
-	int list_last_len, list_grip_size;
-	char list_search[64];
 } Panel;
+
+typedef struct uiList {				/* some list UI data need to be saved in file */
+	struct uiList *next, *prev;
+
+	struct uiListType *type;		/* runtime */
+	void *padp;
+
+	char list_id[64];				/* defined as UI_MAX_NAME_STR */
+
+	int layout_type;				/* How items are layedout in the list */
+	int padi;
+
+	int list_scroll;
+	int list_size;
+	int list_last_len;
+	int list_grip_size;
+/*	char list_search[64]; */
+} uiList;
 
 typedef struct ScrArea {
 	struct ScrArea *next, *prev;
 	
-	ScrVert *v1, *v2, *v3, *v4;
+	ScrVert *v1, *v2, *v3, *v4;		/* ordered (bl, tl, tr, br) */
 	bScreen *full;			/* if area==full, this is the parent */
 
 	rcti totrct;			/* rect bound by v1 v2 v3 v4 */
@@ -130,9 +142,11 @@ typedef struct ScrArea {
 	short winx, winy;				/* size */
 	
 	short headertype;				/* OLD! 0=no header, 1= down, 2= up */
-	short pad;
 	short do_refresh;				/* private, for spacetype refresh callback */
-	short cursor, flag;
+	short flag;
+	short region_active_win;		/* index of last used region of 'RGN_TYPE_WINDOW'
+									 * runtuime variable, updated by executing operators */
+	short pad;
 	
 	struct SpaceType *type;		/* callbacks for this space type */
 	
@@ -162,13 +176,17 @@ typedef struct ARegion {
 	short do_draw;				/* private, cached notifier events */
 	short do_draw_overlay;		/* private, cached notifier events */
 	short swap;					/* private, indicator to survive swap-exchange */
-	short pad[3];
+	short overlap;				/* private, set for indicate drawing overlapped */
+	short pad[2];
 	
 	struct ARegionType *type;	/* callbacks for this region type */
 	
 	ListBase uiblocks;			/* uiBlock */
 	ListBase panels;			/* Panel */
+	ListBase ui_lists;			/* uiList */
 	ListBase handlers;			/* wmEventHandler */
+	
+	struct wmTimer *regiontimer; /* blend in/out */
 	
 	char *headerstr;			/* use this string to draw info */
 	void *regiondata;			/* XXX 2.50, need spacedata equivalent? */
@@ -177,7 +195,7 @@ typedef struct ARegion {
 /* swap */
 #define WIN_BACK_OK		1
 #define WIN_FRONT_OK	2
-#define WIN_EQUAL		3
+// #define WIN_EQUAL		3  // UNUSED
 
 /* area->flag */
 #define HEADER_NO_PULLDOWN		1
@@ -187,7 +205,6 @@ typedef struct ARegion {
 #define AREA_FLAG_DRAWSPLIT_H	16
 #define AREA_FLAG_DRAWSPLIT_V	32
 
-/* If you change EDGEWIDTH, also do the global arrat edcol[]  */
 #define EDGEWIDTH	1
 #define AREAGRID	4
 #define AREAMINX	32
@@ -200,7 +217,6 @@ typedef struct ARegion {
 /* screen->full */
 #define SCREENNORMAL	0
 #define SCREENFULL		1
-#define SCREENFULLTEMP	2
 
 
 /* Panel->snap - for snapping to screen edges */
@@ -216,24 +232,24 @@ typedef struct ARegion {
 #define PNL_DEFAULT_CLOSED		1
 #define PNL_NO_HEADER			2
 
-/* screen handlers */
-#define SCREEN_MAXHANDLER		8
-
-#define SCREEN_HANDLER_ANIM		1
-#define SCREEN_HANDLER_PYTHON   2
-#define SCREEN_HANDLER_VERSE	3
+/* uilist layout_type */
+enum {
+	UILST_LAYOUT_DEFAULT          = 0,
+	UILST_LAYOUT_COMPACT          = 1,
+	UILST_LAYOUT_GRID             = 2,
+};
 
 /* regiontype, first two are the default set */
 /* Do NOT change order, append on end. Types are hardcoded needed */
 enum {
 	RGN_TYPE_WINDOW = 0,
-	RGN_TYPE_HEADER,
-	RGN_TYPE_CHANNELS,
-	RGN_TYPE_TEMPORARY,
-	RGN_TYPE_UI,
-	RGN_TYPE_TOOLS,
-	RGN_TYPE_TOOL_PROPS,
-	RGN_TYPE_PREVIEW
+	RGN_TYPE_HEADER = 1,
+	RGN_TYPE_CHANNELS = 2,
+	RGN_TYPE_TEMPORARY = 3,
+	RGN_TYPE_UI = 4,
+	RGN_TYPE_TOOLS = 5,
+	RGN_TYPE_TOOL_PROPS = 6,
+	RGN_TYPE_PREVIEW = 7
 };
 
 /* region alignment */
@@ -246,10 +262,6 @@ enum {
 #define RGN_ALIGN_VSPLIT	6
 #define RGN_ALIGN_FLOAT		7
 #define RGN_ALIGN_QSPLIT	8
-#define RGN_OVERLAP_TOP		9
-#define RGN_OVERLAP_BOTTOM	10
-#define RGN_OVERLAP_LEFT	11
-#define RGN_OVERLAP_RIGHT	12
 
 #define RGN_SPLIT_PREV		32
 

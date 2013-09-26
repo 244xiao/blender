@@ -29,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_I2DFILTER
-#define __RAS_I2DFILTER
+#ifndef __RAS_2DFILTERMANAGER_H__
+#define __RAS_2DFILTERMANAGER_H__
 
 #include "RAS_ICanvas.h"
 #define MAX_RENDER_PASS	100
@@ -44,7 +44,7 @@ class RAS_2DFilterManager
 private:
 	unsigned int	CreateShaderProgram(const char* shadersource);
 	unsigned int	CreateShaderProgram(int filtermode);
-	void		AnalyseShader(int passindex, vector<STR_String>& propNames);
+	void		AnalyseShader(int passindex, std::vector<STR_String>& propNames);
 	void			StartShaderProgram(int passindex);
 	void			EndShaderProgram();
 	void			PrintShaderErrors(unsigned int shader, const char *task, const char *code);
@@ -57,14 +57,12 @@ private:
  
 	float			canvascoord[4];
 	float			textureoffsets[18];
-	float			view[4];
+	/* float			view[4]; */ /* UNUSED */
 	/* texname[0] contains render to texture, texname[1] contains depth texture,  texname[2] contains luminance texture*/
 	unsigned int	texname[3]; 
 	int				texturewidth;
 	int				textureheight;
-	int				canvaswidth;
-	int				canvasheight;
-	int				numberoffilters;
+	/* int				numberoffilters; */ /* UNUSED */
 	/* bit 0: enable/disable depth texture
 	 * bit 1: enable/disable luminance texture*/
 	short			texflag[MAX_RENDER_PASS];
@@ -77,7 +75,7 @@ private:
 	short		m_enabled[MAX_RENDER_PASS];
 
 	// stores object properties to send to shaders in each pass
-	vector<STR_String>	m_properties[MAX_RENDER_PASS];
+	std::vector<STR_String>	m_properties[MAX_RENDER_PASS];
 	void* m_gameObjects[MAX_RENDER_PASS];
 public:
 	enum RAS_2DFILTER_MODE {
@@ -105,13 +103,11 @@ public:
 
 	void RenderFilters(RAS_ICanvas* canvas);
 
-	void EnableFilter(vector<STR_String>& propNames, void* gameObj, RAS_2DFILTER_MODE mode, int pass, STR_String& text);
-	
-	
+	void EnableFilter(std::vector<STR_String>& propNames, void* gameObj, RAS_2DFILTER_MODE mode, int pass, STR_String& text);
+
+
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_2DFilterManager"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_2DFilterManager")
 #endif
 };
 #endif

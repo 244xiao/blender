@@ -1,6 +1,4 @@
 /*
- * $Id: RAS_IPolygonMaterial.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup bgerast
  */
 
-#ifndef __RAS_IPOLYGONMATERIAL
-#define __RAS_IPOLYGONMATERIAL
+#ifndef __RAS_IPOLYGONMATERIAL_H__
+#define __RAS_IPOLYGONMATERIAL_H__
 
 #include "STR_HashedString.h"
 
@@ -49,6 +47,7 @@ struct Material;
 struct Image;
 struct Scene;
 class SCA_IScene;
+struct GameSettings;
 
 enum MaterialProps
 {
@@ -62,7 +61,8 @@ enum MaterialProps
 	RAS_AUTOGEN		=128,
 	RAS_NORMAL		=256,
 	RAS_DEFMULTI	=512,
-	RAS_BLENDERGLSL =1024
+	RAS_BLENDERGLSL =1024,
+	RAS_CASTSHADOW	=2048
 };
 
 /**
@@ -77,10 +77,11 @@ protected:
 	STR_HashedString		m_materialname; //also needed for touchsensor  
 	int						m_tile;
 	int						m_tilexrep,m_tileyrep;
-	int						m_drawingmode;	// tface->mode
-	int						m_transp;
+	int						m_drawingmode;
+	int						m_alphablend;
 	bool					m_alpha;
 	bool					m_zsort;
+	bool					m_light;
 	int						m_materialindex;
 	
 	unsigned int			m_polymatid;
@@ -101,9 +102,9 @@ public:
 	// care! these are taken from blender polygonflags, see file DNA_mesh_types.h for #define TF_BILLBOARD etc.
 	enum MaterialFlags
 	{
-		BILLBOARD_SCREENALIGNED = 256,
-		BILLBOARD_AXISALIGNED = 4096,
-		SHADOW				  =8192
+		BILLBOARD_SCREENALIGNED	= 512,  /* GEMAT_HALO */
+		BILLBOARD_AXISALIGNED	= 1024, /* GEMAT_BILLBOARD */
+		SHADOW			=2048   /* GEMAT_SHADOW */
 	};
 
 	RAS_IPolyMaterial();
@@ -113,7 +114,6 @@ public:
 					  int tile,
 					  int tilexrep,
 					  int tileyrep,
-					  int mode,
 					  int transp,
 					  bool alpha,
 					  bool zsort);
@@ -123,16 +123,19 @@ public:
 					int tile,
 					int tilexrep,
 					int tileyrep,
-					int mode,
 					int transp,
 					bool alpha,
-					bool zsort);
-	virtual ~RAS_IPolyMaterial() {};
+					bool zsort,
+					bool light,
+					bool image,
+					struct GameSettings* game);
+
+	virtual ~RAS_IPolyMaterial() {}
  
 	/**
 	 * Returns the caching information for this material,
 	 * This can be used to speed up the rasterizing process.
-	 * @return The caching information.
+	 * \return The caching information.
 	 */
 	virtual TCachingInfo GetCachingInfo(void) const { return 0; }
 
@@ -140,8 +143,8 @@ public:
 	 * Activates the material in the rasterizer.
 	 * On entry, the cachingInfo contains info about the last activated material.
 	 * On exit, the cachingInfo should contain updated info about this material.
-	 * @param rasty			The rasterizer in which the material should be active.
-	 * @param cachingInfo	The information about the material used to speed up rasterizing.
+	 * \param rasty			The rasterizer in which the material should be active.
+	 * \param cachingInfo	The information about the material used to speed up rasterizing.
 	 */
 	virtual bool Activate(RAS_IRasterizer* rasty, TCachingInfo& cachingInfo) const 
 	{ 
@@ -169,19 +172,23 @@ public:
 	virtual void		GetMaterialRGBAColor(unsigned char *rgba) const;
 	virtual bool		UsesLighting(RAS_IRasterizer *rasty) const;
 	virtual bool		UsesObjectColor() const;
+	virtual bool		CastsShadows() const;
 
-	virtual void		Replace_IScene(SCA_IScene *val) {}; /* overridden by KX_BlenderMaterial */
+	virtual void		Replace_IScene(SCA_IScene *val) {} /* overridden by KX_BlenderMaterial */
+
+	/**
+	 * \return the equivalent drawing mode for the material settings (equivalent to old TexFace tface->mode).
+	 */
+	int					ConvertFaceMode(struct GameSettings *game, bool image) const;
 
 	/*
 	 * PreCalculate texture gen
 	 */
-	virtual void OnConstruction(int layer){}
-		
-		
+	virtual void OnConstruction() {}
+
+
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_IPolyMaterial"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_IPolyMaterial")
 #endif
 };
 
@@ -195,5 +202,4 @@ inline  bool operator < ( const RAS_IPolyMaterial & lhs, const RAS_IPolyMaterial
 	return lhs.Less(rhs);
 }
 
-#endif //__RAS_IPOLYGONMATERIAL
-
+#endif  /* __RAS_IPOLYGONMATERIAL_H__ */

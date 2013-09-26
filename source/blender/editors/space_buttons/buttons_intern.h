@@ -1,6 +1,4 @@
 /*
- * $Id: buttons_intern.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,38 +28,74 @@
  *  \ingroup spbuttons
  */
 
-#ifndef ED_BUTTONS_INTERN_H
-#define ED_BUTTONS_INTERN_H
+#ifndef __BUTTONS_INTERN_H__
+#define __BUTTONS_INTERN_H__
+
+#include "DNA_listBase.h"
+#include "RNA_types.h"
 
 struct ARegion;
 struct ARegionType;
+struct ID;
+struct SpaceButs;
+struct Tex;
 struct bContext;
 struct bContextDataResult;
-struct SpaceButs;
+struct bNode;
+struct bNodeTree;
 struct uiLayout;
 struct wmOperatorType;
-struct ID;
 
 /* buts->scaflag */		
-#define BUTS_SENS_SEL		1
-#define BUTS_SENS_ACT		2
-#define BUTS_SENS_LINK		4
-#define BUTS_CONT_SEL		8
-#define BUTS_CONT_ACT		16
-#define BUTS_CONT_LINK		32
-#define BUTS_ACT_SEL		64
-#define BUTS_ACT_ACT		128
-#define BUTS_ACT_LINK		256
-#define BUTS_SENS_STATE		512
-#define BUTS_ACT_STATE		1024
+#define BUTS_SENS_SEL       1
+#define BUTS_SENS_ACT       2
+#define BUTS_SENS_LINK      4
+#define BUTS_CONT_SEL       8
+#define BUTS_CONT_ACT       16
+#define BUTS_CONT_LINK      32
+#define BUTS_ACT_SEL        64
+#define BUTS_ACT_ACT        128
+#define BUTS_ACT_LINK       256
+#define BUTS_SENS_STATE     512
+#define BUTS_ACT_STATE      1024
 
-#define BUTS_HEADERY		(HEADERY*1.2)
-#define BUTS_UI_UNIT		(UI_UNIT_Y*1.2)
+/* context data */
+
+typedef struct ButsContextPath {
+	PointerRNA ptr[8];
+	int len;
+	int flag;
+	int tex_ctx;
+} ButsContextPath;
+
+typedef struct ButsTextureUser {
+	struct ButsTextureUser *next, *prev;
+
+	struct ID *id;
+
+	PointerRNA ptr;
+	PropertyRNA *prop;
+
+	struct bNodeTree *ntree;
+	struct bNode *node;
+
+	const char *category;
+	int icon;
+	const char *name;
+
+	int index;
+} ButsTextureUser;
+
+typedef struct ButsContextTexture {
+	ListBase users;
+
+	struct Tex *texture;
+
+	struct ButsTextureUser *user;
+	int index;
+} ButsContextTexture;
 
 /* internal exports only */
-
-/* buttons_header.c */
-void buttons_header_buttons(const struct bContext *C, struct ARegion *ar);
 
 /* buttons_context.c */
 void buttons_context_compute(const struct bContext *C, struct SpaceButs *sbuts);
@@ -72,9 +106,13 @@ struct ID *buttons_context_id_path(const struct bContext *C);
 
 extern const char *buttons_context_dir[]; /* doc access */
 
+/* buttons_texture.c */
+void buttons_texture_context_compute(const struct bContext *C, struct SpaceButs *sbuts);
+
 /* buttons_ops.c */
 void BUTTONS_OT_file_browse(struct wmOperatorType *ot);
+void BUTTONS_OT_directory_browse(struct wmOperatorType *ot);
 void BUTTONS_OT_toolbox(struct wmOperatorType *ot);
 
-#endif /* ED_BUTTONS_INTERN_H */
+#endif /* __BUTTONS_INTERN_H__ */
 

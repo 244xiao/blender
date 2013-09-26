@@ -1,6 +1,4 @@
 /*
- * $Id: KX_WorldIpoController.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,8 +29,8 @@
  *  \ingroup ketsji
  */
 
-#ifndef KX_WORLDIPOCONTROLLER_H
-#define KX_WORLDIPOCONTROLLER_H
+#ifndef __KX_WORLDIPOCONTROLLER_H__
+#define __KX_WORLDIPOCONTROLLER_H__
 
 #include "SG_Controller.h"
 #include "SG_Spatial.h"
@@ -74,15 +72,15 @@ public:
 		m_modified = true;
 	}
 
-	void	SetModifyMistStart(bool modify) {	
+	void	SetModifyMistStart(bool modify) {
 		m_modify_mist_start = modify;
 	}
 
-	void	SetModifyMistColor(bool modify) {	
+	void	SetModifyMistColor(bool modify) {
 		m_modify_mist_color = modify;
 	}
 
-	void	SetModifyMistDist(bool modify) {	
+	void	SetModifyMistDist(bool modify) {
 		m_modify_mist_dist = modify;
 	}
 
@@ -90,7 +88,7 @@ public:
 	SetOption(
 		int option,
 		int value
-	){
+	) {
 		// intentionally empty
 	};
 
@@ -98,11 +96,8 @@ public:
 	
 	
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:KX_WorldIpoController"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:KX_WorldIpoController")
 #endif
 };
 
-#endif // KX_LIGHTIPOSGCONTROLLER_H
-
+#endif  /* __KX_WORLDIPOCONTROLLER_H__ */

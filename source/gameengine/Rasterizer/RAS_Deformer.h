@@ -1,6 +1,4 @@
 /*
- * $Id: RAS_Deformer.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,15 +29,15 @@
  *  \ingroup bgerast
  */
 
-#ifndef RAS_DEFORMER
-#define RAS_DEFORMER
+#ifndef __RAS_DEFORMER_H__
+#define __RAS_DEFORMER_H__
 
-#if defined(WIN32) && !defined(FREE_WINDOWS)
-#pragma warning (disable:4786) // get rid of stupid stl-visual compiler debug warning
-#endif //WIN32
+#ifdef _MSC_VER
+#  pragma warning (disable:4786)  /* get rid of stupid stl-visual compiler debug warning */
+#endif
 
 #include <stdlib.h>
-#include "GEN_Map.h"
+#include "CTR_Map.h"
 
 #ifdef WITH_CXX_GUARDEDALLOC
 #include "MEM_guardedalloc.h"
@@ -51,9 +49,9 @@ class RAS_MeshObject;
 class RAS_Deformer
 {
 public:
-	RAS_Deformer() : m_pMesh(NULL), m_bDynamic(false) {};
-	virtual ~RAS_Deformer(){};
-	virtual void Relink(GEN_Map<class GEN_HashedPtr, void*>*map)=0;
+	RAS_Deformer() : m_pMesh(NULL), m_bDynamic(false) {}
+	virtual ~RAS_Deformer() {}
+	virtual void Relink(CTR_Map<class CTR_HashedPtr, void*>*map)=0;
 	virtual bool Apply(class RAS_IPolyMaterial *polymat)=0;
 	virtual bool Update(void)=0;
 	virtual bool UpdateBuckets(void)=0;
@@ -93,12 +91,11 @@ public:
 
 protected:
 	class RAS_MeshObject	*m_pMesh;
-	bool  m_bDynamic;	
+	bool  m_bDynamic;
+
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:RAS_Deformer"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:RAS_Deformer")
 #endif
 };
 

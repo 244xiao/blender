@@ -1,6 +1,4 @@
 /*
- * $Id: SCA_PropertySensor.h 35063 2011-02-22 10:33:14Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,14 +30,14 @@
  *  \brief Property sensor
  */
 
-#ifndef __KX_PROPERTYSENSOR
-#define __KX_PROPERTYSENSOR
+#ifndef __SCA_PROPERTYSENSOR_H__
+#define __SCA_PROPERTYSENSOR_H__
 
 #include "SCA_ISensor.h"
 
 class SCA_PropertySensor : public SCA_ISensor
 {
-	Py_Header;
+	Py_Header
 	//class CExpression*	m_rightexpr;
 	int				m_checktype;
 	STR_String		m_checkpropval;
@@ -48,7 +46,6 @@ class SCA_PropertySensor : public SCA_ISensor
 	STR_String		m_previoustext;
 	bool			m_lastresult;
 	bool			m_recentresult;
-	CExpression*	m_range_expr;
 
  protected:
 
@@ -71,16 +68,10 @@ public:
 					  const STR_String& propval,
 					  const STR_String& propmaxval,
 					  KX_PROPSENSOR_TYPE checktype);
-	
-	/** 
-	 *  For property sensor, it is used to release the pre-calculated expression
-	 *  so that self references are removed before the sensor itself is released
-	 */
-	virtual void Delete();
+
 	virtual ~SCA_PropertySensor();
 	virtual CValue* GetReplica();
 	virtual void Init();
-	void	PrecalculateRangeExpression();
 	bool	CheckPropertyCondition();
 
 	virtual bool Evaluate();
@@ -97,16 +88,6 @@ public:
 	 * Test whether this is a sensible value (type check)
 	 */
 	static int validValueForProperty(void* self, const PyAttributeDef*);
-
-	/**
-	 * Test whether this is a sensible value for interval (type check) and updates Range Expression
-	 */
-	static int validValueForIntervalProperty(void* self, const PyAttributeDef*);
-
-	/**
-	 * Test if the new mode is interval. If positive updates Range Expression
-	 */
-	static int modeChange(void* self, const PyAttributeDef* attrdef);
 
 #endif
 };

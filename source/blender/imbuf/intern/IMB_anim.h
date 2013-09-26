@@ -1,8 +1,4 @@
 /*
- * allocimbuf.h
- *
- * $Id: IMB_anim.h 35239 2011-02-27 20:23:21Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -34,63 +30,60 @@
  */
 
 
-#ifndef IMB_ANIM_H
-#define IMB_ANIM_H
+#ifndef __IMB_ANIM_H__
+#define __IMB_ANIM_H__
 
 #ifdef _WIN32
-#define INC_OLE2
-#include <windows.h>
-#include <windowsx.h>
-#include <mmsystem.h>
-#include <memory.h>
-#include <commdlg.h>
+#  define INC_OLE2
+#  include <windows.h>
+#  include <windowsx.h>
+#  include <mmsystem.h>
+#  include <memory.h>
+#  include <commdlg.h>
 
-#ifndef FREE_WINDOWS
-#include <vfw.h>
-#endif
+#  ifndef FREE_WINDOWS
+#    include <vfw.h>
+#  endif
 
-#undef AVIIF_KEYFRAME // redefined in AVI_avi.h
-#undef AVIIF_LIST // redefined in AVI_avi.h
-
-#define FIXCC(fcc)  if (fcc == 0)	fcc = mmioFOURCC('N', 'o', 'n', 'e'); \
-		if (fcc == BI_RLE8) fcc = mmioFOURCC('R', 'l', 'e', '8');
-#endif
+#  undef AVIIF_KEYFRAME // redefined in AVI_avi.h
+#  undef AVIIF_LIST // redefined in AVI_avi.h
+#endif /* _WIN32 */
 
 #include <sys/types.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
-#ifndef _WIN32
-#include <dirent.h>
-#else
-#include <io.h>
-#endif
 
-#include "BLI_blenlib.h" /* BLI_remlink BLI_filesize BLI_addtail
-							BLI_countlist BLI_stringdec */
+#ifdef _WIN32
+#  include <io.h>
+#else
+#  include <dirent.h>
+#endif
 
 #include "imbuf.h"
 
-#include "AVI_avi.h"
+#ifdef WITH_AVI
+#  include "AVI_avi.h"
+#endif
 
 #ifdef WITH_QUICKTIME
-#if defined(_WIN32) || defined(__APPLE__)
-#include "quicktime_import.h"
-#endif /* _WIN32 || __APPLE__ */
+#  if defined(_WIN32) || defined(__APPLE__)
+#    include "quicktime_import.h"
+#  endif /* _WIN32 || __APPLE__ */
 #endif /* WITH_QUICKTIME */
 
 #ifdef WITH_FFMPEG
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
-#include <libswscale/swscale.h>
+#  include <libavformat/avformat.h>
+#  include <libavcodec/avcodec.h>
+#  include <libswscale/swscale.h>
 #endif
 
 #ifdef WITH_REDCODE
-#ifdef _WIN32 /* on windows we use the one in extern instead */
-#include "libredcode/format.h"
-#else
-#include "libredcode/format.h"
-#endif
+#  ifdef _WIN32 /* on windows we use the one in extern instead */
+#    include "libredcode/format.h"
+#  else
+#    include "libredcode/format.h"
+#  endif
 #endif
 
 #include "IMB_imbuf_types.h"
@@ -107,40 +100,43 @@
 #define SWAP_S(x) (((x << 8) & 0xff00) | ((x >> 8) & 0xff))
 
 /* more endianness... should move to a separate file... */
-#if defined(__sgi) || defined (__sparc) || (__sparc__) || defined (__PPC__) || defined (__ppc__) || defined (__hppa__) || defined (__BIG_ENDIAN__)
-#define GET_ID GET_BIG_LONG
-#define LITTLE_LONG SWAP_LONG
+#ifdef __BIG_ENDIAN__
+#  define GET_ID GET_BIG_LONG
+#  define LITTLE_LONG SWAP_LONG
 #else
-#define GET_ID GET_LITTLE_LONG
-#define LITTLE_LONG ENDIAN_NOP
+#  define GET_ID GET_LITTLE_LONG
+#  define LITTLE_LONG ENDIAN_NOP
 #endif
 
 /* anim.curtype, runtime only */
-#define ANIM_NONE		0
-#define ANIM_SEQUENCE	(1 << 0)
-#define ANIM_MOVIE		(1 << 4)
-#define ANIM_AVI		(1 << 6)
-#define ANIM_QTIME		(1 << 7)
+#define ANIM_NONE       0
+#define ANIM_SEQUENCE   (1 << 0)
+#define ANIM_MOVIE      (1 << 4)
+#define ANIM_AVI        (1 << 6)
+#define ANIM_QTIME      (1 << 7)
 #define ANIM_FFMPEG     (1 << 8)
 #define ANIM_REDCODE    (1 << 9)
 
-#define MAXNUMSTREAMS		50
+#define MAXNUMSTREAMS       50
 
 struct _AviMovie;
+struct anim_index;
 
 struct anim {
 	int ib_flags;
 	int curtype;
-	int curposition;	/* index  0 = 1e,  1 = 2e, enz. */
+	int curposition;    /* index  0 = 1e,  1 = 2e, enz. */
 	int duration;
+	short frs_sec;
+	float frs_sec_base;
 	int x, y;
 	
-		/* voor op nummer */
-	char name[256];
-		/* voor sequence */
-	char first[256];
-	
-		/* movie */
+	/* for number */
+	char name[1024];
+	/* for sequence */
+	char first[1024];
+
+	/* movie */
 	void *movie;
 	void *track;
 	void *params;
@@ -148,25 +144,23 @@ struct anim {
 	size_t framesize;
 	int interlacing;
 	int preseek;
+	int streamindex;
 	
-		/* data */
-	struct ImBuf * ibuf1, * ibuf2;
-	
-		/* avi */
+	/* avi */
 	struct _AviMovie *avi;
 
 #if defined(_WIN32) && !defined(FREE_WINDOWS)
-		/* windows avi */
+	/* windows avi */
 	int avistreams;
 	int firstvideo;
 	int pfileopen;
-	PAVIFILE	pfile;
-	PAVISTREAM  pavi[MAXNUMSTREAMS];	// the current streams
-	PGETFRAME	  pgf;
+	PAVIFILE pfile;
+	PAVISTREAM pavi[MAXNUMSTREAMS];     // the current streams
+	PGETFRAME pgf;
 #endif
 
 #ifdef WITH_QUICKTIME
-		/* quicktime */
+	/* quicktime */
 	struct _QuicktimeMovie *qtime;
 #endif /* WITH_QUICKTIME */
 
@@ -175,16 +169,31 @@ struct anim {
 	AVCodecContext *pCodecCtx;
 	AVCodec *pCodec;
 	AVFrame *pFrame;
+	int pFrameComplete;
 	AVFrame *pFrameRGB;
 	AVFrame *pFrameDeinterlaced;
 	struct SwsContext *img_convert_ctx;
 	int videoStream;
+
+	struct ImBuf *last_frame;
+	int64_t last_pts;
+	int64_t next_pts;
+	AVPacket next_packet;
 #endif
 
 #ifdef WITH_REDCODE
-	struct redcode_handle * redcodeCtx;
+	struct redcode_handle *redcodeCtx;
 #endif
+
+	char index_dir[768];
+
+	int proxies_tried;
+	int indices_tried;
+	
+	struct anim *proxy_anim[IMB_PROXY_MAX_SLOT];
+	struct anim_index *curr_idx[IMB_TC_MAX_SLOT];
+
+	char colorspace[64];
 };
 
 #endif
-

@@ -1,6 +1,4 @@
 /*
- * $Id: space_console.c 35883 2011-03-29 16:52:26Z campbellbarton $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +28,7 @@
 #include <stdio.h>
 
 #ifdef WIN32
-#include "BLI_winstuff.h"
+#  include "BLI_winstuff.h"
 #endif
 
 #include "MEM_guardedalloc.h"
@@ -56,7 +54,7 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-#include "console_intern.h"	// own include
+#include "console_intern.h" // own include
 
 /* ******************** default callbacks for console space ***************** */
 
@@ -65,35 +63,35 @@ static SpaceLink *console_new(const bContext *UNUSED(C))
 	ARegion *ar;
 	SpaceConsole *sconsole;
 	
-	sconsole= MEM_callocN(sizeof(SpaceConsole), "initconsole");
-	sconsole->spacetype= SPACE_CONSOLE;
+	sconsole = MEM_callocN(sizeof(SpaceConsole), "initconsole");
+	sconsole->spacetype = SPACE_CONSOLE;
 	
-	sconsole->lheight=	14;
+	sconsole->lheight =  14;
 	
 	/* header */
-	ar= MEM_callocN(sizeof(ARegion), "header for console");
+	ar = MEM_callocN(sizeof(ARegion), "header for console");
 	
 	BLI_addtail(&sconsole->regionbase, ar);
-	ar->regiontype= RGN_TYPE_HEADER;
-	ar->alignment= RGN_ALIGN_BOTTOM;
+	ar->regiontype = RGN_TYPE_HEADER;
+	ar->alignment = RGN_ALIGN_BOTTOM;
 	
 	
 	/* main area */
-	ar= MEM_callocN(sizeof(ARegion), "main area for text");
+	ar = MEM_callocN(sizeof(ARegion), "main area for text");
 	
 	BLI_addtail(&sconsole->regionbase, ar);
-	ar->regiontype= RGN_TYPE_WINDOW;
+	ar->regiontype = RGN_TYPE_WINDOW;
 	
 	/* keep in sync with info */
 	ar->v2d.scroll |= (V2D_SCROLL_RIGHT);
-	ar->v2d.align |= V2D_ALIGN_NO_NEG_X|V2D_ALIGN_NO_NEG_Y; /* align bottom left */
+	ar->v2d.align |= V2D_ALIGN_NO_NEG_X | V2D_ALIGN_NO_NEG_Y; /* align bottom left */
 	ar->v2d.keepofs |= V2D_LOCKOFS_X;
-	ar->v2d.keepzoom = (V2D_LOCKZOOM_X|V2D_LOCKZOOM_Y|V2D_LIMITZOOM|V2D_KEEPASPECT);
-	ar->v2d.keeptot= V2D_KEEPTOT_BOUNDS;
-	ar->v2d.minzoom= ar->v2d.maxzoom= 1.0f;
+	ar->v2d.keepzoom = (V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y | V2D_LIMITZOOM | V2D_KEEPASPECT);
+	ar->v2d.keeptot = V2D_KEEPTOT_BOUNDS;
+	ar->v2d.minzoom = ar->v2d.maxzoom = 1.0f;
 
 	/* for now, aspect ratio should be maintained, and zoom is clamped within sane default limits */
-	//ar->v2d.keepzoom= (V2D_KEEPASPECT|V2D_LIMITZOOM);
+	//ar->v2d.keepzoom = (V2D_KEEPASPECT|V2D_LIMITZOOM);
 
 	return (SpaceLink *)sconsole;
 }
@@ -101,12 +99,12 @@ static SpaceLink *console_new(const bContext *UNUSED(C))
 /* not spacelink itself */
 static void console_free(SpaceLink *sl)
 {
-	SpaceConsole *sc= (SpaceConsole*) sl;
+	SpaceConsole *sc = (SpaceConsole *) sl;
 	
-	while(sc->scrollback.first)
+	while (sc->scrollback.first)
 		console_scrollback_free(sc, sc->scrollback.first);
 	
-	while(sc->history.first)
+	while (sc->history.first)
 		console_history_free(sc, sc->history.first);
 }
 
@@ -119,13 +117,13 @@ static void console_init(struct wmWindowManager *UNUSED(wm), ScrArea *UNUSED(sa)
 
 static SpaceLink *console_duplicate(SpaceLink *sl)
 {
-	SpaceConsole *sconsolen= MEM_dupallocN(sl);
+	SpaceConsole *sconsolen = MEM_dupallocN(sl);
 	
 	/* clear or remove stuff from old */
 	
 	/* TODO - duplicate?, then we also need to duplicate the py namespace */
-	sconsolen->scrollback.first= sconsolen->scrollback.last= NULL;
-	sconsolen->history.first= sconsolen->history.last= NULL;
+	sconsolen->scrollback.first = sconsolen->scrollback.last = NULL;
+	sconsolen->history.first = sconsolen->history.last = NULL;
 	
 	return (SpaceLink *)sconsolen;
 }
@@ -138,14 +136,26 @@ static void console_main_area_init(wmWindowManager *wm, ARegion *ar)
 	wmKeyMap *keymap;
 	ListBase *lb;
 
+	const float prev_y_min = ar->v2d.cur.ymin; /* so re-sizing keeps the cursor visible */
+
+	/* force it on init, for old files, until it becomes config */
+	ar->v2d.scroll = (V2D_SCROLL_RIGHT);
+
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
 
+	/* always keep the bottom part of the view aligned, less annoying */
+	if (prev_y_min != ar->v2d.cur.ymin) {
+		const float cur_y_range = BLI_rctf_size_y(&ar->v2d.cur);
+		ar->v2d.cur.ymin = prev_y_min;
+		ar->v2d.cur.ymax = prev_y_min + cur_y_range;
+	}
+
 	/* own keymap */
-	keymap= WM_keymap_find(wm->defaultconf, "Console", SPACE_CONSOLE, 0);
+	keymap = WM_keymap_find(wm->defaultconf, "Console", SPACE_CONSOLE, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 	
 	/* add drop boxes */
-	lb= WM_dropboxmap_find("Console", SPACE_CONSOLE, RGN_TYPE_WINDOW);
+	lb = WM_dropboxmap_find("Console", SPACE_CONSOLE, RGN_TYPE_WINDOW);
 	
 	WM_event_add_dropbox_handler(&ar->handlers, lb);
 }
@@ -153,37 +163,37 @@ static void console_main_area_init(wmWindowManager *wm, ARegion *ar)
 
 /* ************* dropboxes ************* */
 
-static int id_drop_poll(bContext *UNUSED(C), wmDrag *drag, wmEvent *UNUSED(event))
+static int id_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
-//	SpaceConsole *sc= CTX_wm_space_console(C);
-	if(drag->type==WM_DRAG_ID)
+//	SpaceConsole *sc = CTX_wm_space_console(C);
+	if (drag->type == WM_DRAG_ID)
 		return 1;
 	return 0;
 }
 
 static void id_drop_copy(wmDrag *drag, wmDropBox *drop)
 {
-	char text[64];
-	ID *id= drag->poin;
-
-	snprintf(text, sizeof(text), "bpy.data.%s['%s']", BKE_idcode_to_name_plural(GS(id->name)), id->name+2);	
+	char *text;
+	ID *id = drag->poin;
 
 	/* copy drag path to properties */
+	text = RNA_path_full_ID_py(id);
 	RNA_string_set(drop->ptr, "text", text);
+	MEM_freeN(text);
 }
 
-static int path_drop_poll(bContext *UNUSED(C), wmDrag *drag, wmEvent *UNUSED(event))
+static int path_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
-//    SpaceConsole *sc= CTX_wm_space_console(C);
-	if(drag->type==WM_DRAG_PATH)
+	// SpaceConsole *sc = CTX_wm_space_console(C);
+	if (drag->type == WM_DRAG_PATH)
 		return 1;
 	return 0;
 }
 
 static void path_drop_copy(wmDrag *drag, wmDropBox *drop)
 {
-    char pathname[FILE_MAXDIR+FILE_MAXFILE+2];
-    snprintf(pathname, sizeof(pathname), "\"%s\"", drag->path);
+	char pathname[FILE_MAX + 2];
+	BLI_snprintf(pathname, sizeof(pathname), "\"%s\"", drag->path);
 	RNA_string_set(drop->ptr, "text", pathname);
 }
 
@@ -191,7 +201,7 @@ static void path_drop_copy(wmDrag *drag, wmDropBox *drop)
 /* this region dropbox definition */
 static void console_dropboxes(void)
 {
-	ListBase *lb= WM_dropboxmap_find("Console", SPACE_CONSOLE, RGN_TYPE_WINDOW);
+	ListBase *lb = WM_dropboxmap_find("Console", SPACE_CONSOLE, RGN_TYPE_WINDOW);
 	
 	WM_dropbox_add(lb, "CONSOLE_OT_insert", id_drop_poll, id_drop_copy);
 	WM_dropbox_add(lb, "CONSOLE_OT_insert", path_drop_poll, path_drop_copy);
@@ -202,11 +212,11 @@ static void console_dropboxes(void)
 static void console_main_area_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
-	SpaceConsole *sc= CTX_wm_space_console(C);
-	View2D *v2d= &ar->v2d;
+	SpaceConsole *sc = CTX_wm_space_console(C);
+	View2D *v2d = &ar->v2d;
 	View2DScrollers *scrollers;
 
-	if(sc->scrollback.first==NULL)
+	if (sc->scrollback.first == NULL)
 		WM_operator_name_call((bContext *)C, "CONSOLE_OT_banner", WM_OP_EXEC_DEFAULT, NULL);
 
 	/* clear and setup matrix */
@@ -225,7 +235,7 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_view_restore(C);
 	
 	/* scrollers */
-	scrollers= UI_view2d_scrollers_calc(C, v2d, V2D_ARG_DUMMY, V2D_ARG_DUMMY, V2D_ARG_DUMMY, V2D_GRID_CLAMP);
+	scrollers = UI_view2d_scrollers_calc(C, v2d, V2D_ARG_DUMMY, V2D_ARG_DUMMY, V2D_ARG_DUMMY, V2D_GRID_CLAMP);
 	UI_view2d_scrollers_draw(C, v2d, scrollers);
 	UI_view2d_scrollers_free(scrollers);
 }
@@ -236,12 +246,16 @@ static void console_operatortypes(void)
 	WM_operatortype_append(CONSOLE_OT_move);
 	WM_operatortype_append(CONSOLE_OT_delete);
 	WM_operatortype_append(CONSOLE_OT_insert);
+
+	WM_operatortype_append(CONSOLE_OT_indent);
+	WM_operatortype_append(CONSOLE_OT_unindent);
 	
 	/* for use by python only */
 	WM_operatortype_append(CONSOLE_OT_history_append); 
 	WM_operatortype_append(CONSOLE_OT_scrollback_append);
-	
-	WM_operatortype_append(CONSOLE_OT_clear); 
+
+	WM_operatortype_append(CONSOLE_OT_clear);
+	WM_operatortype_append(CONSOLE_OT_clear_line);
 	WM_operatortype_append(CONSOLE_OT_history_cycle);
 	WM_operatortype_append(CONSOLE_OT_copy);
 	WM_operatortype_append(CONSOLE_OT_paste);
@@ -250,7 +264,7 @@ static void console_operatortypes(void)
 
 static void console_keymap(struct wmKeyConfig *keyconf)
 {
-	wmKeyMap *keymap= WM_keymap_find(keyconf, "Console", SPACE_CONSOLE, 0);
+	wmKeyMap *keymap = WM_keymap_find(keyconf, "Console", SPACE_CONSOLE, 0);
 	wmKeyMapItem *kmi;
 	
 #ifdef __APPLE__
@@ -266,54 +280,55 @@ static void console_keymap(struct wmKeyConfig *keyconf)
 	
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_cycle_int", WHEELUPMOUSE, KM_PRESS, KM_CTRL, 0);
 	RNA_string_set(kmi->ptr, "data_path", "space_data.font_size");
-	RNA_boolean_set(kmi->ptr, "reverse", 0);
+	RNA_boolean_set(kmi->ptr, "reverse", FALSE);
 	
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_cycle_int", WHEELDOWNMOUSE, KM_PRESS, KM_CTRL, 0);
 	RNA_string_set(kmi->ptr, "data_path", "space_data.font_size");
-	RNA_boolean_set(kmi->ptr, "reverse", 1);
+	RNA_boolean_set(kmi->ptr, "reverse", TRUE);
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_cycle_int", PADPLUSKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_string_set(kmi->ptr, "data_path", "space_data.font_size");
-	RNA_boolean_set(kmi->ptr, "reverse", 0);
+	RNA_boolean_set(kmi->ptr, "reverse", FALSE);
 	
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_cycle_int", PADMINUS, KM_PRESS, KM_CTRL, 0);
 	RNA_string_set(kmi->ptr, "data_path", "space_data.font_size");
-	RNA_boolean_set(kmi->ptr, "reverse", 1);
+	RNA_boolean_set(kmi->ptr, "reverse", TRUE);
 
 	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_move", LEFTARROWKEY, KM_PRESS, 0, 0)->ptr, "type", PREV_CHAR);
 	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_move", RIGHTARROWKEY, KM_PRESS, 0, 0)->ptr, "type", NEXT_CHAR);
 	
-	RNA_boolean_set(WM_keymap_add_item(keymap, "CONSOLE_OT_history_cycle", UPARROWKEY, KM_PRESS, 0, 0)->ptr, "reverse", 1);
-	WM_keymap_add_item(keymap, "CONSOLE_OT_history_cycle", DOWNARROWKEY, KM_PRESS, 0, 0);
+	RNA_boolean_set(WM_keymap_add_item(keymap, "CONSOLE_OT_history_cycle", UPARROWKEY, KM_PRESS, 0, 0)->ptr, "reverse", TRUE);
+	RNA_boolean_set(WM_keymap_add_item(keymap, "CONSOLE_OT_history_cycle", DOWNARROWKEY, KM_PRESS, 0, 0)->ptr, "reverse", FALSE);
 	
-	/*
+#if 0
 	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_move", LEFTARROWKEY, KM_PRESS, KM_CTRL, 0)->ptr, "type", PREV_WORD);
 	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_move", RIGHTARROWKEY, KM_PRESS, KM_CTRL, 0)->ptr, "type", NEXT_WORD);
 	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_move", UPARROWKEY, KM_PRESS, 0, 0)->ptr, "type", PREV_LINE);
 	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_move", DOWNARROWKEY, KM_PRESS, 0, 0)->ptr, "type", NEXT_LINE);
 	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_move", PAGEUPKEY, KM_PRESS, 0, 0)->ptr, "type", PREV_PAGE);
 	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_move", PAGEDOWNKEY, KM_PRESS, 0, 0)->ptr, "type", NEXT_PAGE);
-
-
-	//RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_delete", DELKEY, KM_PRESS, 0, 0)->ptr, "type", DEL_NEXT_CHAR);
-	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_delete", DKEY, KM_PRESS, KM_CTRL, 0)->ptr, "type", DEL_NEXT_CHAR);
-	//RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_delete", BACKSPACEKEY, KM_PRESS, 0, 0)->ptr, "type", DEL_PREV_CHAR);
-	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_delete", DELKEY, KM_PRESS, KM_CTRL, 0)->ptr, "type", DEL_NEXT_WORD);
-	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_delete", BACKSPACEKEY, KM_PRESS, KM_CTRL, 0)->ptr, "type", DEL_PREV_WORD);
-	*/
+#endif
 	
 	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_delete", DELKEY, KM_PRESS, 0, 0)->ptr, "type", DEL_NEXT_CHAR);
 	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_delete", BACKSPACEKEY, KM_PRESS, 0, 0)->ptr, "type", DEL_PREV_CHAR);
 	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_delete", BACKSPACEKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "type", DEL_PREV_CHAR);  /* same as above [#26623] */
 
+	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_delete", DELKEY, KM_PRESS, KM_CTRL, 0)->ptr, "type", DEL_NEXT_WORD);
+	RNA_enum_set(WM_keymap_add_item(keymap, "CONSOLE_OT_delete", BACKSPACEKEY, KM_PRESS, KM_CTRL, 0)->ptr, "type", DEL_PREV_WORD);
+
+	WM_keymap_add_item(keymap, "CONSOLE_OT_clear_line", RETKEY, KM_PRESS, KM_SHIFT, 0);
+
 #ifdef WITH_PYTHON
-	WM_keymap_add_item(keymap, "CONSOLE_OT_execute", RETKEY, KM_PRESS, 0, 0); /* python operator - space_text.py */
-	WM_keymap_add_item(keymap, "CONSOLE_OT_execute", PADENTER, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "CONSOLE_OT_execute", RETKEY, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "interactive", true);
+	kmi = WM_keymap_add_item(keymap, "CONSOLE_OT_execute", PADENTER, KM_PRESS, 0, 0);
+	RNA_boolean_set(kmi->ptr, "interactive", true);
 	
 	//WM_keymap_add_item(keymap, "CONSOLE_OT_autocomplete", TABKEY, KM_PRESS, 0, 0); /* python operator - space_text.py */
 	WM_keymap_add_item(keymap, "CONSOLE_OT_autocomplete", SPACEKEY, KM_PRESS, KM_CTRL, 0); /* python operator - space_text.py */
 #endif
 
+	WM_keymap_add_item(keymap, "CONSOLE_OT_copy_as_script", CKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
 	WM_keymap_add_item(keymap, "CONSOLE_OT_copy", CKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "CONSOLE_OT_paste", VKEY, KM_PRESS, KM_CTRL, 0);
 #ifdef __APPLE__
@@ -323,7 +338,11 @@ static void console_keymap(struct wmKeyConfig *keyconf)
 	
 	WM_keymap_add_item(keymap, "CONSOLE_OT_select_set", LEFTMOUSE, KM_PRESS, 0, 0);
 
-	RNA_string_set(WM_keymap_add_item(keymap, "CONSOLE_OT_insert", TABKEY, KM_PRESS, 0, 0)->ptr, "text", "\t"); /* fake tabs */
+	RNA_string_set(WM_keymap_add_item(keymap, "CONSOLE_OT_insert", TABKEY, KM_PRESS, KM_CTRL, 0)->ptr, "text", "\t"); /* fake tabs */
+
+	WM_keymap_add_item(keymap, "CONSOLE_OT_indent", TABKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "CONSOLE_OT_unindent", TABKEY, KM_PRESS, KM_SHIFT, 0);
+
 	WM_keymap_add_item(keymap, "CONSOLE_OT_insert", KM_TEXTINPUT, KM_ANY, KM_ANY, 0); // last!
 }
 
@@ -340,14 +359,14 @@ static void console_header_area_draw(const bContext *C, ARegion *ar)
 	ED_region_header(C, ar);
 }
 
-static void console_main_area_listener(ARegion *ar, wmNotifier *wmn)
+static void console_main_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
 {
-	// SpaceInfo *sinfo= sa->spacedata.first;
+	// SpaceInfo *sinfo = sa->spacedata.first;
 
 	/* context changes */
-	switch(wmn->category) {
+	switch (wmn->category) {
 		case NC_SPACE:
-			if(wmn->data == ND_SPACE_CONSOLE) { /* generic redraw request */
+			if (wmn->data == ND_SPACE_CONSOLE) { /* generic redraw request */
 				ED_region_tag_redraw(ar);
 			}
 			break;
@@ -357,41 +376,41 @@ static void console_main_area_listener(ARegion *ar, wmNotifier *wmn)
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_console(void)
 {
-	SpaceType *st= MEM_callocN(sizeof(SpaceType), "spacetype console");
+	SpaceType *st = MEM_callocN(sizeof(SpaceType), "spacetype console");
 	ARegionType *art;
 	
-	st->spaceid= SPACE_CONSOLE;
+	st->spaceid = SPACE_CONSOLE;
 	strncpy(st->name, "Console", BKE_ST_MAXNAME);
 	
-	st->new= console_new;
-	st->free= console_free;
-	st->init= console_init;
-	st->duplicate= console_duplicate;
-	st->operatortypes= console_operatortypes;
-	st->keymap= console_keymap;
-	st->dropboxes= console_dropboxes;
+	st->new = console_new;
+	st->free = console_free;
+	st->init = console_init;
+	st->duplicate = console_duplicate;
+	st->operatortypes = console_operatortypes;
+	st->keymap = console_keymap;
+	st->dropboxes = console_dropboxes;
 	
 	/* regions: main window */
-	art= MEM_callocN(sizeof(ARegionType), "spacetype console region");
+	art = MEM_callocN(sizeof(ARegionType), "spacetype console region");
 	art->regionid = RGN_TYPE_WINDOW;
-	art->keymapflag= ED_KEYMAP_UI|ED_KEYMAP_VIEW2D;
+	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D;
 
-	art->init= console_main_area_init;
-	art->draw= console_main_area_draw;
-	art->listener= console_main_area_listener;
+	art->init = console_main_area_init;
+	art->draw = console_main_area_draw;
+	art->listener = console_main_area_listener;
 	
 	
 
 	BLI_addhead(&st->regiontypes, art);
 	
 	/* regions: header */
-	art= MEM_callocN(sizeof(ARegionType), "spacetype console region");
+	art = MEM_callocN(sizeof(ARegionType), "spacetype console region");
 	art->regionid = RGN_TYPE_HEADER;
-	art->prefsizey= HEADERY;
-	art->keymapflag= ED_KEYMAP_UI|ED_KEYMAP_VIEW2D|ED_KEYMAP_HEADER;
+	art->prefsizey = HEADERY;
+	art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
 	
-	art->init= console_header_area_init;
-	art->draw= console_header_area_draw;
+	art->init = console_header_area_init;
+	art->draw = console_header_area_draw;
 	
 	BLI_addhead(&st->regiontypes, art);
 

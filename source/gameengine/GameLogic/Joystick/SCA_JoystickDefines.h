@@ -29,18 +29,18 @@
  *  \ingroup gamelogic
  */
 
-#ifndef _SCA_JOYSTICKDEFINES_H_
-#define _SCA_JOYSTICKDEFINES_H_
+#ifndef __SCA_JOYSTICKDEFINES_H__
+#define __SCA_JOYSTICKDEFINES_H__
 
 #ifdef main
 #undef main
 #endif
 
 #ifndef _DEBUG
-#define echo(x)
+#  define JOYSTICK_ECHO(x)
 #else
-#include <iostream>
-#define echo(x) std::cout << x << std::endl;
+#  include <iostream>
+#  define JOYSTICK_ECHO(x) std::cout << x << std::endl;
 #endif
 
 #define JOYINDEX_MAX			8

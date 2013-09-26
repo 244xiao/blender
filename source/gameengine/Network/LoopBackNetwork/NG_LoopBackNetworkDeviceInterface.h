@@ -1,6 +1,4 @@
 /*
- * $Id: NG_LoopBackNetworkDeviceInterface.h 35072 2011-02-22 12:42:55Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -31,14 +29,14 @@
  *  \ingroup bgenetlb
  *  \brief LoopbackNetworkDeviceInterface derived from NG_NetworkDeviceInterface
  */
-#ifndef NG_LOOPBACKNETWORKDEVICEINTERFACE_H
-#define NG_LOOPBACKNETWORKDEVICEINTERFACE_H
+#ifndef __NG_LOOPBACKNETWORKDEVICEINTERFACE_H__
+#define __NG_LOOPBACKNETWORKDEVICEINTERFACE_H__
 
 #include <deque>
 #include "NG_NetworkDeviceInterface.h"
 
 class NG_LoopBackNetworkDeviceInterface : public NG_NetworkDeviceInterface
-{	
+{
 	std::deque<NG_NetworkMessage*> m_messages[2];
 	int		m_currentQueue;
 
@@ -47,18 +45,19 @@ public:
 	virtual ~NG_LoopBackNetworkDeviceInterface();
 
 	/**
-	  * Clear message buffer
-	  */
+	 * Clear message buffer
+	 */
 	virtual void NextFrame();
 
 	bool Connect(char *address, unsigned int port, char *password,
-		     unsigned int localport, unsigned int timeout) {
-	    return true;}
+	             unsigned int localport, unsigned int timeout)
+	{
+		return true;
+	}
 	bool Disconnect(void) {return true;}
 
 	virtual void SendNetworkMessage(class NG_NetworkMessage* msg);
-	virtual vector<NG_NetworkMessage*>		RetrieveNetworkMessages();
+	virtual std::vector<NG_NetworkMessage*>		RetrieveNetworkMessages();
 };
 
-#endif //NG_LOOPBACKNETWORKDEVICEINTERFACE_H
-
+#endif  /* __NG_LOOPBACKNETWORKDEVICEINTERFACE_H__ */

@@ -1,6 +1,4 @@
-/* 
- * $Id: occlusion.h 35233 2011-02-27 19:31:27Z jesterking $
- *
+/*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +30,8 @@
  */
 
 
-#ifndef OCCLUSION_H
-#define OCCLUSION_H
+#ifndef __OCCLUSION_H__
+#define __OCCLUSION_H__
 
 struct Render;
 struct ShadeInput;

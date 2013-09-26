@@ -1,6 +1,5 @@
 /*
  * Operator1Expr.h: interface for the COperator1Expr class.
- * $Id: Operator1Expr.h 35063 2011-02-22 10:33:14Z jesterking $
  * Copyright (c) 1996-2000 Erwin Coumans <coockie@acm.org>
  *
  * Permission to use, copy, modify, distribute and sell this software
@@ -17,8 +16,8 @@
  *  \ingroup expressions
  */
 
-#if !defined(AFX_OPERATOR1EXPR_H__A1653901_BF41_11D1_A51C_00A02472FC58__INCLUDED_)
-#define AFX_OPERATOR1EXPR_H__A1653901_BF41_11D1_A51C_00A02472FC58__INCLUDED_
+#ifndef __OPERATOR1EXPR_H__
+#define __OPERATOR1EXPR_H__
 
 #include "Expression.h"
 
@@ -32,7 +31,7 @@ public:
 	virtual bool MergeExpression(CExpression* otherexpr);
 	virtual void BroadcastOperators(VALUE_OPERATOR op);
 
-	virtual unsigned char GetExpressionID() { return COPERATOR1EXPRESSIONID;};
+	virtual unsigned char GetExpressionID() { return COPERATOR1EXPRESSIONID; }
 	CExpression* CheckLink(std::vector<CBrokenLinkInfo*>& brokenlinks);
 	//virtual bool IsInside(float x,float y,float z,bool bBorderInclude = true);
 	virtual	bool NeedsRecalculated();
@@ -53,11 +52,8 @@ private:
 
 
 #ifdef WITH_CXX_GUARDEDALLOC
-public:
-	void *operator new(size_t num_bytes) { return MEM_mallocN(num_bytes, "GE:COperator1Expr"); }
-	void operator delete( void *mem ) { MEM_freeN(mem); }
+	MEM_CXX_CLASS_ALLOC_FUNCS("GE:")
 #endif
 };
 
-#endif // !defined(AFX_OPERATOR1EXPR_H__A1653901_BF41_11D1_A51C_00A02472FC58__INCLUDED_)
-
+#endif  /* __OPERATOR1EXPR_H__ */

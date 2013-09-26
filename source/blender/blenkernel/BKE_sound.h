@@ -1,6 +1,4 @@
 /*
- * $Id: BKE_sound.h 36092 2011-04-10 22:40:37Z nexyon $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,8 +24,8 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef BKE_SOUND_H
-#define BKE_SOUND_H
+#ifndef __BKE_SOUND_H__
+#define __BKE_SOUND_H__
 
 /** \file BKE_sound.h
  *  \ingroup bke
@@ -35,43 +33,54 @@
  *  \author nzc
  */
 
+#define SOUND_WAVE_SAMPLES_PER_SECOND 250
+
 struct PackedFile;
 struct bSound;
-struct bContext;
 struct ListBase;
 struct Main;
 struct Sequence;
 
+typedef struct SoundWaveform {
+	int length;
+	float *data;
+} SoundWaveform;
+
 void sound_init_once(void);
+void sound_exit_once(void);
 
 void sound_init(struct Main *main);
+
+void sound_init_main(struct Main *bmain);
 
 void sound_exit(void);
 
 void sound_force_device(int device);
 int sound_define_from_str(const char *str);
 
-struct bSound* sound_new_file(struct Main *main, const char *filename);
+struct bSound *sound_new_file(struct Main *main, const char *filename);
 
 // XXX unused currently
 #if 0
-struct bSound* sound_new_buffer(struct bContext *C, struct bSound *source);
+struct bSound *sound_new_buffer(struct Main *bmain, struct bSound *source);
 
-struct bSound* sound_new_limiter(struct bContext *C, struct bSound *source, float start, float end);
+struct bSound *sound_new_limiter(struct Main *bmain, struct bSound *source, float start, float end);
 #endif
 
-void sound_delete(struct bContext *C, struct bSound* sound);
+void sound_delete(struct Main *bmain, struct bSound *sound);
 
-void sound_cache(struct bSound* sound, int ignore);
+void sound_cache(struct bSound *sound);
 
-void sound_delete_cache(struct bSound* sound);
+void sound_cache_notifying(struct Main *main, struct bSound *sound);
 
-void sound_load(struct Main *main, struct bSound* sound);
+void sound_delete_cache(struct bSound *sound);
 
-void sound_free(struct bSound* sound);
+void sound_load(struct Main *main, struct bSound *sound);
 
-#ifdef AUD_CAPI
-AUD_Device* sound_mixdown(struct Scene *scene, AUD_DeviceSpecs specs, int start, float volume);
+void BKE_sound_free(struct bSound *sound);
+
+#ifdef __AUD_C_API_H__
+AUD_Device *sound_mixdown(struct Scene *scene, AUD_DeviceSpecs specs, int start, float volume);
 #endif
 
 void sound_create_scene(struct Scene *scene);
@@ -80,28 +89,57 @@ void sound_destroy_scene(struct Scene *scene);
 
 void sound_mute_scene(struct Scene *scene, int muted);
 
-void* sound_scene_add_scene_sound(struct Scene *scene, struct Sequence* sequence, int startframe, int endframe, int frameskip);
+void sound_update_fps(struct Scene *scene);
 
-void* sound_add_scene_sound(struct Scene *scene, struct Sequence* sequence, int startframe, int endframe, int frameskip);
+void sound_update_scene_listener(struct Scene *scene);
 
-void sound_remove_scene_sound(struct Scene *scene, void* handle);
+void *sound_scene_add_scene_sound(struct Scene *scene, struct Sequence *sequence, int startframe, int endframe, int frameskip);
+void *sound_scene_add_scene_sound_defaults(struct Scene *scene, struct Sequence *sequence);
 
-void sound_mute_scene_sound(struct Scene *scene, void* handle, char mute);
+void *sound_add_scene_sound(struct Scene *scene, struct Sequence *sequence, int startframe, int endframe, int frameskip);
+void *sound_add_scene_sound_defaults(struct Scene *scene, struct Sequence *sequence);
 
-void sound_move_scene_sound(struct Scene *scene, void* handle, int startframe, int endframe, int frameskip);
+void sound_remove_scene_sound(struct Scene *scene, void *handle);
+
+void sound_mute_scene_sound(void *handle, char mute);
+
+void sound_move_scene_sound(struct Scene *scene, void *handle, int startframe, int endframe, int frameskip);
+void sound_move_scene_sound_defaults(struct Scene *scene, struct Sequence *sequence);
+
+void sound_update_scene_sound(void *handle, struct bSound *sound);
+
+void sound_set_cfra(int cfra);
+
+void sound_set_scene_volume(struct Scene *scene, float volume);
+
+void sound_set_scene_sound_volume(void *handle, float volume, char animated);
+
+void sound_set_scene_sound_pitch(void *handle, float pitch, char animated);
+
+void sound_set_scene_sound_pan(void *handle, float pan, char animated);
+
+void sound_update_sequencer(struct Main *main, struct bSound *sound);
 
 void sound_play_scene(struct Scene *scene);
 
 void sound_stop_scene(struct Scene *scene);
 
-void sound_seek_scene(struct bContext *C);
+void sound_seek_scene(struct Main *bmain, struct Scene *scene);
 
 float sound_sync_scene(struct Scene *scene);
 
 int sound_scene_playing(struct Scene *scene);
 
-int sound_read_sound_buffer(struct bSound* sound, float* buffer, int length, float start, float end);
+void sound_free_waveform(struct bSound *sound);
 
-int sound_get_channels(struct bSound* sound);
+void sound_read_waveform(struct bSound *sound);
+
+void sound_update_scene(struct Scene *scene);
+
+void *sound_get_factory(void *sound);
+
+float sound_get_length(struct bSound *sound);
+
+int sound_is_jack_supported(void);
 
 #endif

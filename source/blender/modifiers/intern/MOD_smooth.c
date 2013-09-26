@@ -1,34 +1,32 @@
 /*
-* $Id: MOD_smooth.c 35817 2011-03-27 13:49:53Z campbellbarton $
-*
-* ***** BEGIN GPL LICENSE BLOCK *****
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License
-* as published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software  Foundation,
-* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-* The Original Code is Copyright (C) 2005 by the Blender Foundation.
-* All rights reserved.
-*
-* Contributor(s): Daniel Dunbar
-*                 Ton Roosendaal,
-*                 Ben Batt,
-*                 Brecht Van Lommel,
-*                 Campbell Barton
-*
-* ***** END GPL LICENSE BLOCK *****
-*
-*/
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software  Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2005 by the Blender Foundation.
+ * All rights reserved.
+ *
+ * Contributor(s): Daniel Dunbar
+ *                 Ton Roosendaal,
+ *                 Ben Batt,
+ *                 Brecht Van Lommel,
+ *                 Campbell Barton
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ *
+ */
 
 /** \file blender/modifiers/intern/MOD_smooth.c
  *  \ingroup modifiers
@@ -39,13 +37,13 @@
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_string.h"
+
+#include "MEM_guardedalloc.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_particle.h"
 #include "BKE_deform.h"
-
-
-#include "MEM_guardedalloc.h"
 
 #include "MOD_modifiertypes.h"
 #include "MOD_util.h"
@@ -53,7 +51,7 @@
 
 static void initData(ModifierData *md)
 {
-	SmoothModifierData *smd = (SmoothModifierData*) md;
+	SmoothModifierData *smd = (SmoothModifierData *) md;
 
 	smd->fac = 0.5f;
 	smd->repeat = 1;
@@ -63,24 +61,24 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
-	SmoothModifierData *smd = (SmoothModifierData*) md;
-	SmoothModifierData *tsmd = (SmoothModifierData*) target;
+	SmoothModifierData *smd = (SmoothModifierData *) md;
+	SmoothModifierData *tsmd = (SmoothModifierData *) target;
 
 	tsmd->fac = smd->fac;
 	tsmd->repeat = smd->repeat;
 	tsmd->flag = smd->flag;
-	strncpy(tsmd->defgrp_name, smd->defgrp_name, 32);
+	BLI_strncpy(tsmd->defgrp_name, smd->defgrp_name, sizeof(tsmd->defgrp_name));
 }
 
-static int isDisabled(ModifierData *md, int UNUSED(useRenderParams))
+static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 {
-	SmoothModifierData *smd = (SmoothModifierData*) md;
+	SmoothModifierData *smd = (SmoothModifierData *) md;
 	short flag;
 
-	flag = smd->flag & (MOD_SMOOTH_X|MOD_SMOOTH_Y|MOD_SMOOTH_Z);
+	flag = smd->flag & (MOD_SMOOTH_X | MOD_SMOOTH_Y | MOD_SMOOTH_Z);
 
 	/* disable if modifier is off for X, Y and Z or if factor is 0 */
-	if((smd->fac == 0.0f) || flag == 0) return 1;
+	if ((smd->fac == 0.0f) || flag == 0) return 1;
 
 	return 0;
 }
@@ -91,14 +89,14 @@ static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
 	CustomDataMask dataMask = 0;
 
 	/* ask for vertexgroups if we need them */
-	if(smd->defgrp_name[0]) dataMask |= CD_MASK_MDEFORMVERT;
+	if (smd->defgrp_name[0]) dataMask |= CD_MASK_MDEFORMVERT;
 
 	return dataMask;
 }
 
 static void smoothModifier_do(
-				  SmoothModifierData *smd, Object *ob, DerivedMesh *dm,
-	 float (*vertexCos)[3], int numVerts)
+        SmoothModifierData *smd, Object *ob, DerivedMesh *dm,
+        float (*vertexCos)[3], int numVerts)
 {
 	MDeformVert *dvert = NULL;
 	MEdge *medges = NULL;
@@ -107,11 +105,11 @@ static void smoothModifier_do(
 	unsigned char *uctmp;
 	float *ftmp, fac, facm;
 
-	ftmp = (float*)MEM_callocN(3*sizeof(float)*numVerts,
-		"smoothmodifier_f");
+	ftmp = (float *)MEM_callocN(3 * sizeof(float) * numVerts,
+	                            "smoothmodifier_f");
 	if (!ftmp) return;
-	uctmp = (unsigned char*)MEM_callocN(sizeof(unsigned char)*numVerts,
-		 "smoothmodifier_uc");
+	uctmp = (unsigned char *)MEM_callocN(sizeof(unsigned char) * numVerts,
+	                                     "smoothmodifier_uc");
 	if (!uctmp) {
 		if (ftmp) MEM_freeN(ftmp);
 		return;
@@ -120,16 +118,19 @@ static void smoothModifier_do(
 	fac = smd->fac;
 	facm = 1 - fac;
 
-	medges = dm->getEdgeArray(dm);
-	numDMEdges = dm->getNumEdges(dm);
+	if (dm->getNumVerts(dm) == numVerts) {
+		medges = dm->getEdgeArray(dm);
+		numDMEdges = dm->getNumEdges(dm);
+	}
+	else {
+		medges = NULL;
+		numDMEdges = 0;
+	}
 
-	defgrp_index = defgroup_name_index(ob, smd->defgrp_name);
-
-	if (defgrp_index >= 0)
-		dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
+	modifier_get_vgroup(ob, dm, smd->defgrp_name, &dvert, &defgrp_index);
 
 	/* NOTICE: this can be optimized a little bit by moving the
-	* if (dvert) out of the loop, if needed */
+	 * if (dvert) out of the loop, if needed */
 	for (j = 0; j < smd->repeat; j++) {
 		for (i = 0; i < numDMEdges; i++) {
 			float fvec[3];
@@ -144,8 +145,8 @@ static void smoothModifier_do(
 
 			mid_v3_v3v3(fvec, v1, v2);
 
-			v1 = &ftmp[idx1*3];
-			v2 = &ftmp[idx2*3];
+			v1 = &ftmp[idx1 * 3];
+			v2 = &ftmp[idx2 * 3];
 
 			if (uctmp[idx1] < 255) {
 				uctmp[idx1]++;
@@ -158,24 +159,19 @@ static void smoothModifier_do(
 		}
 
 		if (dvert) {
-			for (i = 0; i < numVerts; i++) {
-				MDeformWeight *dw = NULL;
+			MDeformVert *dv = dvert;
+			for (i = 0; i < numVerts; i++, dv++) {
 				float f, fm, facw, *fp, *v;
-				int k;
 				short flag = smd->flag;
 
 				v = vertexCos[i];
-				fp = &ftmp[i*3];
+				fp = &ftmp[i * 3];
 
-				for (k = 0; k < dvert[i].totweight; ++k) {
-					if(dvert[i].dw[k].def_nr == defgrp_index) {
-						dw = &dvert[i].dw[k];
-						break;
-					}
-				}
-				if (!dw) continue;
 
-				f = fac * dw->weight;
+				f = defvert_find_weight(dv, defgrp_index);
+				if (f <= 0.0f) continue;
+
+				f *= fac;
 				fm = 1.0f - f;
 
 				/* fp is the sum of uctmp[i] verts, so must be averaged */
@@ -197,7 +193,7 @@ static void smoothModifier_do(
 				short flag = smd->flag;
 
 				v = vertexCos[i];
-				fp = &ftmp[i*3];
+				fp = &ftmp[i * 3];
 
 				/* fp is the sum of uctmp[i] verts, so must be averaged */
 				facw = 0.0f;
@@ -214,37 +210,36 @@ static void smoothModifier_do(
 
 		}
 
-		memset(ftmp, 0, 3*sizeof(float)*numVerts);
-		memset(uctmp, 0, sizeof(unsigned char)*numVerts);
+		memset(ftmp, 0, 3 * sizeof(float) * numVerts);
+		memset(uctmp, 0, sizeof(unsigned char) * numVerts);
 	}
 
 	MEM_freeN(ftmp);
 	MEM_freeN(uctmp);
 }
 
-static void deformVerts(
-					   ModifierData *md, Object *ob, DerivedMesh *derivedData,
-	   float (*vertexCos)[3], int numVerts, int UNUSED(useRenderParams), int UNUSED(isFinalCalc))
+static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData,
+                        float (*vertexCos)[3], int numVerts, ModifierApplyFlag UNUSED(flag))
 {
-	DerivedMesh *dm= get_dm(ob, NULL, derivedData, NULL, 0);
+	DerivedMesh *dm = get_dm(ob, NULL, derivedData, NULL, false, false);
 
 	smoothModifier_do((SmoothModifierData *)md, ob, dm,
-			   vertexCos, numVerts);
+	                  vertexCos, numVerts);
 
-	if(dm != derivedData)
+	if (dm != derivedData)
 		dm->release(dm);
 }
 
 static void deformVertsEM(
-					 ModifierData *md, Object *ob, struct EditMesh *editData,
-	  DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
+        ModifierData *md, Object *ob, struct BMEditMesh *editData,
+        DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
-	DerivedMesh *dm= get_dm(ob, editData, derivedData, NULL, 0);
+	DerivedMesh *dm = get_dm(ob, editData, derivedData, NULL, false, false);
 
 	smoothModifier_do((SmoothModifierData *)md, ob, dm,
-			   vertexCos, numVerts);
+	                  vertexCos, numVerts);
 
-	if(dm != derivedData)
+	if (dm != derivedData)
 		dm->release(dm);
 }
 
@@ -254,8 +249,9 @@ ModifierTypeInfo modifierType_Smooth = {
 	/* structName */        "SmoothModifierData",
 	/* structSize */        sizeof(SmoothModifierData),
 	/* type */              eModifierTypeType_OnlyDeform,
-	/* flags */             eModifierTypeFlag_AcceptsMesh
-							| eModifierTypeFlag_SupportsEditmode,
+	/* flags */             eModifierTypeFlag_AcceptsMesh |
+	                        eModifierTypeFlag_AcceptsCVs |
+	                        eModifierTypeFlag_SupportsEditmode,
 
 	/* copyData */          copyData,
 	/* deformVerts */       deformVerts,
@@ -273,4 +269,5 @@ ModifierTypeInfo modifierType_Smooth = {
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ NULL,
 	/* foreachIDLink */     NULL,
+	/* foreachTexLink */    NULL,
 };

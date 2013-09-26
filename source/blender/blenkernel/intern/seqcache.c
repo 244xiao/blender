@@ -1,6 +1,4 @@
 /*
-* $Id: seqcache.c 35247 2011-02-27 20:40:57Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -19,6 +17,8 @@
  *
  * Peter Schlaile <peter [at] schlaile [dot] de> 2010
  *
+ * Contributor(s): Sergey Sharybin
+ *
  * ***** END GPL LICENSE BLOCK *****
  */
 
@@ -26,65 +26,135 @@
  *  \ingroup bke
  */
 
-
 #include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
+
+#include "BLI_sys_types.h"  /* for intptr_t */
 
 #include "MEM_guardedalloc.h"
-#include "MEM_CacheLimiterC-Api.h"
 
 #include "DNA_sequence_types.h"
-#include "BKE_sequencer.h"
-#include "BLI_utildefines.h"
-#include "BLI_ghash.h"
-#include "BLI_mempool.h"
-#include <pthread.h>
 
+#include "IMB_moviecache.h"
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
-typedef struct seqCacheKey 
-{
-	struct Sequence * seq;
+#include "BLI_listbase.h"
+
+#include "BKE_sequencer.h"
+
+typedef struct SeqCacheKey {
+	struct Sequence *seq;
 	SeqRenderData context;
 	float cfra;
 	seq_stripelem_ibuf_t type;
-} seqCacheKey;
+} SeqCacheKey;
 
-typedef struct seqCacheEntry
+typedef struct SeqPreprocessCacheElem {
+	struct SeqPreprocessCacheElem *next, *prev;
+
+	struct Sequence *seq;
+	SeqRenderData context;
+	seq_stripelem_ibuf_t type;
+
+	ImBuf *ibuf;
+} SeqPreprocessCacheElem;
+
+typedef struct SeqPreprocessCache {
+	int cfra;
+	ListBase elems;
+} SeqPreprocessCache;
+
+static struct MovieCache *moviecache = NULL;
+static struct SeqPreprocessCache *preprocess_cache = NULL;
+
+static void preprocessed_cache_destruct(void);
+
+static int seq_cmp_render_data(const SeqRenderData *a, const SeqRenderData *b)
 {
-	ImBuf * ibuf;
-	MEM_CacheLimiterHandleC * c_handle;
-} seqCacheEntry;
+	if (a->preview_render_size < b->preview_render_size) {
+		return -1;
+	}
+	if (a->preview_render_size > b->preview_render_size) {
+		return 1;
+	}
 
-static GHash * hash = NULL;
-static MEM_CacheLimiterC * limitor = NULL;
-static struct BLI_mempool * entrypool = NULL;
-static struct BLI_mempool * keypool = NULL;
-static int ibufs_in  = 0;
-static int ibufs_rem = 0;
+	if (a->rectx < b->rectx) {
+		return -1;
+	}
+	if (a->rectx > b->rectx) {
+		return 1;
+	}
 
-static unsigned int HashHash(const void *key_)
+	if (a->recty < b->recty) {
+		return -1;
+	}
+	if (a->recty > b->recty) {
+		return 1;
+	}
+
+	if (a->bmain < b->bmain) {
+		return -1;
+	}
+	if (a->bmain > b->bmain) {
+		return 1;
+	}
+
+	if (a->scene < b->scene) {
+		return -1;
+	}
+	if (a->scene > b->scene) {
+		return 1;
+	}
+
+	if (a->motion_blur_shutter < b->motion_blur_shutter) {
+		return -1;
+	}
+	if (a->motion_blur_shutter > b->motion_blur_shutter) {
+		return 1;
+	}
+
+	if (a->motion_blur_samples < b->motion_blur_samples) {
+		return -1;
+	}
+	if (a->motion_blur_samples > b->motion_blur_samples) {
+		return 1;
+	}
+
+	return 0;
+}
+
+static unsigned int seq_hash_render_data(const SeqRenderData *a)
 {
-	const seqCacheKey *key = (seqCacheKey*) key_;
+	unsigned int rval = a->rectx + a->recty;
+
+	rval ^= a->preview_render_size;
+	rval ^= ((intptr_t) a->bmain) << 6;
+	rval ^= ((intptr_t) a->scene) << 6;
+	rval ^= (int)(a->motion_blur_shutter * 100.0f) << 10;
+	rval ^= a->motion_blur_samples << 24;
+
+	return rval;
+}
+
+static unsigned int seqcache_hashhash(const void *key_)
+{
+	const SeqCacheKey *key = (SeqCacheKey *) key_;
 	unsigned int rval = seq_hash_render_data(&key->context);
 
-	rval ^= *(unsigned int*) &key->cfra;
+	rval ^= *(unsigned int *) &key->cfra;
 	rval += key->type;
 	rval ^= ((intptr_t) key->seq) << 6;
 
 	return rval;
 }
 
-static int HashCmp(const void *a_, const void *b_)
+static int seqcache_hashcmp(const void *a_, const void *b_)
 {
-	const seqCacheKey * a = (seqCacheKey*) a_;
-	const seqCacheKey * b = (seqCacheKey*) b_;
+	const SeqCacheKey *a = (SeqCacheKey *) a_;
+	const SeqCacheKey *b = (SeqCacheKey *) b_;
 
 	if (a->seq < b->seq) {
-		return -1;		
+		return -1;
 	}
 	if (a->seq > b->seq) {
 		return 1;
@@ -107,151 +177,167 @@ static int HashCmp(const void *a_, const void *b_)
 	return seq_cmp_render_data(&a->context, &b->context);
 }
 
-static void HashKeyFree(void *key)
+void BKE_sequencer_cache_destruct(void)
 {
-	BLI_mempool_free(keypool, key);
+	if (moviecache)
+		IMB_moviecache_free(moviecache);
+
+	preprocessed_cache_destruct();
 }
 
-static void HashValFree(void *val)
+void BKE_sequencer_cache_cleanup(void)
 {
-	seqCacheEntry* e = (seqCacheEntry*) val;
-
-	if (e->ibuf) {
-		/* fprintf(stderr, "Removing: %p, cnt: %d\n", e->ibuf, 
-		   e->ibuf->refcounter); */
-		IMB_freeImBuf(e->ibuf);
-		MEM_CacheLimiter_unmanage(e->c_handle);
-		ibufs_rem++;
+	if (moviecache) {
+		IMB_moviecache_free(moviecache);
+		moviecache = IMB_moviecache_create("seqcache", sizeof(SeqCacheKey), seqcache_hashhash, seqcache_hashcmp);
 	}
 
-	e->ibuf = NULL;
-	e->c_handle = NULL;
-
-	BLI_mempool_free(entrypool, e);
+	BKE_sequencer_preprocessed_cache_cleanup();
 }
 
-static void IMB_seq_cache_destructor(void * p)
+static int seqcache_key_check_seq(void *userkey, void *userdata)
 {
-	seqCacheEntry* e = (seqCacheEntry*) p;
-	
-	if (e && e->ibuf) {
-		/* fprintf(stderr, "Removing: %p, cnt: %d\n", e->ibuf,
-		   e->ibuf->refcounter); */
-		IMB_freeImBuf(e->ibuf);
-		ibufs_rem++;
+	SeqCacheKey *key = (SeqCacheKey *) userkey;
+	Sequence *seq = (Sequence *) userdata;
 
-		e->ibuf = NULL;
-		e->c_handle = NULL;
+	return key->seq == seq;
+}
+
+void BKE_sequencer_cache_cleanup_sequence(Sequence *seq)
+{
+	if (moviecache)
+		IMB_moviecache_cleanup(moviecache, seqcache_key_check_seq, seq);
+}
+
+struct ImBuf *BKE_sequencer_cache_get(SeqRenderData context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type)
+{
+	if (moviecache && seq) {
+		SeqCacheKey key;
+
+		key.seq = seq;
+		key.context = context;
+		key.cfra = cfra - seq->start;
+		key.type = type;
+
+		return IMB_moviecache_get(moviecache, &key);
 	}
+
+	return NULL;
 }
 
-void seq_stripelem_cache_init(void)
+void BKE_sequencer_cache_put(SeqRenderData context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type, ImBuf *i)
 {
-	hash = BLI_ghash_new(HashHash, HashCmp, "seq stripelem cache hash");
-	limitor = new_MEM_CacheLimiter( IMB_seq_cache_destructor );
+	SeqCacheKey key;
 
-	entrypool = BLI_mempool_create(sizeof(seqCacheEntry), 64, 64, 0);
-	keypool = BLI_mempool_create(sizeof(seqCacheKey), 64, 64, 0);
-}
-
-void seq_stripelem_cache_destruct(void)
-{
-	if (!entrypool) {
+	if (!i) {
 		return;
 	}
-	BLI_ghash_free(hash, HashKeyFree, HashValFree);
-	delete_MEM_CacheLimiter(limitor);
-	BLI_mempool_destroy(entrypool);
-	BLI_mempool_destroy(keypool);
-}
 
-void seq_stripelem_cache_cleanup(void)
-{
-	if (!entrypool) {
-		seq_stripelem_cache_init();
-	}
-
-	/* fprintf(stderr, "Stats before cleanup: in: %d rem: %d\n",
-	   ibufs_in, ibufs_rem); */
-
-	BLI_ghash_free(hash, HashKeyFree, HashValFree);
-	hash = BLI_ghash_new(HashHash, HashCmp, "seq stripelem cache hash");
-
-	/* fprintf(stderr, "Stats after cleanup: in: %d rem: %d\n",
-	   ibufs_in, ibufs_rem); */
-
-}
-
-struct ImBuf * seq_stripelem_cache_get(
-	SeqRenderData context, struct Sequence * seq, 
-	float cfra, seq_stripelem_ibuf_t type)
-{
-	seqCacheKey key;
-	seqCacheEntry * e;
-
-	if (!seq) {
-		return NULL;
-	}
-
-	if (!entrypool) {
-		seq_stripelem_cache_init();
+	if (!moviecache) {
+		moviecache = IMB_moviecache_create("seqcache", sizeof(SeqCacheKey), seqcache_hashhash, seqcache_hashcmp);
 	}
 
 	key.seq = seq;
 	key.context = context;
 	key.cfra = cfra - seq->start;
 	key.type = type;
-	
-	e = (seqCacheEntry*) BLI_ghash_lookup(hash, &key);
 
-	if (e && e->ibuf) {
-		IMB_refImBuf(e->ibuf);
+	IMB_moviecache_put(moviecache, &key, i);
+}
 
-		MEM_CacheLimiter_touch(e->c_handle);
-		return e->ibuf;
+void BKE_sequencer_preprocessed_cache_cleanup(void)
+{
+	SeqPreprocessCacheElem *elem;
+
+	if (!preprocess_cache)
+		return;
+
+	for (elem = preprocess_cache->elems.first; elem; elem = elem->next) {
+		IMB_freeImBuf(elem->ibuf);
 	}
+	BLI_freelistN(&preprocess_cache->elems);
+
+	preprocess_cache->elems.first = preprocess_cache->elems.last = NULL;
+}
+
+static void preprocessed_cache_destruct(void)
+{
+	if (!preprocess_cache)
+		return;
+
+	BKE_sequencer_preprocessed_cache_cleanup();
+
+	MEM_freeN(preprocess_cache);
+	preprocess_cache = NULL;
+}
+
+ImBuf *BKE_sequencer_preprocessed_cache_get(SeqRenderData context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type)
+{
+	SeqPreprocessCacheElem *elem;
+
+	if (!preprocess_cache)
+		return NULL;
+
+	if (preprocess_cache->cfra != cfra)
+		return NULL;
+
+	for (elem = preprocess_cache->elems.first; elem; elem = elem->next) {
+		if (elem->seq != seq)
+			continue;
+
+		if (elem->type != type)
+			continue;
+
+		if (seq_cmp_render_data(&elem->context, &context) != 0)
+			continue;
+
+		IMB_refImBuf(elem->ibuf);
+		return elem->ibuf;
+	}
+
 	return NULL;
 }
 
-void seq_stripelem_cache_put(
-	SeqRenderData context, struct Sequence * seq, 
-	float cfra, seq_stripelem_ibuf_t type, struct ImBuf * i)
+void BKE_sequencer_preprocessed_cache_put(SeqRenderData context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type, ImBuf *ibuf)
 {
-	seqCacheKey * key;
-	seqCacheEntry * e;
+	SeqPreprocessCacheElem *elem;
 
-	if (!i) {
+	if (!preprocess_cache) {
+		preprocess_cache = MEM_callocN(sizeof(SeqPreprocessCache), "sequencer preprocessed cache");
+	}
+	else {
+		if (preprocess_cache->cfra != cfra)
+			BKE_sequencer_preprocessed_cache_cleanup();
+	}
+
+	elem = MEM_callocN(sizeof(SeqPreprocessCacheElem), "sequencer preprocessed cache element");
+
+	elem->seq = seq;
+	elem->type = type;
+	elem->context = context;
+	elem->ibuf = ibuf;
+
+	preprocess_cache->cfra = cfra;
+
+	IMB_refImBuf(ibuf);
+
+	BLI_addtail(&preprocess_cache->elems, elem);
+}
+
+void BKE_sequencer_preprocessed_cache_cleanup_sequence(Sequence *seq)
+{
+	SeqPreprocessCacheElem *elem, *elem_next;
+
+	if (!preprocess_cache)
 		return;
+
+	for (elem = preprocess_cache->elems.first; elem; elem = elem_next) {
+		elem_next = elem->next;
+
+		if (elem->seq == seq) {
+			IMB_freeImBuf(elem->ibuf);
+
+			BLI_freelinkN(&preprocess_cache->elems, elem);
+		}
 	}
-
-	ibufs_in++;
-
-	if (!entrypool) {
-		seq_stripelem_cache_init();
-	}
-
-	key = (seqCacheKey*) BLI_mempool_alloc(keypool);
-
-	key->seq = seq;
-	key->context = context;
-	key->cfra = cfra - seq->start;
-	key->type = type;
-
-	/* Normally we want our own version, but start and end stills are duplicates of the original. */
-	if(ELEM(type, SEQ_STRIPELEM_IBUF_STARTSTILL, SEQ_STRIPELEM_IBUF_ENDSTILL)==0)
-		IMB_refImBuf(i);
-
-	e = (seqCacheEntry*) BLI_mempool_alloc(entrypool);
-
-	e->ibuf = i;
-	e->c_handle = NULL;
-
-	BLI_ghash_remove(hash, key, HashKeyFree, HashValFree);
-	BLI_ghash_insert(hash, key, e);
-
-	e->c_handle = MEM_CacheLimiter_insert(limitor, e);
-
-	MEM_CacheLimiter_ref(e->c_handle);
-	MEM_CacheLimiter_enforce_limits(limitor);
-	MEM_CacheLimiter_unref(e->c_handle);
 }

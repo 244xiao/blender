@@ -1,4 +1,3 @@
-# $Id: CMakeLists.txt 35054 2011-02-22 06:23:07Z campbellbarton $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -23,5 +22,9 @@
 # Contributor(s): Jacques Beaurain.
 #
 # ***** END GPL LICENSE BLOCK *****
+
+if(WITH_FREESTYLE)
+	add_definitions(-DWITH_FREESTYLE)
+endif()
 
 add_subdirectory(intern)

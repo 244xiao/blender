@@ -1,6 +1,4 @@
 /*
- * $Id: BIF_generate.h 35242 2011-02-27 20:29:51Z jesterking $
- *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -25,8 +23,8 @@
  */
 
  
-#ifndef BIF_GENERATE_H
-#define BIF_GENERATE_H
+#ifndef __BIF_GENERATE_H__
+#define __BIF_GENERATE_H__
 
 struct ToolSettings;
 struct EditBone;
@@ -34,7 +32,7 @@ struct BArcIterator;
 struct bArmature;
 struct ListBase;
 
-typedef int(NextSubdivisionFunc)(struct ToolSettings*, struct BArcIterator*, int, int, float[3], float[3]);
+typedef int (NextSubdivisionFunc)(struct ToolSettings *, struct BArcIterator *, int, int, float[3], float[3]);
  
 float calcArcCorrelation(struct BArcIterator *iter, int start, int end, float v0[3], float n[3]);
 
@@ -42,9 +40,10 @@ int nextFixedSubdivision(struct ToolSettings *toolsettings, struct BArcIterator 
 int nextLengthSubdivision(struct ToolSettings *toolsettings, struct BArcIterator *iter, int start, int end, float head[3], float p[3]);
 int nextAdaptativeSubdivision(struct ToolSettings *toolsettings, struct BArcIterator *iter, int start, int end, float head[3], float p[3]);
 
-struct EditBone * subdivideArcBy(struct ToolSettings *toolsettings, struct bArmature *arm, ListBase *editbones, struct BArcIterator *iter, float invmat[][4], float tmat[][3], NextSubdivisionFunc next_subdividion);
+struct EditBone *subdivideArcBy(struct ToolSettings *toolsettings, struct bArmature *arm, ListBase *editbones, struct BArcIterator *iter,
+                                float invmat[4][4], float tmat[3][3], NextSubdivisionFunc next_subdividion);
 
-void setBoneRollFromNormal(struct EditBone *bone, float *no, float invmat[][4], float tmat[][3]);
+void setBoneRollFromNormal(struct EditBone *bone, const float no[3], float invmat[4][4], float tmat[3][3]);
  
 
-#endif /* BIF_GENERATE_H */
+#endif /* __BIF_GENERATE_H__ */
